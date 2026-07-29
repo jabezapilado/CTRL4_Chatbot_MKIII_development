@@ -1,0 +1,341 @@
+[
+  {
+    "id": "TM001",
+
+    "topic": "Understanding Time Management",
+
+    "category": "Time Management",
+
+    "keywords": [
+      "time management",
+      "schedule",
+      "planning",
+      "organization",
+      "routine"
+    ],
+
+    "question_variations": [
+      "I don't know how to manage my time.",
+      "I'm always running out of time.",
+      "I can't organize my schedule.",
+      "Everything feels rushed."
+    ],
+
+    "response": "Managing your time effectively means planning your responsibilities in a way that allows you to balance academics, personal life, rest, and extracurricular activities. Good time management helps reduce stress and improves productivity.",
+
+    "related_emotions": [
+      "Stress",
+      "Frustration"
+    ],
+
+    "possible_intents": [
+      "Time Management",
+      "Academic Concern"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "What usually takes up most of your time?",
+      "Would you like help creating a weekly schedule?",
+      "Are deadlines your biggest challenge?"
+    ],
+
+    "recommended_resources": [
+      "goal_setting",
+      "study_skills",
+      "academic_stress"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [12]
+  },
+
+  {
+    "id": "TM002",
+
+    "topic": "Prioritize Important Tasks",
+
+    "category": "Time Management",
+
+    "keywords": [
+      "prioritize",
+      "important",
+      "urgent",
+      "deadlines",
+      "tasks"
+    ],
+
+    "question_variations": [
+      "I don't know what to do first.",
+      "Everything feels urgent.",
+      "I have too many things to finish."
+    ],
+
+    "response": "When several tasks compete for your attention, identify which ones are urgent and important. Completing high-priority tasks first can reduce stress and prevent last-minute pressure.",
+
+    "related_emotions": [
+      "Stress"
+    ],
+
+    "possible_intents": [
+      "Time Management",
+      "Academic Concern"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Would you like help prioritizing your current tasks?",
+      "Which deadline is coming up first?"
+    ],
+
+    "recommended_resources": [
+      "goal_setting",
+      "study_skills"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [12]
+  },
+
+  {
+    "id": "TM003",
+
+    "topic": "Break Large Tasks into Smaller Steps",
+
+    "category": "Time Management",
+
+    "keywords": [
+      "big project",
+      "small steps",
+      "overwhelmed",
+      "projects",
+      "requirements"
+    ],
+
+    "question_variations": [
+      "My project feels impossible.",
+      "I don't know where to start.",
+      "I'm overwhelmed by my thesis.",
+      "My assignments are too big."
+    ],
+
+    "response": "Large projects become more manageable when divided into smaller, realistic tasks. Completing one step at a time can reduce anxiety and make steady progress easier.",
+
+    "related_emotions": [
+      "Stress",
+      "Anxiety"
+    ],
+
+    "possible_intents": [
+      "Time Management",
+      "Academic Concern"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "What's the first small step you could complete today?",
+      "Would you like help creating a project timeline?"
+    ],
+
+    "recommended_resources": [
+      "goal_setting",
+      "academic_stress"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [12]
+  },
+
+  {
+    "id": "TM004",
+
+    "topic": "Avoid Procrastination",
+
+    "category": "Time Management",
+
+    "keywords": [
+      "procrastination",
+      "delay",
+      "last minute",
+      "motivation"
+    ],
+
+    "question_variations": [
+      "I always procrastinate.",
+      "I can't stop delaying my work.",
+      "I always cram.",
+      "I never start early."
+    ],
+
+    "response": "Procrastination can increase stress and reduce the quality of your work. Starting with a small, manageable task often makes it easier to build momentum and continue working.",
+
+    "related_emotions": [
+      "Stress",
+      "Frustration"
+    ],
+
+    "possible_intents": [
+      "Time Management",
+      "Study Skills"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "What usually causes you to procrastinate?",
+      "Would setting smaller daily goals help?"
+    ],
+
+    "recommended_resources": [
+      "goal_setting",
+      "study_skills",
+      "motivation"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [12]
+  },
+
+  {
+    "id": "TM005",
+
+    "topic": "Balance Work and Rest",
+
+    "category": "Time Management",
+
+    "keywords": [
+      "balance",
+      "rest",
+      "sleep",
+      "burnout",
+      "break"
+    ],
+
+    "question_variations": [
+      "I don't have time to rest.",
+      "I'm always studying.",
+      "I feel guilty taking breaks.",
+      "I'm exhausted all the time."
+    ],
+
+    "response": "Effective time management includes scheduling time for rest, sleep, meals, and recreation. Taking breaks is an important part of maintaining concentration, preventing burnout, and supporting long-term academic success.",
+
+    "related_emotions": [
+      "Burned Out",
+      "Stress"
+    ],
+
+    "possible_intents": [
+      "Time Management",
+      "Self Care"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "When was the last time you had a proper break?",
+      "How many hours of sleep are you usually getting?"
+    ],
+
+    "recommended_resources": [
+      "self_care",
+      "stress_management",
+      "burnout"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [12]
+  },
+
+  {
+    "id": "TM006",
+
+    "topic": "Use a Planner or Calendar",
+
+    "category": "Time Management",
+
+    "keywords": [
+      "planner",
+      "calendar",
+      "schedule",
+      "organize",
+      "deadlines"
+    ],
+
+    "question_variations": [
+      "I keep forgetting deadlines.",
+      "I miss important dates.",
+      "How do I organize my schedule?"
+    ],
+
+    "response": "Using a planner, calendar, or digital scheduling app can help you keep track of deadlines, examinations, meetings, and personal commitments. Recording important dates reduces the risk of forgetting responsibilities.",
+
+    "related_emotions": [
+      "Stress"
+    ],
+
+    "possible_intents": [
+      "Time Management"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Do you currently use a planner or calendar?",
+      "Would a weekly schedule be helpful?"
+    ],
+
+    "recommended_resources": [
+      "goal_setting",
+      "study_skills"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [12]
+  }
+]

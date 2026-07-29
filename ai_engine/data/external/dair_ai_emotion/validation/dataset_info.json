@@ -1,0 +1,55 @@
+{
+  "builder_name": "parquet",
+  "citation": "",
+  "config_name": "split",
+  "dataset_name": "emotion",
+  "dataset_size": 2175901,
+  "description": "",
+  "download_size": 1287193,
+  "features": {
+    "text": {
+      "dtype": "string",
+      "_type": "Value"
+    },
+    "label": {
+      "names": [
+        "sadness",
+        "joy",
+        "love",
+        "anger",
+        "fear",
+        "surprise"
+      ],
+      "_type": "ClassLabel"
+    }
+  },
+  "homepage": "",
+  "license": "",
+  "size_in_bytes": 3463094,
+  "splits": {
+    "train": {
+      "name": "train",
+      "num_bytes": 1743533,
+      "num_examples": 16000,
+      "dataset_name": "emotion"
+    },
+    "validation": {
+      "name": "validation",
+      "num_bytes": 214945,
+      "num_examples": 2000,
+      "dataset_name": "emotion"
+    },
+    "test": {
+      "name": "test",
+      "num_bytes": 217423,
+      "num_examples": 2000,
+      "dataset_name": "emotion"
+    }
+  },
+  "version": {
+    "version_str": "0.0.0",
+    "major": 0,
+    "minor": 0,
+    "patch": 0
+  }
+}

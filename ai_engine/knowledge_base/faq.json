@@ -1,0 +1,416 @@
+[
+  {
+    "id": "FAQ001",
+
+    "topic": "Is Counseling Free?",
+
+    "category": "FAQ",
+
+    "keywords": [
+      "free",
+      "payment",
+      "cost",
+      "fee"
+    ],
+
+    "question_variations": [
+      "Is counseling free?",
+      "Do I have to pay?",
+      "Is there a counseling fee?"
+    ],
+
+    "response": "Guidance counseling services provided by the University Guidance Center are available to students in accordance with university policies. Students are encouraged to contact the Guidance Office for any service-specific questions.",
+
+    "related_emotions": [
+      "Neutral"
+    ],
+
+    "possible_intents": [
+      "FAQ",
+      "Counseling Services"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Would you like information on how to schedule a counseling session?"
+    ],
+
+    "recommended_resources": [
+      "appointment_process",
+      "guidance_services"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Guidance Office Handbook",
+
+    "page_numbers": [8]
+  },
+
+  {
+    "id": "FAQ002",
+
+    "topic": "Do I Need an Appointment?",
+
+    "category": "FAQ",
+
+    "keywords": [
+      "appointment",
+      "schedule",
+      "walk in"
+    ],
+
+    "question_variations": [
+      "Do I need an appointment?",
+      "Can I just walk in?",
+      "Can I visit today?"
+    ],
+
+    "response": "Appointments are generally recommended so a Guidance Counselor can prepare for your visit. Depending on office policy and counselor availability, walk-in services may also be available.",
+
+    "related_emotions": [
+      "Neutral"
+    ],
+
+    "possible_intents": [
+      "Appointment"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Would you like to know how to schedule an appointment?"
+    ],
+
+    "recommended_resources": [
+      "appointment_process",
+      "office_hours"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Guidance Office Handbook",
+
+    "page_numbers": [8]
+  },
+
+  {
+    "id": "FAQ003",
+
+    "topic": "Can I Visit Even Without a Serious Problem?",
+
+    "category": "FAQ",
+
+    "keywords": [
+      "minor problem",
+      "stress",
+      "talk",
+      "visit"
+    ],
+
+    "question_variations": [
+      "Do I need a serious problem?",
+      "Can I visit just to talk?",
+      "I'm just stressed."
+    ],
+
+    "response": "Yes. Students do not need to be experiencing a crisis before visiting the Guidance Office. Counseling services are available for academic, personal, emotional, social, and career-related concerns.",
+
+    "related_emotions": [
+      "Stress",
+      "Neutral"
+    ],
+
+    "possible_intents": [
+      "Counseling Services",
+      "FAQ"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Would you like to schedule a counseling session?"
+    ],
+
+    "recommended_resources": [
+      "guidance_services",
+      "appointment_process"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Guidance Office Handbook",
+
+    "page_numbers": [8]
+  },
+
+  {
+    "id": "FAQ004",
+
+    "topic": "How Long Does a Counseling Session Last?",
+
+    "category": "FAQ",
+
+    "keywords": [
+      "duration",
+      "how long",
+      "session"
+    ],
+
+    "question_variations": [
+      "How long is counseling?",
+      "How much time does a session take?"
+    ],
+
+    "response": "The length of a counseling session depends on the student's concerns and the Guidance Office's procedures. Students may ask the counselor for more information when scheduling an appointment.",
+
+    "related_emotions": [
+      "Neutral"
+    ],
+
+    "possible_intents": [
+      "FAQ"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Would you like information about your first counseling session?"
+    ],
+
+    "recommended_resources": [
+      "appointment_process"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Guidance Office Handbook",
+
+    "page_numbers": [8]
+  },
+
+  {
+    "id": "FAQ005",
+
+    "topic": "Is Online Counseling Available?",
+
+    "category": "FAQ",
+
+    "keywords": [
+      "online",
+      "virtual",
+      "zoom",
+      "google meet"
+    ],
+
+    "question_variations": [
+      "Can I do counseling online?",
+      "Is virtual counseling available?"
+    ],
+
+    "response": "Depending on the Guidance Office's current services, counseling may be available both onsite and online. Students may contact the Guidance Office or their assigned counselor for the latest arrangements.",
+
+    "related_emotions": [
+      "Neutral"
+    ],
+
+    "possible_intents": [
+      "FAQ",
+      "Appointment"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Would you like your assigned counselor's contact information?"
+    ],
+
+    "recommended_resources": [
+      "office_hours",
+      "guidance_services"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Guidance Office Handbook",
+
+    "page_numbers": [8]
+  },
+
+  {
+    "id": "FAQ006",
+
+    "topic": "Can I Choose My Counselor?",
+
+    "category": "FAQ",
+
+    "keywords": [
+      "choose counselor",
+      "assigned counselor",
+      "guidance counselor"
+    ],
+
+    "question_variations": [
+      "Can I choose my counselor?",
+      "Can I request another counselor?",
+      "Who is my counselor?"
+    ],
+
+    "response": "Counselor assignments are generally based on academic programs. If you have questions regarding your assigned counselor or need assistance, please contact the Guidance Office.",
+
+    "related_emotions": [
+      "Neutral"
+    ],
+
+    "possible_intents": [
+      "FAQ",
+      "Guidance Services"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "What program are you currently enrolled in?"
+    ],
+
+    "recommended_resources": [
+      "office_hours",
+      "guidance_services"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Guidance Office Handbook",
+
+    "page_numbers": [8]
+  },
+
+  {
+    "id": "FAQ007",
+
+    "topic": "I'm Nervous About Counseling",
+
+    "category": "FAQ",
+
+    "keywords": [
+      "nervous",
+      "afraid",
+      "first session",
+      "anxious"
+    ],
+
+    "question_variations": [
+      "I'm scared to see a counselor.",
+      "I'm nervous about counseling.",
+      "What if I'm uncomfortable?"
+    ],
+
+    "response": "Feeling nervous before your first counseling session is completely understandable. Guidance Counselors aim to provide a respectful, supportive, and nonjudgmental environment where you can share at your own pace. You are encouraged to discuss only what you feel comfortable sharing.",
+
+    "related_emotions": [
+      "Anxiety",
+      "Fear"
+    ],
+
+    "possible_intents": [
+      "FAQ",
+      "Emotional Support"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Would knowing what happens during counseling help you feel more comfortable?"
+    ],
+
+    "recommended_resources": [
+      "appointment_process",
+      "confidentiality"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Guidance Office Handbook",
+
+    "page_numbers": [8]
+  },
+
+  {
+    "id": "FAQ008",
+
+    "topic": "What If I Miss My Appointment?",
+
+    "category": "FAQ",
+
+    "keywords": [
+      "miss appointment",
+      "cancel",
+      "reschedule"
+    ],
+
+    "question_variations": [
+      "I missed my counseling session.",
+      "Can I reschedule?",
+      "What if I can't attend?"
+    ],
+
+    "response": "If you cannot attend your scheduled counseling session, notify the Guidance Office as soon as possible so your appointment can be rescheduled if needed.",
+
+    "related_emotions": [
+      "Neutral"
+    ],
+
+    "possible_intents": [
+      "Appointment"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Would you like information about rescheduling your appointment?"
+    ],
+
+    "recommended_resources": [
+      "appointment_process"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Guidance Office Handbook",
+
+    "page_numbers": [8]
+  }
+]

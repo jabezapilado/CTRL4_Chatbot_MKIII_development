@@ -1,0 +1,329 @@
+[
+  {
+    "id": "GS001",
+    "topic": "Why Goal Setting Matters",
+    "category": "Goal Setting",
+
+    "keywords": [
+      "goals",
+      "future",
+      "purpose",
+      "direction",
+      "motivation"
+    ],
+
+    "question_variations": [
+      "I don't know what I want to do.",
+      "I don't have goals.",
+      "I feel lost.",
+      "I don't know my purpose.",
+      "I don't know where I'm going."
+    ],
+
+    "response": "Setting meaningful goals gives direction to your academic and personal life. Goals help you make decisions, stay motivated, and measure your progress. Having a clear purpose can make daily tasks feel more meaningful and manageable.",
+
+    "related_emotions": [
+      "Hopelessness",
+      "Anxiety",
+      "Neutral"
+    ],
+
+    "possible_intents": [
+      "Goal Setting",
+      "Career Guidance",
+      "Academic Concern"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "What would you like to achieve this semester?",
+      "Is there a specific area of your life you'd like to improve?",
+      "Would you like help creating realistic goals?"
+    ],
+
+    "recommended_resources": [
+      "academic_stress",
+      "study_skills",
+      "time_management"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [9]
+  },
+
+  {
+    "id": "GS002",
+    "topic": "Using the SMARTEST Goal Framework",
+    "category": "Goal Setting",
+
+    "keywords": [
+      "smart goals",
+      "SMART",
+      "SMARTEST",
+      "planning",
+      "goal framework"
+    ],
+
+    "question_variations": [
+      "How do I write good goals?",
+      "What's the SMART goal method?",
+      "How do I plan my semester?"
+    ],
+
+    "response": "The handbook recommends creating goals that are Specific, Measurable, Achievable, Relevant, Time-bound, Evaluated, and Reviewed. Reviewing your goals regularly allows you to adjust your plans while staying focused on long-term success.",
+
+    "related_emotions": [
+      "Neutral"
+    ],
+
+    "possible_intents": [
+      "Goal Setting",
+      "Academic Concern"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Would you like help writing a SMART goal?",
+      "What goal are you currently working toward?"
+    ],
+
+    "recommended_resources": [
+      "time_management",
+      "study_skills"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [9,10]
+  },
+
+  {
+    "id": "GS003",
+    "topic": "Break Large Goals Into Smaller Steps",
+    "category": "Goal Setting",
+
+    "keywords": [
+      "small steps",
+      "big goals",
+      "planning",
+      "progress"
+    ],
+
+    "question_variations": [
+      "My goals feel impossible.",
+      "I don't know where to start.",
+      "Everything feels too big."
+    ],
+
+    "response": "Large goals can feel overwhelming. Breaking them into smaller, achievable tasks makes them easier to accomplish and allows you to celebrate progress along the way.",
+
+    "related_emotions": [
+      "Stress",
+      "Anxiety"
+    ],
+
+    "possible_intents": [
+      "Goal Setting",
+      "Academic Concern"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "What's one small step you can take today?",
+      "Would you like help breaking your goal into manageable tasks?"
+    ],
+
+    "recommended_resources": [
+      "time_management",
+      "study_skills"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [9,10]
+  },
+
+  {
+    "id": "GS004",
+    "topic": "Review Your Progress Regularly",
+    "category": "Reflection",
+
+    "keywords": [
+      "reflection",
+      "progress",
+      "evaluate",
+      "review"
+    ],
+
+    "question_variations": [
+      "I don't know if I'm improving.",
+      "How do I know if I'm making progress?",
+      "I'm not sure if my plan is working."
+    ],
+
+    "response": "Regular reflection helps you recognize your achievements, identify obstacles, and adjust your plans when necessary. Progress is not always linear, and reviewing your goals helps keep them realistic and relevant.",
+
+    "related_emotions": [
+      "Stress",
+      "Neutral"
+    ],
+
+    "possible_intents": [
+      "Goal Setting"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "What progress have you made recently?",
+      "What challenges have you encountered?"
+    ],
+
+    "recommended_resources": [
+      "motivation",
+      "study_skills"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [10]
+  },
+
+  {
+    "id": "GS005",
+    "topic": "Learn From Setbacks",
+    "category": "Resilience",
+
+    "keywords": [
+      "failure",
+      "mistakes",
+      "setback",
+      "growth",
+      "resilience"
+    ],
+
+    "question_variations": [
+      "I failed my exam.",
+      "I made too many mistakes.",
+      "I feel like giving up.",
+      "Nothing is going right."
+    ],
+
+    "response": "Setbacks are part of learning and growth. Instead of viewing failure as the end of your journey, use it as an opportunity to reflect, identify what can be improved, and continue moving forward with a better plan.",
+
+    "related_emotions": [
+      "Sadness",
+      "Frustration",
+      "Stress"
+    ],
+
+    "possible_intents": [
+      "Academic Concern",
+      "Emotional Support"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Would you like to talk about what happened?",
+      "What do you think contributed to the setback?"
+    ],
+
+    "recommended_resources": [
+      "academic_stress",
+      "study_skills",
+      "motivation"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [10,11]
+  },
+
+  {
+    "id": "GS006",
+    "topic": "Celebrate Small Wins",
+    "category": "Motivation",
+
+    "keywords": [
+      "small wins",
+      "motivation",
+      "confidence",
+      "progress"
+    ],
+
+    "question_variations": [
+      "I feel like I'm not accomplishing anything.",
+      "I'm progressing slowly.",
+      "Nothing seems to change."
+    ],
+
+    "response": "Recognizing even small accomplishments can improve confidence and motivation. Every positive step contributes to your long-term growth and should be acknowledged.",
+
+    "related_emotions": [
+      "Burned Out",
+      "Stress"
+    ],
+
+    "possible_intents": [
+      "Goal Setting",
+      "Emotional Support"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "What's one achievement you're proud of recently?",
+      "Would you like to set a small goal for this week?"
+    ],
+
+    "recommended_resources": [
+      "motivation",
+      "self_care"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [11]
+  }
+]

@@ -1,0 +1,294 @@
+[
+  {
+    "id": "SE001",
+
+    "topic": "Understanding Self-Esteem",
+
+    "category": "Mental Health",
+
+    "keywords": [
+      "self esteem",
+      "confidence",
+      "self worth",
+      "believe in myself",
+      "value"
+    ],
+
+    "question_variations": [
+      "I don't believe in myself.",
+      "I have no confidence.",
+      "I'm not good enough.",
+      "I don't know my worth."
+    ],
+
+    "response": "Self-esteem is how you view and value yourself. It can change over time and may be influenced by your experiences, relationships, and personal challenges. Building healthy self-esteem involves recognizing your strengths, accepting that everyone has areas for growth, and treating yourself with kindness.",
+
+    "related_emotions": [
+      "Sadness",
+      "Anxiety",
+      "Hopelessness"
+    ],
+
+    "possible_intents": [
+      "Mental Health",
+      "Emotional Support"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "What has made you feel this way about yourself?",
+      "Would you like to talk about what's affecting your confidence?"
+    ],
+
+    "recommended_resources": [
+      "coping_strategies",
+      "self_care",
+      "guidance_services"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [30]
+  },
+
+  {
+    "id": "SE002",
+
+    "topic": "Avoid Comparing Yourself to Others",
+
+    "category": "Personal Growth",
+
+    "keywords": [
+      "comparison",
+      "everyone is better",
+      "inferior",
+      "classmates"
+    ],
+
+    "question_variations": [
+      "Everyone is smarter than me.",
+      "My classmates are better.",
+      "I always compare myself.",
+      "I feel inferior."
+    ],
+
+    "response": "Comparing yourself to others can make you overlook your own progress and strengths. Every student has different experiences, abilities, and challenges. Focus on your own growth instead of measuring your value against others.",
+
+    "related_emotions": [
+      "Anxiety",
+      "Sadness"
+    ],
+
+    "possible_intents": [
+      "Emotional Support",
+      "Mental Health"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "What strengths do you think you have?",
+      "Would you like to talk about the situation that's making you compare yourself?"
+    ],
+
+    "recommended_resources": [
+      "goal_setting",
+      "study_skills",
+      "self_care"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [30]
+  },
+
+  {
+    "id": "SE003",
+
+    "topic": "Recognize Your Strengths",
+
+    "category": "Personal Growth",
+
+    "keywords": [
+      "strengths",
+      "abilities",
+      "skills",
+      "talents",
+      "confidence"
+    ],
+
+    "question_variations": [
+      "I don't have any strengths.",
+      "I'm not talented.",
+      "I'm not good at anything."
+    ],
+
+    "response": "Everyone has strengths, even if they are not immediately obvious. Consider your achievements, interests, personal qualities, and the challenges you have overcome. Recognizing your strengths can help build confidence over time.",
+
+    "related_emotions": [
+      "Sadness",
+      "Hopelessness"
+    ],
+
+    "possible_intents": [
+      "Emotional Support"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Can you think of something you've accomplished recently?",
+      "What activities make you feel capable or proud?"
+    ],
+
+    "recommended_resources": [
+      "goal_setting",
+      "coping_strategies"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [30]
+  },
+
+  {
+    "id": "SE004",
+
+    "topic": "Learn From Mistakes Without Judging Yourself",
+
+    "category": "Resilience",
+
+    "keywords": [
+      "mistakes",
+      "failure",
+      "self criticism",
+      "perfection"
+    ],
+
+    "question_variations": [
+      "I'm a failure.",
+      "I always make mistakes.",
+      "I hate myself because I failed.",
+      "I'm never good enough."
+    ],
+
+    "response": "Making mistakes is part of learning and personal growth. A setback does not define your worth. Instead of judging yourself harshly, try identifying what you learned and how you can move forward with new knowledge and experience.",
+
+    "related_emotions": [
+      "Sadness",
+      "Frustration",
+      "Hopelessness"
+    ],
+
+    "possible_intents": [
+      "Emotional Support",
+      "Academic Concern"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Would you like to talk about what happened?",
+      "What do you think you learned from the experience?"
+    ],
+
+    "recommended_resources": [
+      "goal_setting",
+      "academic_stress",
+      "burnout"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [30]
+  },
+
+  {
+    "id": "SE005",
+
+    "topic": "When Low Self-Esteem Begins to Affect Daily Life",
+
+    "category": "Mental Health",
+
+    "keywords": [
+      "worthless",
+      "useless",
+      "hate myself",
+      "no value",
+      "hopeless"
+    ],
+
+    "question_variations": [
+      "I feel worthless.",
+      "I hate myself.",
+      "I'm useless.",
+      "I don't matter."
+    ],
+
+    "response": "If negative thoughts about yourself become persistent or begin affecting your studies, relationships, or daily functioning, consider talking with a Guidance Counselor or another qualified mental health professional. You deserve support, and you do not have to face these thoughts alone.",
+
+    "related_emotions": [
+      "Hopelessness",
+      "Sadness",
+      "Anxiety"
+    ],
+
+    "possible_intents": [
+      "Mental Health",
+      "Counseling Services"
+    ],
+
+    "risk_level": "MEDIUM",
+
+    "follow_up_questions": [
+      "Would you feel comfortable speaking with a Guidance Counselor?",
+      "Would you like information about available support services?"
+    ],
+
+    "recommended_resources": [
+      "guidance_services",
+      "appointment_process",
+      "coping_strategies"
+    ],
+
+    "escalation": {
+      "required": true,
+      "trigger_conditions": [
+        "worthless",
+        "hate myself",
+        "useless",
+        "don't matter"
+      ],
+      "action": "Recommend contacting the Guidance Office. If the conversation also includes thoughts of self-harm or suicide, immediately transition to the crisis support protocol."
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [30]
+  }
+]

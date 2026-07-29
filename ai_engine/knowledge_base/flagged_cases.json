@@ -1,0 +1,129 @@
+[
+    {
+        "id": "FLAG001",
+        "topic": "What Are Flagged Cases?",
+        "category": "CTRL4 Information",
+        "keywords": [
+            "flagged cases",
+            "flagged conversations",
+            "student support",
+            "negative emotions",
+            "emotion detection"
+        ],
+        "question_variations": [
+            "What is a flagged case?",
+            "What are flagged conversations?",
+            "Why are conversations flagged?",
+            "What happens when a student is flagged?"
+        ],
+        "response": "Flagged cases are conversations that contain indicators of emotional distress or negative emotions that may require additional Guidance Office support. The feature is designed to help identify students who may benefit from counseling services or other appropriate interventions provided by the Guidance Office.",
+        "related_emotions": [
+            "Stress",
+            "Anxiety",
+            "Burnout",
+            "Hopelessness"
+        ],
+        "possible_intents": [
+            "System Information",
+            "Student Support"
+        ],
+        "risk_level": "LOW",
+        "follow_up_questions": [
+            "Would you like to learn more about counseling services?",
+            "Would you like to know how negative emotion detection works?"
+        ],
+        "recommended_resources": [
+            "negative_emotion_detection",
+            "guidance_services"
+        ],
+        "escalation": {
+            "required": false,
+            "trigger_conditions": [],
+            "action": null
+        },
+        "source_document": "CTRL4 System Documentation",
+        "page_numbers": [1]
+    },
+
+    {
+        "id": "FLAG002",
+        "topic": "How Does Flagging Work?",
+        "category": "CTRL4 Information",
+        "keywords": [
+            "flagging process",
+            "emotion detection process",
+            "how does flagging work",
+            "student support process"
+        ],
+        "question_variations": [
+            "How does the flagging process work?",
+            "How are conversations flagged?",
+            "What happens after negative emotions are detected?"
+        ],
+        "response": "CTRL4 uses Natural Language Processing (NLP) techniques to identify emotional indicators within student messages. When negative emotions are detected, the system provides supportive responses and may recommend appropriate Guidance Office services when necessary. The flagging mechanism is intended to assist the Guidance Office in providing timely and appropriate student support.",
+        "related_emotions": [
+            "Stress",
+            "Anxiety",
+            "Loneliness",
+            "Burnout"
+        ],
+        "possible_intents": [
+            "Negative Emotion Detection"
+        ],
+        "risk_level": "LOW",
+        "follow_up_questions": [
+            "Would you like to know more about counseling appointments?"
+        ],
+        "recommended_resources": [
+            "negative_emotion_detection",
+            "appointment_process"
+        ],
+        "escalation": {
+            "required": false,
+            "trigger_conditions": [],
+            "action": null
+        },
+        "source_document": "CTRL4 System Documentation",
+        "page_numbers": [1]
+    },
+
+    {
+        "id": "FLAG003",
+        "topic": "Student Privacy and Flagged Cases",
+        "category": "CTRL4 Information",
+        "keywords": [
+            "privacy",
+            "confidentiality",
+            "flagged cases privacy",
+            "student information",
+            "data privacy"
+        ],
+        "question_variations": [
+            "Are flagged cases confidential?",
+            "Is my information protected?",
+            "Who can access flagged cases?",
+            "How is my privacy protected?"
+        ],
+        "response": "CTRL4 is designed to support responsible handling of student information. Flagged cases are intended solely for Guidance Office support purposes and should be managed in accordance with applicable data privacy and confidentiality considerations. Student privacy and well-being remain important priorities throughout the support process.",
+        "related_emotions": [
+            "Neutral"
+        ],
+        "possible_intents": [
+            "Privacy and Confidentiality"
+        ],
+        "risk_level": "LOW",
+        "follow_up_questions": [
+            "Would you like information about confidentiality policies?"
+        ],
+        "recommended_resources": [
+            "confidentiality"
+        ],
+        "escalation": {
+            "required": false,
+            "trigger_conditions": [],
+            "action": null
+        },
+        "source_document": "CTRL4 System Documentation",
+        "page_numbers": [1]
+    }
+]

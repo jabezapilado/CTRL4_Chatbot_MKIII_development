@@ -1,0 +1,122 @@
+[
+    {
+        "id": "STAFF001",
+        "topic": "Guidance Office Staff Capabilities",
+        "category": "CTRL4 Information",
+        "keywords": [
+            "guidance staff",
+            "staff capabilities",
+            "staff features",
+            "guidance office staff",
+            "what can staff do"
+        ],
+        "question_variations": [
+            "What can Guidance Office staff do?",
+            "What are the capabilities of Guidance Office staff?",
+            "What features are available for staff?",
+            "How do staff members use CTRL4?"
+        ],
+        "response": "Guidance Office staff may use CTRL4 to manage counseling appointments, monitor appointment information, review conversation summaries, and provide appropriate Guidance Office support services. The staff portal is designed to assist counselors and Guidance Office personnel in managing student concerns efficiently and securely.",
+        "related_emotions": [
+            "Neutral"
+        ],
+        "possible_intents": [
+            "System Information"
+        ],
+        "risk_level": "LOW",
+        "follow_up_questions": [
+            "Would you like to know more about counseling appointments?",
+            "Would you like information about Guidance Office services?"
+        ],
+        "recommended_resources": [
+            "appointment_process",
+            "guidance_services"
+        ],
+        "escalation": {
+            "required": false,
+            "trigger_conditions": [],
+            "action": null
+        },
+        "source_document": "CTRL4 System Documentation",
+        "page_numbers": [1]
+    },
+
+    {
+        "id": "STAFF002",
+        "topic": "Appointment Management Features",
+        "category": "CTRL4 Information",
+        "keywords": [
+            "appointment management",
+            "staff appointments",
+            "manage appointments",
+            "appointment status"
+        ],
+        "question_variations": [
+            "Can staff manage appointments?",
+            "How do staff members manage appointments?",
+            "Can counselors view appointment requests?",
+            "What appointment features are available for staff?"
+        ],
+        "response": "Guidance Office staff may review appointment requests, manage appointment schedules, and update appointment information through the CTRL4 appointment management system. This helps ensure that counseling services are organized and accessible for students.",
+        "related_emotions": [
+            "Neutral"
+        ],
+        "possible_intents": [
+            "Appointment Management"
+        ],
+        "risk_level": "LOW",
+        "follow_up_questions": [
+            "Would you like to know how students book appointments?"
+        ],
+        "recommended_resources": [
+            "appointment_process"
+        ],
+        "escalation": {
+            "required": false,
+            "trigger_conditions": [],
+            "action": null
+        },
+        "source_document": "CTRL4 System Documentation",
+        "page_numbers": [1]
+    },
+
+    {
+        "id": "STAFF003",
+        "topic": "Student Privacy and Staff Access",
+        "category": "CTRL4 Information",
+        "keywords": [
+            "privacy",
+            "staff access",
+            "student information",
+            "confidentiality",
+            "what can staff see"
+        ],
+        "question_variations": [
+            "What student information can staff access?",
+            "Can staff read all conversations?",
+            "How is student privacy protected?",
+            "Are conversations confidential?"
+        ],
+        "response": "CTRL4 is designed with student privacy and confidentiality in mind. Guidance Office staff only access information necessary for providing Guidance Office services and managing appointments. The system supports responsible handling of student information in accordance with applicable data privacy and confidentiality considerations.",
+        "related_emotions": [
+            "Neutral"
+        ],
+        "possible_intents": [
+            "Privacy and Confidentiality"
+        ],
+        "risk_level": "LOW",
+        "follow_up_questions": [
+            "Would you like information about confidentiality policies?"
+        ],
+        "recommended_resources": [
+            "confidentiality"
+        ],
+        "escalation": {
+            "required": false,
+            "trigger_conditions": [],
+            "action": null
+        },
+        "source_document": "CTRL4 System Documentation",
+        "page_numbers": [1]
+    }
+]

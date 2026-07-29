@@ -1,0 +1,296 @@
+[
+  {
+    "id": "AS001",
+    "topic": "Understanding Academic Stress",
+    "category": "Academic Concern",
+
+    "keywords": [
+      "academic stress",
+      "school pressure",
+      "college workload",
+      "assignments",
+      "deadlines",
+      "pressure",
+      "overwhelmed"
+    ],
+
+    "question_variations": [
+      "I'm overwhelmed with school.",
+      "School is stressing me out.",
+      "I have too many requirements.",
+      "College is becoming too much.",
+      "I'm under so much pressure."
+    ],
+
+    "response": "Academic stress is a common experience among college students. Coursework, deadlines, examinations, and personal responsibilities can become overwhelming. Recognizing stress early and using healthy coping strategies can help prevent it from affecting your well-being and academic performance.",
+
+    "related_emotions": [
+      "Stress",
+      "Burned Out",
+      "Anxiety"
+    ],
+
+    "possible_intents": [
+      "Academic Concern",
+      "Emotional Support"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Which subject has been causing you the most stress?",
+      "Would you like help organizing your workload?",
+      "How long have you been feeling this way?"
+    ],
+
+    "recommended_resources": [
+      "study_skills",
+      "time_management",
+      "stress_management"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [21]
+  },
+
+  {
+    "id": "AS002",
+    "topic": "Recognizing the Signs of Academic Stress",
+    "category": "Academic Concern",
+
+    "keywords": [
+      "can't focus",
+      "burnout",
+      "fatigue",
+      "exhausted",
+      "no motivation",
+      "mental exhaustion"
+    ],
+
+    "question_variations": [
+      "I can't focus anymore.",
+      "I'm mentally exhausted.",
+      "I'm always tired.",
+      "I can't study anymore.",
+      "My brain feels tired."
+    ],
+
+    "response": "Academic stress may appear as difficulty concentrating, fatigue, irritability, sleep problems, loss of motivation, or constantly feeling overwhelmed. Paying attention to these signs allows students to seek support before stress becomes more serious.",
+
+    "related_emotions": [
+      "Burned Out",
+      "Stress",
+      "Anxiety"
+    ],
+
+    "possible_intents": [
+      "Academic Concern"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Have you been sleeping well lately?",
+      "How long have you been feeling exhausted?",
+      "Would you like strategies to reduce academic stress?"
+    ],
+
+    "recommended_resources": [
+      "self_care",
+      "stress_management",
+      "study_skills"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [21,22]
+  },
+
+  {
+    "id": "AS003",
+    "topic": "Managing Heavy Academic Workloads",
+    "category": "Academic Concern",
+
+    "keywords": [
+      "too many assignments",
+      "deadlines",
+      "projects",
+      "requirements",
+      "workload"
+    ],
+
+    "question_variations": [
+      "I have too many assignments.",
+      "I can't finish everything.",
+      "My workload is overwhelming.",
+      "Everything is due this week."
+    ],
+
+    "response": "When your workload feels overwhelming, try listing your tasks, prioritizing urgent requirements, breaking larger projects into smaller steps, and completing one task at a time. Seeking help from instructors or the Guidance Office is also encouraged if stress becomes difficult to manage.",
+
+    "related_emotions": [
+      "Stress",
+      "Frustration"
+    ],
+
+    "possible_intents": [
+      "Academic Concern",
+      "Study Skills"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Which requirement is causing the most pressure?",
+      "Would you like help prioritizing your tasks?"
+    ],
+
+    "recommended_resources": [
+      "time_management",
+      "goal_setting",
+      "study_skills"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [21,22]
+  },
+
+  {
+    "id": "AS004",
+    "topic": "Fear of Academic Failure",
+    "category": "Academic Concern",
+
+    "keywords": [
+      "failing",
+      "bad grades",
+      "fear",
+      "grades",
+      "academic failure"
+    ],
+
+    "question_variations": [
+      "I'm scared of failing.",
+      "I think I'll fail.",
+      "My grades are getting worse.",
+      "I'm afraid of disappointing my parents."
+    ],
+
+    "response": "Fear of failure is understandable, but it should not prevent you from asking for help or trying again. Grades do not define your worth. Focus on learning from setbacks, identifying areas for improvement, and seeking support when needed.",
+
+    "related_emotions": [
+      "Fear",
+      "Stress",
+      "Sadness"
+    ],
+
+    "possible_intents": [
+      "Academic Concern",
+      "Emotional Support"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Which subject worries you the most?",
+      "Would you like to talk about what happened?"
+    ],
+
+    "recommended_resources": [
+      "goal_setting",
+      "study_skills",
+      "guidance_services"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [22]
+  },
+
+  {
+    "id": "AS005",
+    "topic": "When Academic Stress Becomes Serious",
+    "category": "Academic Concern",
+
+    "keywords": [
+      "hopeless",
+      "giving up",
+      "dropping out",
+      "can't continue",
+      "too much"
+    ],
+
+    "question_variations": [
+      "I feel like giving up.",
+      "I don't want to continue school.",
+      "I can't do this anymore.",
+      "Everything feels hopeless."
+    ],
+
+    "response": "If academic stress begins to affect your daily functioning, relationships, sleep, or emotional well-being, it is important to seek help. You do not have to manage these feelings alone. The Guidance Office can provide support and help you explore healthy ways to cope.",
+
+    "related_emotions": [
+      "Hopelessness",
+      "Stress",
+      "Burned Out"
+    ],
+
+    "possible_intents": [
+      "Academic Concern",
+      "Emotional Support"
+    ],
+
+    "risk_level": "MEDIUM",
+
+    "follow_up_questions": [
+      "Would you like to tell me more about what you're experiencing?",
+      "Have these feelings been affecting your daily life?",
+      "Would you be open to talking with a Guidance Counselor?"
+    ],
+
+    "recommended_resources": [
+      "guidance_services",
+      "stress_management",
+      "coping_strategies"
+    ],
+
+    "escalation": {
+      "required": true,
+      "trigger_conditions": [
+        "hopeless",
+        "giving up",
+        "can't continue"
+      ],
+      "action": "Encourage the student to contact the Guidance Office for additional support. If the conversation also includes thoughts of self-harm or suicide, transition to the crisis support protocol."
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [22]
+  }
+]

@@ -1,0 +1,122 @@
+[
+    {
+        "id": "ADMIN001",
+        "topic": "Administrator Capabilities",
+        "category": "CTRL4 Information",
+        "keywords": [
+            "administrator",
+            "admin",
+            "admin capabilities",
+            "admin features",
+            "what can admins do",
+            "system administrator"
+        ],
+        "question_variations": [
+            "What can administrators do?",
+            "What are the capabilities of administrators?",
+            "What features are available for admins?",
+            "How do administrators use CTRL4?"
+        ],
+        "response": "Administrators are responsible for managing the CTRL4 system and its user accounts. The administrator portal allows authorized personnel to create and manage student and staff accounts, configure system settings, and maintain the proper operation of the platform.",
+        "related_emotions": [
+            "Neutral"
+        ],
+        "possible_intents": [
+            "System Information"
+        ],
+        "risk_level": "LOW",
+        "follow_up_questions": [
+            "Would you like to know more about Guidance Office staff capabilities?",
+            "Would you like information about CTRL4's features?"
+        ],
+        "recommended_resources": [
+            "ctrl4_features",
+            "staff_capabilities"
+        ],
+        "escalation": {
+            "required": false,
+            "trigger_conditions": [],
+            "action": null
+        },
+        "source_document": "CTRL4 System Documentation",
+        "page_numbers": [1]
+    },
+
+    {
+        "id": "ADMIN002",
+        "topic": "Account Management Features",
+        "category": "CTRL4 Information",
+        "keywords": [
+            "account management",
+            "manage accounts",
+            "student accounts",
+            "staff accounts",
+            "create accounts"
+        ],
+        "question_variations": [
+            "Can administrators create accounts?",
+            "How are student accounts managed?",
+            "How are staff accounts managed?",
+            "Can admins manage users?"
+        ],
+        "response": "Administrators may create and manage student and staff accounts to ensure that only authorized users can access the system. Account management supports the secure administration of CTRL4 and its services.",
+        "related_emotions": [
+            "Neutral"
+        ],
+        "possible_intents": [
+            "Account Management"
+        ],
+        "risk_level": "LOW",
+        "follow_up_questions": [
+            "Would you like information about student and staff access?"
+        ],
+        "recommended_resources": [
+            "staff_capabilities"
+        ],
+        "escalation": {
+            "required": false,
+            "trigger_conditions": [],
+            "action": null
+        },
+        "source_document": "CTRL4 System Documentation",
+        "page_numbers": [1]
+    },
+
+    {
+        "id": "ADMIN003",
+        "topic": "System Settings and Maintenance",
+        "category": "CTRL4 Information",
+        "keywords": [
+            "system settings",
+            "system maintenance",
+            "admin settings",
+            "manage system"
+        ],
+        "question_variations": [
+            "Can administrators manage system settings?",
+            "Who maintains CTRL4?",
+            "Can admins configure the system?"
+        ],
+        "response": "Administrators are responsible for maintaining the system's configuration and ensuring that CTRL4 operates correctly. Administrative functions help support secure access control and the proper management of Guidance Office services within the platform.",
+        "related_emotions": [
+            "Neutral"
+        ],
+        "possible_intents": [
+            "System Maintenance"
+        ],
+        "risk_level": "LOW",
+        "follow_up_questions": [
+            "Would you like to know more about CTRL4's core features?"
+        ],
+        "recommended_resources": [
+            "ctrl4_features"
+        ],
+        "escalation": {
+            "required": false,
+            "trigger_conditions": [],
+            "action": null
+        },
+        "source_document": "CTRL4 System Documentation",
+        "page_numbers": [1]
+    }
+]

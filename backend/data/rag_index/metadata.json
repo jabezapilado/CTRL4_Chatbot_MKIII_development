@@ -1,0 +1,52 @@
+[
+  {
+    "text": "# hau guidance and counselling (official source extract) source url: https://www.hau.edu.ph/campuslife/guidance-counseling source type: official hau webpage captured for thesis rag: 2026-06-30 ## core service statement the university guidance services provides guidance and counseling support programs for students who may be experiencing distress that may affect behavior within and outside the university.",
+    "source": "hau_guidance_counseling_official.md",
+    "chunk_id": 0
+  },
+  {
+    "text": "pport programs for students who may be experiencing distress that may affect behavior within and outside the university. ## guidance and counselling areas - personality development - relationship concerns - time management - stress management - choice of course - sexuality education - academic difficulties - peer support group ## mental health program the mental health program aims to improve the psychological well-being of students. it includes activities for mental wellness, management of mental health concerns, psychological assessments, and referral to professionals.",
+    "source": "hau_guidance_counseling_official.md",
+    "chunk_id": 1
+  },
+  {
+    "text": "ies for mental wellness, management of mental health concerns, psychological assessments, and referral to professionals. ## support populations mentioned - college students - high school students - elementary pupils - parents - faculty - visitors with student-related concerns ## guidance highlights from official content - counselors can provide listening support for relationship and personal concerns. - students experiencing stress may seek guidance office support and stress management help. - career counseling sessions are available for students undecided about course choice.",
+    "source": "hau_guidance_counseling_official.md",
+    "chunk_id": 2
+  },
+  {
+    "text": "pport and stress management help. - career counseling sessions are available for students undecided about course choice. - academic counseling and consultation (including teachers/parents consultation) are available for students with academic difficulties. - peer support via guidance caring connections (gcc) is part of guidance outreach. ## safety and scope notes for chatbot grounding - guidance support is for counseling and student well-being, not medical diagnosis. - mental health concerns can involve referral to professionals. - crisis or emergency concerns should be escalated to proper guidance office and emergency services.",
+    "source": "hau_guidance_counseling_official.md",
+    "chunk_id": 3
+  },
+  {
+    "text": "l to professionals. - crisis or emergency concerns should be escalated to proper guidance office and emergency services. ## official social contact channels (user-provided) - facebook (ma'am hannah - soc counselor): https://www.facebook.com/profile.php?id=100091309162106 - facebook (sir ryan - soc counselor): https://www.facebook.com/hauguidance.soccounselor - facebook (hau guidance office official): https://www.facebook.com/hauguidanceoffice these links were provided directly by the project owner on 2026-06-30 for chatbot grounding. because facebook pages often require login, metadata extraction may be limited in automated ingestion.",
+    "source": "hau_guidance_counseling_official.md",
+    "chunk_id": 4
+  },
+  {
+    "text": "hatbot grounding. because facebook pages often require login, metadata extraction may be limited in automated ingestion. ## school of computing counselor assignments (user-provided fb posts) captured from user-provided facebook post text on 2026-06-30. ### counselor: ma'am hannah - office: university guidance center (ugc) - assigned programs: - bs information technology (web development and network administration) - bs cybersecurity - support statement in post: - counseling services are available online and onsite. - students may visit or send a message for counseling services.",
+    "source": "hau_guidance_counseling_official.md",
+    "chunk_id": 5
+  },
+  {
+    "text": ": - counseling services are available online and onsite. - students may visit or send a message for counseling services. - onsite schedule and location in post: - room: sjh-206 - days: monday to friday - time: 8:00 am to 5:00 pm ### counselor: sir ryan - office: university guidance center (ugc) - assigned programs: - bs emc (entertainment and multimedia computing) digital animation - bs computer science - support statement in post: - counseling services are available online and onsite. - students may visit or send a message for counseling services.",
+    "source": "hau_guidance_counseling_official.md",
+    "chunk_id": 6
+  },
+  {
+    "text": ": - counseling services are available online and onsite. - students may visit or send a message for counseling services. - onsite schedule and location in post: - room: sjh-206 - days: monday to friday - time: 8:00 am to 5:00 pm ### shared messaging themes in both posts - ugc aims to accompany and help students during their stay on campus. - priority includes student well-being and overall success. - services include guidance on program choice and career counseling. - students are encouraged to seek support and not navigate concerns alone. - students are encouraged to follow official page updates for mental health tips and reminders.",
+    "source": "hau_guidance_counseling_official.md",
+    "chunk_id": 7
+  },
+  {
+    "text": "navigate concerns alone. - students are encouraged to follow official page updates for mental health tips and reminders. ## program-to-counselor quick map (user-provided) - bs information technology (web development and network administration): ma'am hannah - bs cybersecurity: ma'am hannah - bs emc (entertainment and multimedia computing) digital animation: sir ryan - bs computer science: sir ryan ## counselor location and availability quick map (user-provided) - office room for both counselors: sjh-206 - availability for both counselors: monday to friday, 8:00 am to 5:00 pm ## provenance notes this file is a structured extract for nlp grounding.",
+    "source": "hau_guidance_counseling_official.md",
+    "chunk_id": 8
+  },
+  {
+    "text": "ounselors: monday to friday, 8:00 am to 5:00 pm ## provenance notes this file is a structured extract for nlp grounding. always prioritize updated official hau publications when available. the counselor assignment section is sourced from user-provided social post text and should be revalidated if official roster updates are published.",
+    "source": "hau_guidance_counseling_official.md",
+    "chunk_id": 9
+  }
+]

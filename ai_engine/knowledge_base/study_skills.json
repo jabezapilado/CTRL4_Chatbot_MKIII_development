@@ -1,0 +1,333 @@
+[
+  {
+    "id": "SS001",
+    "topic": "Develop Effective Study Habits",
+    "category": "Study Skills",
+
+    "keywords": [
+      "study habits",
+      "studying",
+      "learning",
+      "college",
+      "school"
+    ],
+
+    "question_variations": [
+      "How do I study better?",
+      "I don't know how to study.",
+      "I study but I don't learn anything.",
+      "Can you help me study?"
+    ],
+
+    "response": "Effective studying is about consistency rather than spending long hours reading. Setting a regular study schedule, staying actively engaged with lessons, and reviewing material consistently can improve understanding and long-term learning.",
+
+    "related_emotions": [
+      "Stress",
+      "Anxiety"
+    ],
+
+    "possible_intents": [
+      "Study Skills",
+      "Academic Concern"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Which subject are you struggling with?",
+      "Would you like help creating a study routine?"
+    ],
+
+    "recommended_resources": [
+      "review_techniques",
+      "time_management",
+      "goal_setting"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [12,13]
+  },
+
+  {
+    "id": "SS002",
+
+    "topic": "Create a Consistent Study Routine",
+
+    "category": "Study Skills",
+
+    "keywords": [
+      "routine",
+      "schedule",
+      "daily study",
+      "consistency"
+    ],
+
+    "question_variations": [
+      "I only study when I have exams.",
+      "I don't have a study routine.",
+      "How often should I study?"
+    ],
+
+    "response": "Studying regularly is generally more effective than studying only before examinations. Setting aside dedicated study time each day helps strengthen learning and reduces last-minute pressure.",
+
+    "related_emotions": [
+      "Stress"
+    ],
+
+    "possible_intents": [
+      "Study Skills"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "How many hours can you realistically study each day?",
+      "Would you like help making a weekly study plan?"
+    ],
+
+    "recommended_resources": [
+      "time_management",
+      "review_techniques"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [12]
+  },
+
+  {
+    "id": "SS003",
+
+    "topic": "Study in a Productive Environment",
+
+    "category": "Study Skills",
+
+    "keywords": [
+      "study place",
+      "environment",
+      "focus",
+      "quiet",
+      "distractions"
+    ],
+
+    "question_variations": [
+      "I always get distracted.",
+      "I can't focus at home.",
+      "Where should I study?"
+    ],
+
+    "response": "Choose a study space that minimizes distractions and allows you to concentrate. Keeping your study area organized and limiting interruptions can improve focus and productivity.",
+
+    "related_emotions": [
+      "Stress",
+      "Frustration"
+    ],
+
+    "possible_intents": [
+      "Study Skills"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "What usually distracts you while studying?",
+      "Would changing your study environment help?"
+    ],
+
+    "recommended_resources": [
+      "time_management",
+      "review_techniques"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [13]
+  },
+
+  {
+    "id": "SS004",
+
+    "topic": "Take Regular Study Breaks",
+
+    "category": "Study Skills",
+
+    "keywords": [
+      "break",
+      "rest",
+      "focus",
+      "mental fatigue"
+    ],
+
+    "question_variations": [
+      "Should I take breaks while studying?",
+      "I study for hours without stopping.",
+      "I get mentally tired."
+    ],
+
+    "response": "Taking short breaks between study sessions helps maintain concentration and reduces mental fatigue. Rest is an important part of effective learning and should be included in your study routine.",
+
+    "related_emotions": [
+      "Burned Out",
+      "Stress"
+    ],
+
+    "possible_intents": [
+      "Study Skills",
+      "Self Care"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "How long do you usually study before taking a break?",
+      "Would you like ideas for a balanced study schedule?"
+    ],
+
+    "recommended_resources": [
+      "self_care",
+      "time_management"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [13]
+  },
+
+  {
+    "id": "SS005",
+
+    "topic": "Ask Questions When You Need Help",
+
+    "category": "Study Skills",
+
+    "keywords": [
+      "ask questions",
+      "teacher",
+      "classmates",
+      "help",
+      "guidance"
+    ],
+
+    "question_variations": [
+      "I'm afraid to ask questions.",
+      "I don't understand the lesson.",
+      "I'm embarrassed to ask for help."
+    ],
+
+    "response": "Asking questions is an important part of learning. Seeking clarification from instructors, classmates, tutors, or the Guidance Office can help prevent misunderstandings and improve your confidence.",
+
+    "related_emotions": [
+      "Anxiety",
+      "Stress"
+    ],
+
+    "possible_intents": [
+      "Study Skills",
+      "Academic Concern"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Is there a lesson that's confusing you?",
+      "Would you like help preparing questions for your instructor?"
+    ],
+
+    "recommended_resources": [
+      "guidance_services",
+      "academic_stress"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [15]
+  },
+
+  {
+    "id": "SS006",
+
+    "topic": "Learn at Your Own Pace",
+
+    "category": "Study Skills",
+
+    "keywords": [
+      "comparison",
+      "confidence",
+      "pace",
+      "learning"
+    ],
+
+    "question_variations": [
+      "Everyone learns faster than me.",
+      "I'm slow at learning.",
+      "I can't keep up with my classmates."
+    ],
+
+    "response": "Every student learns differently. Comparing yourself with others can increase unnecessary pressure. Focus on understanding the material at your own pace while continuing to improve through consistent effort.",
+
+    "related_emotions": [
+      "Anxiety",
+      "Fear",
+      "Sadness"
+    ],
+
+    "possible_intents": [
+      "Study Skills",
+      "Emotional Support"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Which subject feels the most challenging?",
+      "Would you like some learning strategies that match your situation?"
+    ],
+
+    "recommended_resources": [
+      "academic_stress",
+      "goal_setting",
+      "review_techniques"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [15]
+  }
+]

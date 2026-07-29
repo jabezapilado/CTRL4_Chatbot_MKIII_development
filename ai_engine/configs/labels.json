@@ -1,0 +1,27 @@
+{
+  "emotion_labels": [
+    "Positive",
+    "Neutral",
+    "Stress",
+    "Anxiety",
+    "Fear",
+    "Sadness",
+    "Loneliness",
+    "Burned Out",
+    "Hopelessness",
+    "Anger"
+  ],
+
+  "sentiment_labels": [
+    "Positive",
+    "Neutral",
+    "Negative"
+  ],
+
+  "risk_levels": [
+    "Low",
+    "Moderate",
+    "High",
+    "Critical"
+  ]
+}

@@ -1,0 +1,25 @@
+# Python virtual environments
+.venv/
+venv/
+
+# Python cache
+__pycache__/
+
+# AI models and datasets
+ai_engine/data/
+ai_engine/models/
+
+# Documentation
+docs/
+
+# Markdown files
+*.md
+
+# JSON files that are model/data related
+ai_engine/configs/
+ai_engine/knowledge_base/
+
+# Optional
+node_modules/
+dist/
+build/

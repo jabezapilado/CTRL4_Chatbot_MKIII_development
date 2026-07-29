@@ -1,0 +1,203 @@
+[
+  {
+    "id": "CP001",
+
+    "topic": "High-Risk Crisis Response",
+
+    "category": "Crisis Protocol",
+
+    "keywords": [
+      "suicide",
+      "kill myself",
+      "end my life",
+      "hurt myself",
+      "self harm"
+    ],
+
+    "question_variations": [
+      "I want to kill myself.",
+      "I don't want to live anymore.",
+      "I'm going to end my life.",
+      "I'm thinking about hurting myself."
+    ],
+
+    "response": "I'm really sorry you're going through this. Thank you for telling me. Your safety is the most important thing right now. Please contact a trusted family member, friend, Guidance Counselor, or another trusted adult immediately. If you believe you may act on these thoughts or are in immediate danger, call your local emergency services or go to the nearest emergency department right away.",
+
+    "related_emotions": [
+      "Hopelessness",
+      "Sadness",
+      "Fear"
+    ],
+
+    "possible_intents": [
+      "Emergency Support"
+    ],
+
+    "risk_level": "HIGH",
+
+    "follow_up_questions": [
+      "Are you safe right now?",
+      "Is there someone nearby that you trust?",
+      "Can you contact your Guidance Counselor or another trusted adult today?"
+    ],
+
+    "recommended_resources": [
+      "emergency_contacts",
+      "suicide_prevention"
+    ],
+
+    "escalation": {
+      "required": true,
+      "trigger_conditions": [
+        "kill myself",
+        "end my life",
+        "suicide",
+        "hurt myself",
+        "self harm"
+      ],
+      "action": "Immediately stop normal conversation. Prioritize safety. Encourage immediate contact with emergency services, a trusted adult, or the Guidance Office."
+    },
+
+    "conversation_directive": {
+      "continue_normal_chat": false,
+      "display_emergency_resources": true,
+      "notify_guidance_recommendation": true
+    },
+
+    "source_document": "Suicide Prevention First Aid Guide",
+
+    "page_numbers": [7]
+  },
+
+  {
+    "id": "CP002",
+
+    "topic": "Student Concern About a Friend",
+
+    "category": "Crisis Protocol",
+
+    "keywords": [
+      "friend",
+      "suicide",
+      "worried",
+      "concern",
+      "help my friend"
+    ],
+
+    "question_variations": [
+      "My friend wants to die.",
+      "I'm worried about my friend.",
+      "My friend keeps talking about suicide."
+    ],
+
+    "response": "Take your concern seriously. Stay with your friend if it is safe to do so, listen without judgment, encourage them to speak with a Guidance Counselor or another trusted adult, and seek immediate help if you believe they are in immediate danger. You should not keep suicidal thoughts a secret if someone's safety is at risk.",
+
+    "related_emotions": [
+      "Fear",
+      "Concern"
+    ],
+
+    "possible_intents": [
+      "Emergency Support"
+    ],
+
+    "risk_level": "HIGH",
+
+    "follow_up_questions": [
+      "Is your friend safe right now?",
+      "Are you currently with them?",
+      "Have you contacted a trusted adult?"
+    ],
+
+    "recommended_resources": [
+      "suicide_prevention",
+      "emergency_contacts"
+    ],
+
+    "escalation": {
+      "required": true,
+      "trigger_conditions": [
+        "friend suicidal",
+        "friend wants to die"
+      ],
+      "action": "Advise immediate involvement of a trusted adult, Guidance Counselor, or emergency services if necessary."
+    },
+
+    "conversation_directive": {
+      "continue_normal_chat": false,
+      "display_emergency_resources": true,
+      "notify_guidance_recommendation": true
+    },
+
+    "source_document": "Suicide Prevention First Aid Guide",
+
+    "page_numbers": [8]
+  },
+
+  {
+    "id": "CP003",
+
+    "topic": "Moderate Emotional Crisis",
+
+    "category": "Crisis Protocol",
+
+    "keywords": [
+      "hopeless",
+      "can't cope",
+      "breaking down",
+      "giving up"
+    ],
+
+    "question_variations": [
+      "I feel like giving up.",
+      "I can't cope anymore.",
+      "Everything is falling apart.",
+      "I don't know what to do."
+    ],
+
+    "response": "I'm sorry you're experiencing this. It sounds like you're carrying a lot right now. You don't have to handle this by yourself. Consider reaching out to a trusted person or scheduling a session with the Guidance Office so you can receive additional support.",
+
+    "related_emotions": [
+      "Hopelessness",
+      "Stress"
+    ],
+
+    "possible_intents": [
+      "Mental Health",
+      "Emergency Support"
+    ],
+
+    "risk_level": "MEDIUM",
+
+    "follow_up_questions": [
+      "Would you like help contacting the Guidance Office?",
+      "Would you feel comfortable talking to someone you trust?"
+    ],
+
+    "recommended_resources": [
+      "guidance_services",
+      "appointment_process",
+      "coping_strategies"
+    ],
+
+    "escalation": {
+      "required": true,
+      "trigger_conditions": [
+        "giving up",
+        "can't cope",
+        "breaking down"
+      ],
+      "action": "Recommend Guidance Office support. Continue monitoring the conversation for signs of escalating risk."
+    },
+
+    "conversation_directive": {
+      "continue_normal_chat": true,
+      "display_emergency_resources": false,
+      "notify_guidance_recommendation": true
+    },
+
+    "source_document": "Suicide Prevention First Aid Guide",
+
+    "page_numbers": [9]
+  }
+]

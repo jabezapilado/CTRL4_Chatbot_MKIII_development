@@ -1,0 +1,192 @@
+[
+  {
+    "id": "WELCOME001",
+    "topic": "Welcome to Holy Angel University",
+    "category": "Student Adjustment",
+
+    "keywords": [
+      "welcome",
+      "freshman",
+      "college",
+      "first year",
+      "adjustment",
+      "new student",
+      "HAU",
+      "guidance office"
+    ],
+
+    "question_variations": [
+      "I'm a freshman.",
+      "I'm new here.",
+      "College feels scary.",
+      "I don't know if I belong here.",
+      "I'm overwhelmed by college.",
+      "Can the Guidance Office help me adjust?"
+    ],
+
+    "response": "Starting college is an exciting milestone, but it can also feel overwhelming. It is normal to experience excitement, uncertainty, and challenges while adjusting to a new environment. The University Guidance Center encourages students to seek support whenever they need help with academic, personal, emotional, or social concerns. You don't have to face your college journey alone.",
+
+    "related_emotions": [
+      "Anxiety",
+      "Stress",
+      "Fear",
+      "Neutral"
+    ],
+
+    "possible_intents": [
+      "Counseling Services",
+      "Emotional Support",
+      "Academic Concern"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "How has your first experience in college been so far?",
+      "Is there anything in particular that's making the adjustment difficult?",
+      "Would you like to know how the Guidance Office can support you?"
+    ],
+
+    "recommended_resources": [
+      "adjustment",
+      "guidance_services",
+      "academic_stress"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [1, 2, 3, 4]
+  },
+
+  {
+    "id": "WELCOME002",
+
+    "topic": "You Belong in the University Community",
+
+    "category": "Student Adjustment",
+
+    "keywords": [
+      "belong",
+      "community",
+      "friends",
+      "confidence",
+      "college life",
+      "campus"
+    ],
+
+    "question_variations": [
+      "I don't think I belong here.",
+      "Everyone seems smarter than me.",
+      "I'm afraid I won't fit in.",
+      "I'm having a hard time making friends.",
+      "I feel left out."
+    ],
+
+    "response": "Every student experiences college differently. Feeling nervous, uncertain, or out of place during the transition is common. Building friendships, joining campus activities, asking for help, and giving yourself time to adjust can help you develop confidence and feel connected to the university community.",
+
+    "related_emotions": [
+      "Loneliness",
+      "Fear",
+      "Anxiety"
+    ],
+
+    "possible_intents": [
+      "Student Adjustment",
+      "Emotional Support"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Have you been able to meet classmates or join any organizations?",
+      "What part of college life has been the hardest for you?",
+      "Would you like suggestions for getting involved on campus?"
+    ],
+
+    "recommended_resources": [
+      "campus_life",
+      "adjustment",
+      "friendships"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [2, 3, 4]
+  },
+
+  {
+    "id": "WELCOME003",
+
+    "topic": "The Guidance Office is a Safe Space",
+
+    "category": "Guidance Services",
+
+    "keywords": [
+      "guidance",
+      "safe space",
+      "talk",
+      "listen",
+      "support",
+      "help",
+      "counselor"
+    ],
+
+    "question_variations": [
+      "Can I just talk to someone?",
+      "Do I need a serious problem before visiting?",
+      "Can I visit the Guidance Office even if I'm just stressed?",
+      "Who can I talk to at school?"
+    ],
+
+    "response": "The Guidance Office is a safe and supportive place where students can discuss academic, emotional, personal, or social concerns. Students are encouraged to seek help early. Visiting the Guidance Office is not only for major problems—it is also for students who simply need guidance, someone to listen, or support while navigating university life.",
+
+    "related_emotions": [
+      "Stress",
+      "Anxiety",
+      "Sadness",
+      "Neutral"
+    ],
+
+    "possible_intents": [
+      "Counseling Services",
+      "Emotional Support",
+      "Appointment"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Would you like to know what services the Guidance Office offers?",
+      "Would you like information about booking an appointment?",
+      "Would you like to talk about what you're currently experiencing?"
+    ],
+
+    "recommended_resources": [
+      "guidance_services",
+      "appointment_process",
+      "faq"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [1, 2, 3, 4]
+  }
+]

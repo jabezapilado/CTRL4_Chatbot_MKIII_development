@@ -1,0 +1,195 @@
+{
+  "version": "1.0",
+
+  "description": "Master knowledge index for the AI Guidance Counseling Chatbot.",
+
+  "categories": {
+
+    "Academic Support": [
+      "academic_stress.json",
+      "study_skills.json",
+      "review_techniques.json",
+      "time_management.json",
+      "goal_setting.json",
+      "adjustment.json"
+    ],
+
+    "Mental Health": [
+      "stress_management.json",
+      "self_care.json",
+      "anxiety.json",
+      "burnout.json",
+      "coping_strategies.json",
+      "loneliness.json",
+      "self_esteem.json"
+    ],
+
+    "Guidance Office": [
+      "guidance_services.json",
+      "appointment_process.json",
+      "office_hours.json",
+      "confidentiality.json",
+      "faq.json"
+    ],
+
+    "Emergency Support": [
+      "suicide_prevention.json",
+      "crisis_protocol.json",
+      "emergency_contacts.json"
+    ]
+  },
+
+  "emotion_mapping": {
+
+    "Stress": [
+      "academic_stress.json",
+      "stress_management.json",
+      "self_care.json",
+      "coping_strategies.json"
+    ],
+
+    "Anxiety": [
+      "anxiety.json",
+      "stress_management.json",
+      "coping_strategies.json",
+      "self_care.json"
+    ],
+
+    "Burned Out": [
+      "burnout.json",
+      "self_care.json",
+      "stress_management.json"
+    ],
+
+    "Loneliness": [
+      "loneliness.json",
+      "self_esteem.json",
+      "guidance_services.json"
+    ],
+
+    "Sadness": [
+      "self_esteem.json",
+      "coping_strategies.json",
+      "guidance_services.json"
+    ],
+
+    "Fear": [
+      "anxiety.json",
+      "coping_strategies.json"
+    ],
+
+    "Hopelessness": [
+      "suicide_prevention.json",
+      "crisis_protocol.json",
+      "emergency_contacts.json"
+    ],
+
+    "Neutral": [
+      "faq.json",
+      "guidance_services.json"
+    ]
+  },
+
+  "intent_mapping": {
+
+    "Academic Concern": [
+      "academic_stress.json",
+      "study_skills.json",
+      "review_techniques.json"
+    ],
+
+    "Study Skills": [
+      "study_skills.json",
+      "review_techniques.json"
+    ],
+
+    "Mental Health": [
+      "stress_management.json",
+      "anxiety.json",
+      "burnout.json",
+      "coping_strategies.json",
+      "self_care.json"
+    ],
+
+    "Emotional Support": [
+      "loneliness.json",
+      "self_esteem.json",
+      "coping_strategies.json"
+    ],
+
+    "Counseling Services": [
+      "guidance_services.json",
+      "appointment_process.json",
+      "office_hours.json",
+      "confidentiality.json"
+    ],
+
+    "FAQ": [
+      "faq.json"
+    ],
+
+    "Emergency Support": [
+      "crisis_protocol.json",
+      "suicide_prevention.json",
+      "emergency_contacts.json"
+    ]
+  },
+
+  "risk_mapping": {
+
+    "LOW": [
+      "academic_stress.json",
+      "study_skills.json",
+      "review_techniques.json",
+      "time_management.json",
+      "goal_setting.json",
+      "stress_management.json",
+      "self_care.json",
+      "coping_strategies.json",
+      "guidance_services.json",
+      "faq.json"
+    ],
+
+    "MEDIUM": [
+      "anxiety.json",
+      "burnout.json",
+      "loneliness.json",
+      "self_esteem.json",
+      "appointment_process.json"
+    ],
+
+    "HIGH": [
+      "suicide_prevention.json",
+      "crisis_protocol.json",
+      "emergency_contacts.json"
+    ]
+  },
+
+  "retrieval_order": {
+
+    "LOW": [
+      "emotion",
+      "intent",
+      "keyword"
+    ],
+
+    "MEDIUM": [
+      "emotion",
+      "risk",
+      "intent",
+      "keyword"
+    ],
+
+    "HIGH": [
+      "risk",
+      "emotion",
+      "intent",
+      "keyword"
+    ]
+  },
+
+  "default_files": [
+    "faq.json",
+    "guidance_services.json"
+  ]
+}

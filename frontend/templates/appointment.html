@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Book a guidance counseling appointment at the SOC Guidance Office of Holy Angel University."
+    />
+    <title>
+      SOC Guidance Office – Appointment Request | Holy Angel University
+    </title>
+    <link rel="stylesheet" href="/static/css/base.css" />
+    <link rel="stylesheet" href="/static/css/appointment.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <!-- Success Modal -->
+    <div
+      id="successModal"
+      class="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modalTitle"
+    >
+      <div class="modal-box">
+        <div class="modal-icon">&#10003;</div>
+        <h2 id="modalTitle">Request Submitted!</h2>
+        <p>Your appointment request has been successfully submitted.</p>
+
+        <div class="appointment-status">
+          <span>Status:</span>
+          <strong>PENDING</strong>
+        </div>
+
+        <p>
+          The Guidance Office will review your request and notify you regarding
+          its status once the appointment has been evaluated.
+        </p>
+        <p class="modal-ref">Reference ID: <strong id="refId"></strong></p>
+        <button id="modalClose" class="btn-primary">Done</button>
+      </div>
+    </div>
+    <div class="page-wrapper">
+      <!-- LEFT PANEL -->
+      <aside class="left-panel">
+        <header class="panel-header">
+          <img
+            src="/static/img/soc-logo.png"
+            alt="SOC logo"
+            class="university-seal brand-logo"
+          />
+          <div class="header-text">
+            <span class="office-name">SOC Guidance Office</span>
+            <span class="university-name">HOLY ANGEL UNIVERSITY</span>
+          </div>
+        </header>
+        <div class="panel-content">
+          <p class="label-tag">STUDENT APPOINTMENT</p>
+          <h1 class="panel-title">Book a Guidance Appointment</h1>
+          <p class="panel-description">
+            Select your preferred schedule and reason for appointment. The
+            Guidance Office will review your request and confirm availability.
+          </p>
+        </div>
+        <footer class="panel-footer">
+          <div class="footer-line"></div>
+          <p class="footer-text">
+            Confidentiality and care are observed by the Guidance Office.
+          </p>
+        </footer>
+        <!-- Decorative circles -->
+        <div class="circle-deco circle-1" aria-hidden="true"></div>
+        <div class="circle-deco circle-2" aria-hidden="true"></div>
+      </aside>
+      <!-- RIGHT PANEL -->
+      <main class="right-panel">
+        <div class="form-card">
+          <div class="form-header">
+            <h2 class="form-title">Appointment Request Form</h2>
+            <p class="form-subtitle">Please complete the details below.</p>
+          </div>
+          <form id="appointmentForm" novalidate>
+            <!-- Contact Number -->
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="contact">Contact Number</label>
+                <input
+                  type="tel"
+                  id="contact"
+                  name="contact"
+                  class="form-input"
+                  placeholder="09XX XXX XXXX"
+                  autocomplete="tel"
+                  aria-required="true"
+                />
+                <span class="error-msg" id="contact-error"></span>
+              </div>
+            </div>
+
+            <!-- Row 3: Preferred Date + Time -->
+            <!--
+          Temporary hardcoded values.
+
+          These values shall eventually be loaded dynamically
+          from Staff Appointment Settings (Sprint 8).
+          -->
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="prefDate">Preferred Date</label>
+                <input
+                  type="date"
+                  id="prefDate"
+                  name="prefDate"
+                  class="form-input"
+                  aria-required="true"
+                />
+                <span class="error-msg" id="prefDate-error"></span>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="prefTime">
+                  Preferred Time Slot
+                </label>
+
+                <select
+                  id="prefTime"
+                  name="prefTime"
+                  class="form-input form-select"
+                  aria-required="true"
+                >
+                  <option value="" disabled selected>
+                    Select a preferred time slot
+                  </option>
+
+                  <option value="08:00 AM">8:00 AM</option>
+
+                  <option value="09:00 AM">9:00 AM</option>
+
+                  <option value="10:00 AM">10:00 AM</option>
+
+                  <option value="01:00 PM">1:00 PM</option>
+
+                  <option value="02:00 PM">2:00 PM</option>
+
+                  <option value="03:00 PM">3:00 PM</option>
+                </select>
+                <span class="error-msg" id="prefTime-error"> </span>
+              </div>
+            </div>
+            <!-- Appointment Category -->
+            <!--
+          Temporary hardcoded values.
+
+          These values shall eventually be loaded dynamically
+          from Staff Appointment Settings (Sprint 8).
+          -->
+
+            <div class="form-group full-width">
+              <label class="form-label" for="appointmentCategory">
+                Appointment Category
+              </label>
+
+              <select
+                id="appointmentCategory"
+                name="appointmentCategory"
+                class="form-input form-select"
+                aria-required="true"
+              >
+                <option value="" disabled selected>
+                  Select appointment category
+                </option>
+
+                <option value="home_family">Home and Family</option>
+
+                <option value="relationships">
+                  Relationships with Peers/Opposite Sex
+                </option>
+
+                <option value="personality">Personality Development</option>
+
+                <option value="career_schooling">Career/Schooling</option>
+
+                <option value="religion">Religion/Spiritual Development</option>
+
+                <option value="health">Health and Recreation</option>
+
+                <option value="employment">Employment</option>
+
+                <option value="others">Others</option>
+              </select>
+
+              <span class="error-msg" id="appointmentCategory-error"> </span>
+            </div>
+
+            <!-- Appointment Mode -->
+            <!--
+          Temporary hardcoded values.
+
+          These values shall eventually be loaded dynamically
+          from Staff Appointment Settings (Sprint 8).
+          -->
+
+            <div class="form-group full-width">
+              <label class="form-label" for="appointmentMode">
+                Appointment Mode
+              </label>
+
+              <select
+                id="appointmentMode"
+                name="appointmentMode"
+                class="form-input form-select"
+                aria-required="true"
+              >
+                <option value="" disabled selected>
+                  Select appointment mode
+                </option>
+
+                <option value="online">Online</option>
+
+                <option value="onsite">Onsite</option>
+              </select>
+
+              <span class="error-msg" id="appointmentMode-error"> </span>
+            </div>
+
+            <!-- Reason -->
+            <div class="form-group full-width">
+              <label class="form-label" for="reason"
+                >Reason for Appointment</label
+              >
+              <textarea
+                id="reason"
+                name="reason"
+                class="form-input form-textarea"
+                placeholder="Briefly describe your concern or reason for booking..."
+                rows="4"
+                aria-required="true"
+              ></textarea>
+              <span class="error-msg" id="reason-error"></span>
+            </div>
+            <!-- Reminder Banner -->
+            <div class="reminder-banner" role="note">
+              <span class="reminder-dot"></span>
+              <div class="reminder-content">
+                <strong>Appointment Policies:</strong>
+
+                <ul>
+                  <li>This form submits an appointment request only.</li>
+                  <li>
+                    Appointment requests are subject to Guidance Office
+                    approval.
+                  </li>
+                  <li>
+                    Appointment schedules are subject to conflict detection.
+                  </li>
+                  <li>Students may cancel or reschedule appointments.</li>
+                  <li>
+                    Appointments cannot be modified within one (1) hour of the
+                    scheduled time.
+                  </li>
+                  <li>Rescheduling is treated as a new appointment request.</li>
+                </ul>
+              </div>
+            </div>
+            <!-- Buttons -->
+            <div class="form-actions">
+              <button type="button" id="backBtn" class="btn-secondary">
+                Back to Chatbot
+              </button>
+              <button type="button" id="clearBtn" class="btn-secondary">
+                Clear Form
+              </button>
+              <button type="submit" id="submitBtn" class="btn-primary">
+                Submit Request
+              </button>
+            </div>
+          </form>
+        </div>
+      </main>
+    </div>
+    <script src="/static/js/appointment.js"></script>
+  </body>
+</html>

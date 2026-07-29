@@ -1,0 +1,227 @@
+[
+  {
+    "id": "APPT001",
+    "topic": "Scheduling a Counseling Appointment",
+    "category": "Guidance Services",
+    "keywords": [
+      "appointment",
+      "schedule",
+      "book",
+      "booking",
+      "reserve",
+      "appointment request",
+      "counseling",
+      "guidance",
+      "online counseling",
+      "onsite counseling"
+    ],
+    "question_variations": [
+      "How do I schedule a counseling session?",
+      "How do I book an appointment?",
+      "Can I meet with a counselor?",
+      "I want to schedule counseling.",
+      "Can I book an online appointment?",
+      "How do I request counseling through CTRL4?",
+      "Can I schedule an onsite counseling session?"
+    ],
+    "response": "Students may book a counseling appointment directly through CTRL4. The appointment booking feature allows students to request either an online or onsite counseling session. Students may select an available date and time slot and provide their reason for requesting an appointment. Once submitted, the Guidance Office staff will review and manage the appointment request through the system.",
+    "related_emotions": [
+      "Neutral",
+      "Stress",
+      "Anxiety"
+    ],
+    "possible_intents": [
+      "Appointment",
+      "Counseling Services"
+    ],
+    "risk_level": "LOW",
+    "follow_up_questions": [
+      "Would you like information about what happens during counseling?",
+      "Is this your first counseling appointment?"
+    ],
+    "recommended_resources": [
+      "guidance_services",
+      "office_hours",
+      "faq"
+    ],
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+    "source_document": "CTRL4 Appointment System",
+    "page_numbers": [1]
+  },
+
+  {
+    "id": "APPT002",
+    "topic": "Preparing for Your Counseling Session",
+    "category": "Guidance Services",
+    "keywords": [
+      "prepare",
+      "session",
+      "first counseling",
+      "meeting"
+    ],
+    "question_variations": [
+      "What should I expect during counseling?",
+      "What happens during the appointment?",
+      "It's my first counseling session."
+    ],
+    "response": "Once your appointment request has been approved, you may attend your scheduled counseling session through the selected appointment type. During your counseling session, the Guidance Counselor will listen to your concerns, ask questions to better understand your situation, and work with you to explore possible solutions or next steps. You are encouraged to share only what you are comfortable discussing.",
+    "related_emotions": [
+      "Anxiety",
+      "Neutral"
+    ],
+    "possible_intents": [
+      "Appointment",
+      "Counseling Services"
+    ],
+    "risk_level": "LOW",
+    "follow_up_questions": [
+      "Is there a specific concern you'd like to discuss during your appointment?",
+      "Would knowing about confidentiality help you feel more comfortable?"
+    ],
+    "recommended_resources": [
+      "confidentiality",
+      "guidance_services"
+    ],
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+    "source_document": "CTRL4 Appointment System",
+    "page_numbers": [1]
+  },
+
+  {
+    "id": "APPT003",
+    "topic": "Can I Visit Without an Appointment?",
+    "category": "Guidance Services",
+    "keywords": [
+      "walk in",
+      "walk-in",
+      "without appointment",
+      "visit guidance"
+    ],
+    "question_variations": [
+      "Can I walk in?",
+      "Do I need an appointment first?",
+      "Can I visit the Guidance Office today?"
+    ],
+    "response": "Students are encouraged to book counseling appointments through CTRL4 whenever possible to ensure counselor availability. Walk-in counseling services may still be subject to the Guidance Office's policies and staff availability. Booking an appointment in advance is recommended for a smoother counseling experience.",
+    "related_emotions": [
+      "Neutral"
+    ],
+    "possible_intents": [
+      "Appointment",
+      "FAQ"
+    ],
+    "risk_level": "LOW",
+    "follow_up_questions": [
+      "Would you like the Guidance Office's office hours?",
+      "Would you like information on how to contact the office?"
+    ],
+    "recommended_resources": [
+      "office_hours",
+      "faq"
+    ],
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+    "source_document": "CTRL4 Appointment System",
+    "page_numbers": [1]
+  },
+
+  {
+    "id": "APPT004",
+    "topic": "Urgent Counseling Concerns",
+    "category": "Guidance Services",
+    "keywords": [
+      "urgent",
+      "emergency",
+      "need help now",
+      "crisis"
+    ],
+    "question_variations": [
+      "I need to see a counselor immediately.",
+      "This is urgent.",
+      "I need help right now.",
+      "I can't wait for an appointment."
+    ],
+    "response": "If your concern is urgent, contact or visit the Guidance Office immediately during office hours. If you believe you are in immediate danger or are thinking about harming yourself or someone else, contact emergency services or a trusted adult right away. Your safety is the highest priority.",
+    "related_emotions": [
+      "Stress",
+      "Anxiety",
+      "Hopelessness"
+    ],
+    "possible_intents": [
+      "Emergency Support",
+      "Counseling Services"
+    ],
+    "risk_level": "HIGH",
+    "follow_up_questions": [
+      "Are you currently safe?",
+      "Is there someone with you that you trust?"
+    ],
+    "recommended_resources": [
+      "crisis_protocol",
+      "emergency_contacts",
+      "suicide_prevention"
+    ],
+    "escalation": {
+      "required": true,
+      "trigger_conditions": [
+        "urgent",
+        "emergency",
+        "need help now",
+        "immediate danger"
+      ],
+      "action": "Immediately transition to the crisis support protocol. Encourage the student to contact the Guidance Office, a trusted adult, or emergency services if there is an immediate risk to safety."
+    },
+    "source_document": "Guidance Office Handbook",
+    "page_numbers": [6]
+  },
+
+  {
+    "id": "APPT005",
+    "topic": "Rescheduling or Canceling an Appointment",
+    "category": "Guidance Services",
+    "keywords": [
+      "reschedule",
+      "cancel",
+      "change appointment"
+    ],
+    "question_variations": [
+      "How do I reschedule my appointment?",
+      "Can I cancel my counseling session?",
+      "I can't attend my appointment."
+    ],
+    "response": "If you need to reschedule or cancel your counseling appointment, you may update or notify the Guidance Office as early as possible through the appointment management process. Providing advance notice allows the Guidance Office to accommodate other students who may also require counseling services and helps maintain an organized appointment schedule.",
+    "related_emotions": [
+      "Neutral"
+    ],
+    "possible_intents": [
+      "Appointment"
+    ],
+    "risk_level": "LOW",
+    "follow_up_questions": [
+      "Would you like information on how to contact the Guidance Office?",
+      "Would you like to schedule another appointment?"
+    ],
+    "recommended_resources": [
+      "office_hours",
+      "guidance_services"
+    ],
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+    "source_document": "CTRL4 Appointment System",
+    "page_numbers": [1]
+  }
+]

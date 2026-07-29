@@ -1,0 +1,69 @@
+CTRL4 Chatbot MK II
+Copyright (c) 2026
+
+Developed by:
+
+- Apilado, Jabez Timothy E.
+- Quilantang, Grant Mihkael D.
+- Lanix, Iligan
+- Wylengco, Teyshaun Zell
+
+Holy Angel University
+School of Computing
+Bachelor of Science in Computer Science
+
+-------------------------------------------------------------------------------
+
+ACADEMIC USE LICENSE
+
+This software was developed as part of an undergraduate capstone project at
+Holy Angel University.
+
+Permission is granted to view, study, and reference this source code for
+educational, research, and non-commercial purposes only.
+
+You may:
+
+• Read and study the source code.
+• Use portions of the code for educational reference.
+• Cite this project in academic work.
+
+You may NOT:
+
+• Redistribute this project as your own work.
+• Sell, sublicense, or commercially exploit any portion of this software.
+• Remove or alter the original authorship notices.
+• Use this project in commercial products without written permission from
+  the authors.
+
+This project is provided "AS IS", without warranty of any kind, express or
+implied, including but not limited to the warranties of merchantability,
+fitness for a particular purpose, and noninfringement.
+
+In no event shall the authors or Holy Angel University be liable for any
+claim, damages, or other liability arising from the use of this software.
+
+-------------------------------------------------------------------------------
+
+Third-Party Components
+
+This project utilizes several open-source libraries and pretrained models,
+including but not limited to:
+
+• Python
+• Flask
+• PyTorch
+• Hugging Face Transformers
+• Sentence Transformers
+• FAISS
+• Google Gemini API
+• Ollama
+
+Each third-party dependency remains subject to its own respective license.
+Users are responsible for complying with those licenses when using or
+redistributing those components.
+
+-------------------------------------------------------------------------------
+
+For permission requests or collaboration inquiries, please contact the
+project authors.

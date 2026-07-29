@@ -1,0 +1,31 @@
+{
+    "base_model": "distilbert-base-uncased",
+
+    "num_labels": 5,
+
+    "max_length": 128,
+
+    "batch_size": 16,
+
+    "learning_rate": 2e-5,
+
+    "epochs": 5,
+
+    "weight_decay": 0.01,
+
+    "warmup_ratio": 0.1,
+
+    "evaluation_strategy": "epoch",
+
+    "save_strategy": "epoch",
+
+    "logging_steps": 100,
+
+    "seed": 42,
+
+    "output_dir": "ai_engine/models/emotion_model",
+
+    "best_model_metric": "f1",
+
+    "greater_is_better": true
+}

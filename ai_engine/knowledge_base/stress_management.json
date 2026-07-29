@@ -1,0 +1,231 @@
+[
+  {
+    "id": "SM001",
+
+    "topic": "Understanding Stress",
+
+    "category": "Stress Management",
+
+    "keywords": [
+      "stress",
+      "pressure",
+      "overwhelmed",
+      "mental load",
+      "college stress"
+    ],
+
+    "question_variations": [
+      "I'm stressed.",
+      "Everything feels overwhelming.",
+      "I can't handle everything.",
+      "I'm under too much pressure."
+    ],
+
+    "response": "Stress is a normal response to challenging situations such as academic responsibilities, personal concerns, or major life changes. While some stress can motivate us, prolonged or intense stress can affect concentration, sleep, physical health, and emotional well-being. Recognizing stress early allows you to take healthy steps before it becomes overwhelming.",
+
+    "related_emotions": [
+      "Stress",
+      "Anxiety"
+    ],
+
+    "possible_intents": [
+      "Emotional Support",
+      "Mental Health"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "What's been causing the most stress recently?",
+      "Has this been happening for a long time?",
+      "Would you like to talk about what's been overwhelming you?"
+    ],
+
+    "recommended_resources": [
+      "self_care",
+      "academic_stress",
+      "coping_strategies"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [23]
+  },
+
+  {
+    "id": "SM002",
+
+    "topic": "Recognize Your Stress Triggers",
+
+    "category": "Stress Management",
+
+    "keywords": [
+      "triggers",
+      "pressure",
+      "stressors",
+      "cause"
+    ],
+
+    "question_variations": [
+      "Why am I always stressed?",
+      "Everything stresses me.",
+      "I don't know what's causing my stress."
+    ],
+
+    "response": "Identifying the situations, responsibilities, or thoughts that contribute to your stress is an important first step in managing it. Understanding your triggers can help you develop healthier ways of responding to difficult situations.",
+
+    "related_emotions": [
+      "Stress"
+    ],
+
+    "possible_intents": [
+      "Mental Health",
+      "Emotional Support"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Can you identify what usually causes your stress?",
+      "Is your stress mostly related to school, family, or personal concerns?"
+    ],
+
+    "recommended_resources": [
+      "academic_stress",
+      "family_concerns",
+      "relationship_concerns"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [23]
+  },
+
+  {
+    "id": "SM003",
+
+    "topic": "Healthy Ways to Manage Stress",
+
+    "category": "Stress Management",
+
+    "keywords": [
+      "coping",
+      "healthy habits",
+      "relax",
+      "stress relief"
+    ],
+
+    "question_variations": [
+      "How do I manage stress?",
+      "What should I do when I'm stressed?",
+      "How can I relax?"
+    ],
+
+    "response": "Healthy stress management includes getting enough rest, maintaining regular meals, exercising, taking short breaks, practicing relaxation techniques, and talking to someone you trust. Small healthy habits practiced consistently can make a meaningful difference.",
+
+    "related_emotions": [
+      "Stress",
+      "Burned Out"
+    ],
+
+    "possible_intents": [
+      "Mental Health",
+      "Self Care"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Which coping strategy do you think would be easiest to try today?",
+      "Would you like some relaxation techniques?"
+    ],
+
+    "recommended_resources": [
+      "self_care",
+      "coping_strategies",
+      "burnout"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [24]
+  },
+
+  {
+    "id": "SM004",
+
+    "topic": "Know When to Ask for Help",
+
+    "category": "Stress Management",
+
+    "keywords": [
+      "help",
+      "guidance",
+      "counselor",
+      "support"
+    ],
+
+    "question_variations": [
+      "I can't handle this anymore.",
+      "I need help.",
+      "I don't know what to do."
+    ],
+
+    "response": "If stress continues to interfere with your studies, relationships, sleep, or daily activities, consider reaching out to the Guidance Office or another trusted support person. Seeking help early is a healthy and responsible step.",
+
+    "related_emotions": [
+      "Stress",
+      "Hopelessness",
+      "Burned Out"
+    ],
+
+    "possible_intents": [
+      "Counseling Services",
+      "Mental Health"
+    ],
+
+    "risk_level": "MEDIUM",
+
+    "follow_up_questions": [
+      "Would you like information about Guidance Office services?",
+      "Would you feel comfortable talking to a counselor?"
+    ],
+
+    "recommended_resources": [
+      "guidance_services",
+      "appointment_process"
+    ],
+
+    "escalation": {
+      "required": true,
+      "trigger_conditions": [
+        "can't handle",
+        "breaking down",
+        "overwhelmed"
+      ],
+      "action": "Encourage the student to seek support from the Guidance Office. Continue assessing whether there are signs of crisis that require the suicide prevention protocol."
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [24]
+  }
+]

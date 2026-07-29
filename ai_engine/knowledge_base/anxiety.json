@@ -1,0 +1,295 @@
+[
+  {
+    "id": "ANX001",
+
+    "topic": "Understanding Anxiety",
+
+    "category": "Mental Health",
+
+    "keywords": [
+      "anxiety",
+      "worried",
+      "nervous",
+      "fear",
+      "overthinking"
+    ],
+
+    "question_variations": [
+      "I feel anxious.",
+      "I'm always worried.",
+      "I can't stop thinking.",
+      "I'm nervous all the time.",
+      "Everything makes me anxious."
+    ],
+
+    "response": "Feeling anxious from time to time is a normal response to uncertainty, challenges, or important events. However, when anxiety becomes persistent or begins to interfere with daily life, it is important to practice healthy coping strategies and consider seeking support.",
+
+    "related_emotions": [
+      "Anxiety",
+      "Fear"
+    ],
+
+    "possible_intents": [
+      "Mental Health",
+      "Emotional Support"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Would you like to share what's making you feel anxious?",
+      "Has something specific been worrying you recently?",
+      "How long have you been feeling this way?"
+    ],
+
+    "recommended_resources": [
+      "stress_management",
+      "coping_strategies",
+      "self_care"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [26]
+  },
+
+  {
+    "id": "ANX002",
+
+    "topic": "Recognizing Symptoms of Anxiety",
+
+    "category": "Mental Health",
+
+    "keywords": [
+      "heart racing",
+      "panic",
+      "restless",
+      "can't relax",
+      "symptoms"
+    ],
+
+    "question_variations": [
+      "My heart races when I'm stressed.",
+      "I feel restless.",
+      "I can't relax.",
+      "I'm always on edge."
+    ],
+
+    "response": "Anxiety can affect both the mind and body. Some people experience excessive worrying, difficulty concentrating, muscle tension, rapid heartbeat, restlessness, or trouble sleeping. Recognizing these signs early can help you respond with healthy coping strategies.",
+
+    "related_emotions": [
+      "Anxiety",
+      "Fear",
+      "Stress"
+    ],
+
+    "possible_intents": [
+      "Mental Health"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Have you noticed these feelings happening often?",
+      "Do these symptoms affect school or daily life?"
+    ],
+
+    "recommended_resources": [
+      "stress_management",
+      "self_care"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [26]
+  },
+
+  {
+    "id": "ANX003",
+
+    "topic": "Managing Overthinking",
+
+    "category": "Mental Health",
+
+    "keywords": [
+      "overthinking",
+      "thinking too much",
+      "can't stop thinking",
+      "what if"
+    ],
+
+    "question_variations": [
+      "I overthink everything.",
+      "My mind won't stop.",
+      "I keep imagining the worst.",
+      "I can't stop worrying."
+    ],
+
+    "response": "Overthinking can make problems feel larger than they are. When you notice your thoughts becoming overwhelming, try focusing on facts instead of assumptions, writing your thoughts down, or redirecting your attention to one small task you can control.",
+
+    "related_emotions": [
+      "Anxiety",
+      "Stress"
+    ],
+
+    "possible_intents": [
+      "Mental Health",
+      "Emotional Support"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "What thoughts keep coming back?",
+      "Would you like to try a grounding exercise?"
+    ],
+
+    "recommended_resources": [
+      "coping_strategies",
+      "stress_management"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [26]
+  },
+
+  {
+    "id": "ANX004",
+
+    "topic": "Managing Anxiety Before Exams",
+
+    "category": "Academic Concern",
+
+    "keywords": [
+      "exam anxiety",
+      "test anxiety",
+      "quiz",
+      "exams",
+      "performance"
+    ],
+
+    "question_variations": [
+      "I'm scared of my exams.",
+      "I panic before quizzes.",
+      "I freeze during tests.",
+      "I'm afraid I'll fail."
+    ],
+
+    "response": "Feeling nervous before an exam is common. Preparing consistently, getting enough rest, arriving early, and using slow breathing techniques may help reduce anxiety and improve concentration during examinations.",
+
+    "related_emotions": [
+      "Anxiety",
+      "Fear",
+      "Stress"
+    ],
+
+    "possible_intents": [
+      "Academic Concern",
+      "Study Skills"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Which subject are you most worried about?",
+      "Would you like some exam preparation strategies?"
+    ],
+
+    "recommended_resources": [
+      "study_skills",
+      "review_techniques",
+      "academic_stress"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [26]
+  },
+
+  {
+    "id": "ANX005",
+
+    "topic": "When Anxiety Requires Additional Support",
+
+    "category": "Mental Health",
+
+    "keywords": [
+      "can't cope",
+      "constant anxiety",
+      "panic attacks",
+      "help"
+    ],
+
+    "question_variations": [
+      "My anxiety is getting worse.",
+      "I can't control my anxiety anymore.",
+      "It's affecting my daily life.",
+      "I need help."
+    ],
+
+    "response": "If anxiety is persistent, overwhelming, or significantly affecting your studies, relationships, or daily activities, consider reaching out to the Guidance Office or another qualified mental health professional. Seeking support is a positive step toward managing your well-being.",
+
+    "related_emotions": [
+      "Anxiety",
+      "Hopelessness",
+      "Stress"
+    ],
+
+    "possible_intents": [
+      "Mental Health",
+      "Counseling Services"
+    ],
+
+    "risk_level": "MEDIUM",
+
+    "follow_up_questions": [
+      "Would you feel comfortable talking with a Guidance Counselor?",
+      "Would you like information about scheduling an appointment?"
+    ],
+
+    "recommended_resources": [
+      "guidance_services",
+      "appointment_process",
+      "stress_management"
+    ],
+
+    "escalation": {
+      "required": true,
+      "trigger_conditions": [
+        "can't cope",
+        "panic attacks",
+        "affecting daily life"
+      ],
+      "action": "Recommend contacting the Guidance Office for additional support. If the conversation includes thoughts of self-harm or suicide, immediately transition to the crisis support protocol."
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [26]
+  }
+]

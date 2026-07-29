@@ -1,0 +1,192 @@
+/* ─────────────────────────────────────────
+   base.css — Shared variables, reset, and
+   utility classes used across ALL pages
+   (chatbot.html, dashboard.html, login.html)
+───────────────────────────────────────── */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap");
+
+/* ── RESET ── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ── SOC ORANGE THEME VARIABLES ── */
+:root {
+  --orange: #e67e22;
+  --dark-orange: #d35400;
+  --light-orange: #f39c12;
+  --gold: #f4d03f;
+  --gold-light: #f7dc6f;
+  --gold-pale: #fcf3cf;
+  --white: #ffffff;
+  --gray-50: #f9f9f9;
+  --gray-100: #f0efea;
+  --gray-200: #e6e0d6;
+  --gray-400: #a89b8d;
+  --gray-700: #5a4d42;
+  --gray-900: #2c2a28;
+
+  --success-bg: #f0fdf4;
+  --success-text: #166534;
+  --success-border: #bbf7d0;
+
+  --danger-bg: #fee2e2;
+  --danger-text: #b91c1c;
+  --danger-border: #fecaca;
+
+  --warning-bg: #fff7ed;
+  --warning-text: #92400e;
+  --warning-border: #fed7aa;
+
+  --radius-lg: 16px;
+  --radius-md: 10px;
+  --radius-sm: 6px;
+  --shadow-md: 0 4px 24px rgba(230, 126, 34, 0.15);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.07);
+}
+
+/* ── BASE ── */
+html,
+body {
+  height: 100%;
+  font-family: "Inter", sans-serif;
+  background: var(--gray-100);
+  color: var(--gray-900);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ── UTILITY CLASSES ── */
+.text-maroon {
+  color: var(--orange);
+}
+.text-gray {
+  color: var(--gray-400);
+}
+.font-serif {
+  font-family: "Playfair Display", serif;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 99px;
+}
+.badge.negative {
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  border: 1px solid var(--danger-border);
+}
+.badge.neutral {
+  background: var(--success-bg);
+  color: var(--success-text);
+  border: 1px solid var(--success-border);
+}
+.badge.pending {
+  background: var(--warning-bg);
+  color: var(--warning-text);
+  border: 1px solid var(--warning-border);
+}
+
+.btn {
+  font-family: "Inter", sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  border-radius: 99px;
+  padding: 8px 18px;
+  border: none;
+  cursor: pointer;
+
+  transition:
+    background 0.15s ease,
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.btn-primary {
+  background: var(--orange);
+  color: var(--white);
+}
+.btn-primary:hover {
+  background: var(--dark-orange);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-primary:disabled,
+.btn-primary.disabled {
+  background: var(--gray-200);
+  color: var(--gray-400);
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+  opacity: 1;
+}
+
+.btn-primary:disabled:hover,
+.btn-primary.disabled:hover {
+  background: var(--gray-200);
+  color: var(--gray-400);
+  box-shadow: none;
+  transform: none;
+}
+.btn-outline {
+  background: var(--white);
+  color: var(--orange);
+  border: 1.5px solid var(--gold);
+}
+.btn-outline:hover {
+  background: var(--orange);
+  color: var(--white);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+/* ── SCROLLBAR ── */
+.scrollable::-webkit-scrollbar {
+  width: 4px;
+}
+.scrollable::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollable::-webkit-scrollbar-thumb {
+  background: var(--gray-200);
+  border-radius: 4px;
+}
+
+/* ── LOGO / BRAND IMAGES ── */
+.logo-img,
+.sidebar-logo-img,
+.hau-logo,
+.brand-logo {
+  display: inline-block;
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  border-radius: 50%;
+}
+.sidebar-logo-img {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+}
+.logo-small {
+  width: 32px;
+  height: 32px;
+}
+
+/* Logout placement */
+.logout-inline {
+  margin-left: 12px;
+}

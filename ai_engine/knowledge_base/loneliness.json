@@ -1,0 +1,297 @@
+[
+  {
+    "id": "LON001",
+
+    "topic": "Understanding Loneliness",
+
+    "category": "Mental Health",
+
+    "keywords": [
+      "lonely",
+      "alone",
+      "isolated",
+      "no friends",
+      "left out"
+    ],
+
+    "question_variations": [
+      "I feel lonely.",
+      "I don't have any friends.",
+      "I'm always alone.",
+      "No one understands me.",
+      "I feel isolated."
+    ],
+
+    "response": "Feeling lonely is something many students experience, especially during major life transitions such as starting college or adjusting to a new environment. Loneliness does not mean there is something wrong with you. Building meaningful connections often takes time, patience, and small steps toward interacting with others.",
+
+    "related_emotions": [
+      "Loneliness",
+      "Sadness",
+      "Anxiety"
+    ],
+
+    "possible_intents": [
+      "Emotional Support",
+      "Mental Health"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Have you been feeling lonely for a long time?",
+      "Would you like to talk about what's been happening?",
+      "Have you been able to connect with classmates or friends?"
+    ],
+
+    "recommended_resources": [
+      "friendships",
+      "campus_life",
+      "guidance_services"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [29]
+  },
+
+  {
+    "id": "LON002",
+
+    "topic": "Building New Friendships",
+
+    "category": "Social Well-being",
+
+    "keywords": [
+      "friends",
+      "friendship",
+      "meet people",
+      "classmates",
+      "social"
+    ],
+
+    "question_variations": [
+      "How do I make friends?",
+      "Everyone already has friends.",
+      "I'm shy.",
+      "I don't know how to meet people."
+    ],
+
+    "response": "Building friendships takes time. Joining student organizations, participating in campus activities, working on group projects, and starting small conversations with classmates can help you gradually develop meaningful connections.",
+
+    "related_emotions": [
+      "Loneliness",
+      "Fear",
+      "Anxiety"
+    ],
+
+    "possible_intents": [
+      "Campus Life",
+      "Emotional Support"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Are there any organizations you're interested in joining?",
+      "Would you feel comfortable starting with one conversation?"
+    ],
+
+    "recommended_resources": [
+      "campus_life",
+      "adjustment",
+      "friendships"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [29]
+  },
+
+  {
+    "id": "LON003",
+
+    "topic": "Avoid Isolating Yourself",
+
+    "category": "Mental Health",
+
+    "keywords": [
+      "isolation",
+      "withdraw",
+      "avoid people",
+      "stay alone"
+    ],
+
+    "question_variations": [
+      "I avoid everyone.",
+      "I don't want to leave my room.",
+      "I stopped talking to people.",
+      "I isolate myself."
+    ],
+
+    "response": "Although spending time alone can sometimes be helpful, prolonged isolation may increase feelings of loneliness and sadness. Reaching out to someone you trust or participating in simple social activities can be a positive first step toward reconnecting with others.",
+
+    "related_emotions": [
+      "Loneliness",
+      "Sadness"
+    ],
+
+    "possible_intents": [
+      "Mental Health",
+      "Emotional Support"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Is there someone you trust that you could message today?",
+      "Would you like to talk about what's making you withdraw?"
+    ],
+
+    "recommended_resources": [
+      "coping_strategies",
+      "guidance_services",
+      "self_care"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [29]
+  },
+
+  {
+    "id": "LON004",
+
+    "topic": "You Are Not Alone",
+
+    "category": "Emotional Support",
+
+    "keywords": [
+      "nobody cares",
+      "alone",
+      "nobody understands",
+      "unsupported"
+    ],
+
+    "question_variations": [
+      "Nobody cares about me.",
+      "No one understands me.",
+      "I'm completely alone.",
+      "Nobody notices me."
+    ],
+
+    "response": "Feeling alone can be painful, but it does not mean that you are without support. The Guidance Office, trusted friends, family members, instructors, and mentors can all be sources of encouragement. Reaching out may feel difficult, but you do not have to face your struggles by yourself.",
+
+    "related_emotions": [
+      "Loneliness",
+      "Sadness",
+      "Hopelessness"
+    ],
+
+    "possible_intents": [
+      "Emotional Support",
+      "Counseling Services"
+    ],
+
+    "risk_level": "MEDIUM",
+
+    "follow_up_questions": [
+      "Would you like to tell me more about what you're experiencing?",
+      "Would talking with a Guidance Counselor feel helpful?"
+    ],
+
+    "recommended_resources": [
+      "guidance_services",
+      "appointment_process",
+      "coping_strategies"
+    ],
+
+    "escalation": {
+      "required": true,
+      "trigger_conditions": [
+        "nobody cares",
+        "completely alone",
+        "hopeless"
+      ],
+      "action": "Encourage the student to connect with the Guidance Office or another trusted support person. If the student also expresses thoughts of self-harm or suicide, immediately transition to the crisis support protocol."
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [29]
+  },
+
+  {
+    "id": "LON005",
+
+    "topic": "Finding Connection on Campus",
+
+    "category": "Campus Life",
+
+    "keywords": [
+      "organizations",
+      "clubs",
+      "activities",
+      "community",
+      "campus"
+    ],
+
+    "question_variations": [
+      "How can I meet more people?",
+      "I want to make friends on campus.",
+      "I don't know where to start."
+    ],
+
+    "response": "Getting involved in campus organizations, volunteer activities, student events, or interest-based groups can help you meet people who share similar interests. Building a support network often starts with participating in small, consistent activities.",
+
+    "related_emotions": [
+      "Loneliness",
+      "Anxiety"
+    ],
+
+    "possible_intents": [
+      "Campus Life",
+      "Student Adjustment"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Are there clubs or organizations that interest you?",
+      "Would you like suggestions for getting involved?"
+    ],
+
+    "recommended_resources": [
+      "campus_life",
+      "adjustment",
+      "welcome"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [29]
+  }
+]

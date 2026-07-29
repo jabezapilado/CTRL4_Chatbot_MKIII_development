@@ -1,0 +1,241 @@
+[
+  {
+    "id": "SP001",
+
+    "topic": "Recognizing Emotional Distress",
+
+    "category": "Suicide Prevention",
+
+    "keywords": [
+      "hopeless",
+      "worthless",
+      "can't go on",
+      "giving up",
+      "life is hard"
+    ],
+
+    "question_variations": [
+      "I feel hopeless.",
+      "I feel worthless.",
+      "I don't think things will get better.",
+      "I'm giving up.",
+      "Life feels too difficult."
+    ],
+
+    "response": "I'm really sorry you're going through such a difficult time. You don't have to face these feelings alone. Reaching out to someone you trust, such as a family member, close friend, or a Guidance Counselor, can be an important first step. Your feelings matter, and support is available.",
+
+    "related_emotions": [
+      "Hopelessness",
+      "Sadness"
+    ],
+
+    "possible_intents": [
+      "Emergency Support",
+      "Mental Health"
+    ],
+
+    "risk_level": "HIGH",
+
+    "follow_up_questions": [
+      "Would you be willing to tell me more about what's been happening?",
+      "Is there someone you trust that you could contact today?"
+    ],
+
+    "recommended_resources": [
+      "guidance_services",
+      "crisis_protocol",
+      "emergency_contacts"
+    ],
+
+    "escalation": {
+      "required": true,
+      "trigger_conditions": [
+        "hopeless",
+        "worthless",
+        "giving up",
+        "can't go on"
+      ],
+      "action": "Immediately transition to the crisis support protocol and encourage contacting a Guidance Counselor, trusted adult, or emergency services if the student is in immediate danger."
+    },
+
+    "source_document": "Suicide Prevention First Aid Guide",
+
+    "page_numbers": [2]
+  },
+
+  {
+    "id": "SP002",
+
+    "topic": "Warning Signs of Suicide Risk",
+
+    "category": "Suicide Prevention",
+
+    "keywords": [
+      "warning signs",
+      "suicide",
+      "risk",
+      "self harm"
+    ],
+
+    "question_variations": [
+      "My friend keeps saying goodbye.",
+      "My friend says everyone would be better without them.",
+      "I'm worried about someone."
+    ],
+
+    "response": "Statements about hopelessness, feeling like a burden, giving away important belongings, withdrawing from others, or talking about death may be warning signs that someone needs immediate support. Encourage them to speak with a trusted adult or Guidance Counselor as soon as possible, and stay with them if you believe they may be in immediate danger.",
+
+    "related_emotions": [
+      "Fear"
+    ],
+
+    "possible_intents": [
+      "Emergency Support"
+    ],
+
+    "risk_level": "HIGH",
+
+    "follow_up_questions": [
+      "Is the person safe right now?",
+      "Are you with them at the moment?"
+    ],
+
+    "recommended_resources": [
+      "crisis_protocol",
+      "emergency_contacts"
+    ],
+
+    "escalation": {
+      "required": true,
+      "trigger_conditions": [
+        "suicide",
+        "goodbye",
+        "burden",
+        "death"
+      ],
+      "action": "Advise immediate contact with a trusted adult, the Guidance Office, or emergency services if there is immediate danger."
+    },
+
+    "source_document": "Suicide Prevention First Aid Guide",
+
+    "page_numbers": [4]
+  },
+
+  {
+    "id": "SP003",
+
+    "topic": "Helping a Friend in Emotional Crisis",
+
+    "category": "Suicide Prevention",
+
+    "keywords": [
+      "friend",
+      "help",
+      "support",
+      "listen"
+    ],
+
+    "question_variations": [
+      "My friend wants to give up.",
+      "How can I help my friend?",
+      "I'm worried about someone."
+    ],
+
+    "response": "Stay calm, listen without judgment, let your friend know you care, and encourage them to seek help from a Guidance Counselor, trusted adult, or family member. If you believe they are in immediate danger, do not leave them alone and contact emergency services or another responsible adult immediately.",
+
+    "related_emotions": [
+      "Fear",
+      "Sadness"
+    ],
+
+    "possible_intents": [
+      "Emergency Support"
+    ],
+
+    "risk_level": "HIGH",
+
+    "follow_up_questions": [
+      "Are you currently with your friend?",
+      "Have you been able to contact a trusted adult?"
+    ],
+
+    "recommended_resources": [
+      "crisis_protocol",
+      "emergency_contacts"
+    ],
+
+    "escalation": {
+      "required": true,
+      "trigger_conditions": [
+        "friend suicidal",
+        "friend wants to die"
+      ],
+      "action": "Prioritize the friend's immediate safety and encourage contacting emergency services or a trusted adult."
+    },
+
+    "source_document": "Suicide Prevention First Aid Guide",
+
+    "page_numbers": [5]
+  },
+
+  {
+    "id": "SP004",
+
+    "topic": "Immediate Safety Comes First",
+
+    "category": "Suicide Prevention",
+
+    "keywords": [
+      "kill myself",
+      "suicide",
+      "end my life",
+      "self harm",
+      "die"
+    ],
+
+    "question_variations": [
+      "I want to kill myself.",
+      "I don't want to live anymore.",
+      "I want to end my life.",
+      "I'm thinking of hurting myself."
+    ],
+
+    "response": "I'm really glad you told me. I'm sorry you're carrying so much right now. Your safety is the most important thing. Please contact a trusted family member, a Guidance Counselor, or another trusted adult immediately. If you believe you might act on these thoughts or are in immediate danger, call your local emergency services or go to the nearest emergency department as soon as possible. You do not have to face this alone.",
+
+    "related_emotions": [
+      "Hopelessness",
+      "Sadness"
+    ],
+
+    "possible_intents": [
+      "Emergency Support"
+    ],
+
+    "risk_level": "HIGH",
+
+    "follow_up_questions": [
+      "Are you safe right now?",
+      "Is there someone nearby you can tell immediately?"
+    ],
+
+    "recommended_resources": [
+      "crisis_protocol",
+      "emergency_contacts"
+    ],
+
+    "escalation": {
+      "required": true,
+      "trigger_conditions": [
+        "kill myself",
+        "end my life",
+        "suicide",
+        "hurt myself"
+      ],
+      "action": "Immediately activate the crisis protocol. Encourage contacting emergency services or a trusted adult without delay."
+    },
+
+    "source_document": "Suicide Prevention First Aid Guide",
+
+    "page_numbers": [6]
+  }
+]

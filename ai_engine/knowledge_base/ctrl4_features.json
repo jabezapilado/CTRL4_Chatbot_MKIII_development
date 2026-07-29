@@ -1,0 +1,88 @@
+[
+    {
+        "id": "CTRL4001",
+        "topic": "CTRL4 System Features",
+        "category": "CTRL4 Information",
+        "keywords": [
+            "ctrl4",
+            "features",
+            "capabilities",
+            "system",
+            "chatbot",
+            "what can ctrl4 do"
+        ],
+        "question_variations": [
+            "What is CTRL4?",
+            "What can CTRL4 do?",
+            "What are the features of CTRL4?",
+            "Tell me about CTRL4.",
+            "How does CTRL4 work?",
+            "What services does CTRL4 provide?"
+        ],
+        "response": "CTRL4 is an AI-powered Guidance Office chatbot designed to support students by providing Guidance Office information, appointment booking assistance, emotional support, and negative emotion detection. The system allows students to ask questions related to Guidance Office services, book counseling appointments, receive academic and well-being support, and communicate through a safe and student-friendly platform.",
+        "related_emotions": [
+            "Neutral"
+        ],
+        "possible_intents": [
+            "System Information"
+        ],
+        "risk_level": "LOW",
+        "follow_up_questions": [
+            "Would you like to learn more about appointment booking?",
+            "Would you like to know how negative emotion detection works?"
+        ],
+        "recommended_resources": [
+            "appointment_process",
+            "guidance_services",
+            "office_hours"
+        ],
+        "escalation": {
+            "required": false,
+            "trigger_conditions": [],
+            "action": null
+        },
+        "source_document": "CTRL4 System Documentation",
+        "page_numbers": [1]
+    },
+
+    {
+        "id": "CTRL4002",
+        "topic": "CTRL4 Core Features",
+        "category": "CTRL4 Information",
+        "keywords": [
+            "negative emotion detection",
+            "appointment booking",
+            "guidance office",
+            "chatbot services",
+            "features"
+        ],
+        "question_variations": [
+            "What are CTRL4's core features?",
+            "What makes CTRL4 different?",
+            "What can students do using CTRL4?"
+        ],
+        "response": "CTRL4 offers several core features including Guidance Office inquiry management, counseling appointment booking, Natural Language Processing (NLP)-based negative emotion detection, emotional support responses, and Guidance Office information retrieval. The system is designed to provide accessible and supportive services for students while assisting the Guidance Office in managing student concerns efficiently.",
+        "related_emotions": [
+            "Neutral"
+        ],
+        "possible_intents": [
+            "System Features"
+        ],
+        "risk_level": "LOW",
+        "follow_up_questions": [
+            "Would you like to know more about counseling appointments?",
+            "Would you like to learn how negative emotion detection works?"
+        ],
+        "recommended_resources": [
+            "appointment_process",
+            "guidance_services"
+        ],
+        "escalation": {
+            "required": false,
+            "trigger_conditions": [],
+            "action": null
+        },
+        "source_document": "CTRL4 System Documentation",
+        "page_numbers": [1]
+    }
+]

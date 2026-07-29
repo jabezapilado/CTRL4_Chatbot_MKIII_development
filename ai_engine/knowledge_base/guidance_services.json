@@ -1,0 +1,287 @@
+[
+  {
+    "id": "GSRV001",
+
+    "topic": "Guidance Office Services",
+
+    "category": "Guidance Services",
+
+    "keywords": [
+      "guidance office",
+      "services",
+      "counseling",
+      "help",
+      "support"
+    ],
+
+    "question_variations": [
+      "What services does the Guidance Office offer?",
+      "How can the Guidance Office help me?",
+      "What can I ask the Guidance Office about?",
+      "Can the Guidance Office help me?"
+    ],
+
+    "response": "The Guidance Office provides counseling and support services that promote students' academic, personal, emotional, social, and career development. Students may seek assistance for academic concerns, emotional well-being, relationship difficulties, career planning, adjustment to college life, and other personal concerns.",
+
+    "related_emotions": [
+      "Neutral",
+      "Stress",
+      "Anxiety"
+    ],
+
+    "possible_intents": [
+      "Counseling Services",
+      "FAQ"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "What type of concern would you like help with?",
+      "Would you like information about scheduling a counseling session?"
+    ],
+
+    "recommended_resources": [
+      "appointment_process",
+      "faq",
+      "academic_stress"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Guidance Office Handbook",
+
+    "page_numbers": [2]
+  },
+
+  {
+    "id": "GSRV002",
+
+    "topic": "Individual Counseling",
+
+    "category": "Guidance Services",
+
+    "keywords": [
+      "individual counseling",
+      "one on one",
+      "counselor",
+      "private counseling"
+    ],
+
+    "question_variations": [
+      "Can I talk to a counselor privately?",
+      "Do you have one-on-one counseling?",
+      "Can I speak with a Guidance Counselor?"
+    ],
+
+    "response": "Individual counseling provides students with a private and supportive environment where they can discuss personal, academic, emotional, or social concerns with a Guidance Counselor. The goal is to help students understand their situation, explore possible solutions, and make informed decisions.",
+
+    "related_emotions": [
+      "Stress",
+      "Anxiety",
+      "Sadness"
+    ],
+
+    "possible_intents": [
+      "Counseling Services",
+      "Appointment"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Would you like information on how to schedule a counseling session?",
+      "Is there a particular concern you'd like to discuss?"
+    ],
+
+    "recommended_resources": [
+      "appointment_process",
+      "confidentiality"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Guidance Office Handbook",
+
+    "page_numbers": [3]
+  },
+
+  {
+    "id": "GSRV003",
+
+    "topic": "Academic Counseling",
+
+    "category": "Guidance Services",
+
+    "keywords": [
+      "academic counseling",
+      "grades",
+      "subjects",
+      "study",
+      "academic concerns"
+    ],
+
+    "question_variations": [
+      "Can the Guidance Office help with academics?",
+      "I'm failing my subjects.",
+      "Can someone help me with school problems?"
+    ],
+
+    "response": "Guidance Counselors can assist students who are experiencing academic difficulties by helping them identify concerns, develop study plans, improve time management, and explore strategies for academic success. They may also refer students to appropriate university resources when necessary.",
+
+    "related_emotions": [
+      "Stress",
+      "Anxiety"
+    ],
+
+    "possible_intents": [
+      "Academic Concern",
+      "Counseling Services"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Which subject has been the most challenging for you?",
+      "Would you like help identifying strategies that may improve your academic performance?"
+    ],
+
+    "recommended_resources": [
+      "study_skills",
+      "academic_stress",
+      "time_management"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Guidance Office Handbook",
+
+    "page_numbers": [3]
+  },
+
+  {
+    "id": "GSRV004",
+
+    "topic": "Personal and Emotional Counseling",
+
+    "category": "Guidance Services",
+
+    "keywords": [
+      "emotional support",
+      "mental health",
+      "personal concerns",
+      "stress",
+      "anxiety"
+    ],
+
+    "question_variations": [
+      "Can I talk about my personal problems?",
+      "Can I talk about anxiety?",
+      "Can I ask for emotional support?",
+      "Do I need a serious problem before visiting?"
+    ],
+
+    "response": "Students may seek counseling for emotional, personal, or relationship concerns even if they are not experiencing a crisis. The Guidance Office encourages students to seek support early, before concerns become more difficult to manage.",
+
+    "related_emotions": [
+      "Stress",
+      "Anxiety",
+      "Sadness"
+    ],
+
+    "possible_intents": [
+      "Counseling Services",
+      "Emotional Support"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Would you like to share what's been on your mind?",
+      "Would speaking with a Guidance Counselor help you feel supported?"
+    ],
+
+    "recommended_resources": [
+      "appointment_process",
+      "stress_management",
+      "coping_strategies"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Guidance Office Handbook",
+
+    "page_numbers": [4]
+  },
+
+  {
+    "id": "GSRV005",
+
+    "topic": "Career Guidance",
+
+    "category": "Guidance Services",
+
+    "keywords": [
+      "career",
+      "future",
+      "profession",
+      "career planning",
+      "job"
+    ],
+
+    "question_variations": [
+      "Can someone help me choose a career?",
+      "I'm unsure about my future.",
+      "I don't know what career fits me."
+    ],
+
+    "response": "Career guidance services help students understand their interests, strengths, values, and career opportunities. Guidance Counselors can assist students in exploring educational and career options that align with their goals.",
+
+    "related_emotions": [
+      "Anxiety",
+      "Neutral"
+    ],
+
+    "possible_intents": [
+      "Career Guidance"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Are you exploring careers related to your current program?",
+      "Would you like information about career planning?"
+    ],
+
+    "recommended_resources": [
+      "goal_setting",
+      "appointment_process"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Guidance Office Handbook",
+
+    "page_numbers": [5]
+  }
+]

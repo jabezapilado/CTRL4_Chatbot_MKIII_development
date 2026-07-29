@@ -1,0 +1,277 @@
+[
+  {
+    "id": "RT001",
+    "topic": "Review Lessons Regularly",
+    "category": "Review Techniques",
+
+    "keywords": [
+      "review",
+      "lessons",
+      "study",
+      "daily review",
+      "memory"
+    ],
+
+    "question_variations": [
+      "How often should I review my lessons?",
+      "I only study before exams.",
+      "I forget what I learned."
+    ],
+
+    "response": "Reviewing lessons regularly helps strengthen understanding and long-term memory. Instead of waiting until the night before an exam, spend a few minutes reviewing your notes after each class and revisit important topics throughout the week.",
+
+    "related_emotions": [
+      "Stress",
+      "Anxiety"
+    ],
+
+    "possible_intents": [
+      "Study Skills",
+      "Review Techniques"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "How do you usually review your lessons?",
+      "Would you like a weekly review schedule?"
+    ],
+
+    "recommended_resources": [
+      "study_skills",
+      "time_management"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [13,14]
+  },
+
+  {
+    "id": "RT002",
+
+    "topic": "Practice Active Recall",
+
+    "category": "Review Techniques",
+
+    "keywords": [
+      "active recall",
+      "memory",
+      "practice",
+      "quiz",
+      "remember"
+    ],
+
+    "question_variations": [
+      "I keep forgetting everything.",
+      "How can I remember what I study?",
+      "Reading isn't helping."
+    ],
+
+    "response": "Instead of repeatedly rereading your notes, challenge yourself to recall information from memory. Cover your notes, answer practice questions, or explain the lesson aloud without looking. This strengthens learning and helps identify areas that need more review.",
+
+    "related_emotions": [
+      "Frustration",
+      "Stress"
+    ],
+
+    "possible_intents": [
+      "Study Skills",
+      "Review Techniques"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Have you tried testing yourself after studying?",
+      "Would you like more memory improvement strategies?"
+    ],
+
+    "recommended_resources": [
+      "study_skills",
+      "time_management"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [13,14]
+  },
+
+  {
+    "id": "RT003",
+
+    "topic": "Avoid Last-Minute Cramming",
+
+    "category": "Review Techniques",
+
+    "keywords": [
+      "cramming",
+      "last minute",
+      "exam",
+      "review",
+      "panic"
+    ],
+
+    "question_variations": [
+      "I always cram.",
+      "I study only the night before.",
+      "I panic before exams."
+    ],
+
+    "response": "Cramming may help you remember information briefly, but regular review over several days leads to better understanding and long-term retention. Preparing early also helps reduce stress before examinations.",
+
+    "related_emotions": [
+      "Stress",
+      "Anxiety"
+    ],
+
+    "possible_intents": [
+      "Study Skills",
+      "Exam Preparation"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "How many days before an exam do you usually start reviewing?",
+      "Would you like a simple review plan?"
+    ],
+
+    "recommended_resources": [
+      "time_management",
+      "study_skills"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [14]
+  },
+
+  {
+    "id": "RT004",
+
+    "topic": "Use Practice Questions",
+
+    "category": "Review Techniques",
+
+    "keywords": [
+      "practice questions",
+      "practice test",
+      "mock exam",
+      "review"
+    ],
+
+    "question_variations": [
+      "How do I prepare for exams?",
+      "How can I practice?",
+      "I don't know if I'm ready."
+    ],
+
+    "response": "Answering practice questions or taking mock tests allows you to evaluate your understanding and identify topics that require more attention before the actual examination.",
+
+    "related_emotions": [
+      "Stress"
+    ],
+
+    "possible_intents": [
+      "Study Skills",
+      "Exam Preparation"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Which subject are you preparing for?",
+      "Would practice quizzes help you feel more confident?"
+    ],
+
+    "recommended_resources": [
+      "study_skills",
+      "goal_setting"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [14]
+  },
+
+  {
+    "id": "RT005",
+
+    "topic": "Review Mistakes to Improve Learning",
+
+    "category": "Review Techniques",
+
+    "keywords": [
+      "mistakes",
+      "wrong answers",
+      "improve",
+      "learning"
+    ],
+
+    "question_variations": [
+      "I keep making the same mistakes.",
+      "I got many wrong answers.",
+      "How do I improve after failing?"
+    ],
+
+    "response": "Reviewing your mistakes helps you understand misconceptions and prevents repeating the same errors. Instead of focusing only on your score, identify why an answer was incorrect and learn the correct approach.",
+
+    "related_emotions": [
+      "Frustration",
+      "Stress"
+    ],
+
+    "possible_intents": [
+      "Academic Concern",
+      "Study Skills"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Which topic do you find most difficult?",
+      "Would you like help identifying areas to improve?"
+    ],
+
+    "recommended_resources": [
+      "academic_stress",
+      "study_skills",
+      "goal_setting"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [14]
+  }
+]

@@ -1,0 +1,51 @@
+{
+    "Positive": {
+        "sentiment": "Positive",
+        "is_negative": false
+    },
+
+    "Neutral": {
+        "sentiment": "Neutral",
+        "is_negative": false
+    },
+
+    "Stress": {
+        "sentiment": "Negative",
+        "is_negative": true
+    },
+
+    "Anxiety": {
+        "sentiment": "Negative",
+        "is_negative": true
+    },
+
+    "Fear": {
+        "sentiment": "Negative",
+        "is_negative": true
+    },
+
+    "Sadness": {
+        "sentiment": "Negative",
+        "is_negative": true
+    },
+
+    "Loneliness": {
+        "sentiment": "Negative",
+        "is_negative": true
+    },
+
+    "Burned Out": {
+        "sentiment": "Negative",
+        "is_negative": true
+    },
+
+    "Hopelessness": {
+        "sentiment": "Negative",
+        "is_negative": true
+    },
+
+    "Anger": {
+        "sentiment": "Negative",
+        "is_negative": true
+    }
+}

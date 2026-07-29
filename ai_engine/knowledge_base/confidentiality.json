@@ -1,0 +1,230 @@
+[
+  {
+    "id": "CONF001",
+
+    "topic": "Is Counseling Confidential?",
+
+    "category": "Guidance Services",
+
+    "keywords": [
+      "confidential",
+      "privacy",
+      "secret",
+      "will my parents know",
+      "will my teacher know"
+    ],
+
+    "question_variations": [
+      "Is counseling confidential?",
+      "Will anyone know what I say?",
+      "Can my parents know what I tell the counselor?",
+      "Is my information private?"
+    ],
+
+    "response": "Counseling sessions are generally treated as confidential to help students feel safe discussing their concerns. Information shared during counseling is handled professionally and respectfully. However, confidentiality may have limits when there is a serious concern about the safety of the student or another person, or when disclosure is required by law or university policy.",
+
+    "related_emotions": [
+      "Anxiety",
+      "Fear",
+      "Neutral"
+    ],
+
+    "possible_intents": [
+      "FAQ",
+      "Counseling Services"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Would knowing more about counseling help you feel comfortable?",
+      "Would you like information about scheduling a counseling session?"
+    ],
+
+    "recommended_resources": [
+      "appointment_process",
+      "guidance_services"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Guidance Office Handbook",
+
+    "page_numbers": [7]
+  },
+
+  {
+    "id": "CONF002",
+
+    "topic": "When Can Confidentiality Be Limited?",
+
+    "category": "Guidance Services",
+
+    "keywords": [
+      "limits",
+      "confidentiality",
+      "danger",
+      "safety",
+      "emergency"
+    ],
+
+    "question_variations": [
+      "When will the counselor tell someone?",
+      "Are there exceptions to confidentiality?",
+      "Can confidentiality be broken?"
+    ],
+
+    "response": "Confidentiality may be limited when there is a significant concern for your safety or the safety of others, or when disclosure is required under applicable laws or university policies. In these situations, the Guidance Counselor will prioritize safety while treating your information with care and professionalism.",
+
+    "related_emotions": [
+      "Fear",
+      "Anxiety"
+    ],
+
+    "possible_intents": [
+      "FAQ",
+      "Counseling Services",
+      "Emergency Support"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Do you have questions about how counseling works?",
+      "Would you like to know more about Guidance Office services?"
+    ],
+
+    "recommended_resources": [
+      "guidance_services",
+      "suicide_prevention"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Guidance Office Handbook",
+
+    "page_numbers": [7]
+  },
+
+  {
+    "id": "CONF003",
+
+    "topic": "Can I Talk About Personal Problems?",
+
+    "category": "Guidance Services",
+
+    "keywords": [
+      "personal problems",
+      "family",
+      "relationship",
+      "stress",
+      "mental health"
+    ],
+
+    "question_variations": [
+      "Can I talk about my personal life?",
+      "Can I discuss family problems?",
+      "Can I talk about my relationship?",
+      "Can I talk about my mental health?"
+    ],
+
+    "response": "Yes. Guidance Counselors are available to listen and support students with academic, personal, emotional, social, and career-related concerns. You are encouraged to share only what you are comfortable discussing.",
+
+    "related_emotions": [
+      "Stress",
+      "Anxiety",
+      "Sadness"
+    ],
+
+    "possible_intents": [
+      "Counseling Services",
+      "Emotional Support"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Would you like to share what's been bothering you?",
+      "Would you like information about counseling services?"
+    ],
+
+    "recommended_resources": [
+      "guidance_services",
+      "appointment_process"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Guidance Office Handbook",
+
+    "page_numbers": [7]
+  },
+
+  {
+    "id": "CONF004",
+
+    "topic": "Will My Teachers or Parents Be Informed?",
+
+    "category": "Guidance Services",
+
+    "keywords": [
+      "parents",
+      "teachers",
+      "professors",
+      "privacy",
+      "information"
+    ],
+
+    "question_variations": [
+      "Will my parents know?",
+      "Will my professor know?",
+      "Will my teachers know I visited?"
+    ],
+
+    "response": "The Guidance Office respects student privacy. Information shared during counseling is not routinely shared with parents, teachers, or other individuals. However, if there is a serious concern involving safety or another situation where disclosure is legally or institutionally required, the counselor may need to involve appropriate persons while prioritizing student well-being.",
+
+    "related_emotions": [
+      "Fear",
+      "Anxiety"
+    ],
+
+    "possible_intents": [
+      "FAQ",
+      "Counseling Services"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Is privacy one of the reasons you're hesitant to seek counseling?",
+      "Would learning more about counseling help you feel comfortable?"
+    ],
+
+    "recommended_resources": [
+      "guidance_services",
+      "faq"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Guidance Office Handbook",
+
+    "page_numbers": [7]
+  }
+]

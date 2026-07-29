@@ -1,0 +1,210 @@
+[
+  {
+    "id": "EC001",
+
+    "topic": "University Guidance Center",
+
+    "category": "Emergency Contacts",
+
+    "keywords": [
+      "guidance office",
+      "guidance counselor",
+      "counselor",
+      "contact guidance"
+    ],
+
+    "question_variations": [
+      "How do I contact the Guidance Office?",
+      "I need to talk to a Guidance Counselor.",
+      "How can I reach the Guidance Office?"
+    ],
+
+    "response": "The University Guidance Center is available to support students experiencing academic, personal, emotional, social, or career concerns. You may visit the office during office hours or contact your assigned counselor through their official Facebook pages.",
+
+    "contact_information": {
+      "office": "University Guidance Center",
+      "office_hours": "Monday–Friday",
+      "facebook": "https://www.facebook.com/hauguidanceoffice"
+    },
+
+    "related_emotions": [
+      "Neutral",
+      "Stress",
+      "Anxiety"
+    ],
+
+    "risk_level": "LOW",
+
+    "source_document": "Official Guidance Office Information",
+
+    "page_numbers": []
+  },
+
+  {
+    "id": "EC002",
+
+    "topic": "School of Computing Counselor - Sir Ryan",
+
+    "category": "Emergency Contacts",
+
+    "keywords": [
+      "sir ryan",
+      "computer science",
+      "emc",
+      "soc counselor"
+    ],
+
+    "question_variations": [
+      "How do I contact Sir Ryan?",
+      "Who is the Computer Science counselor?",
+      "I need Sir Ryan."
+    ],
+
+    "response": "Sir Ryan serves as the School of Computing Guidance Counselor for BS Computer Science and BS Entertainment and Multimedia Computing (Digital Animation).",
+
+    "contact_information": {
+      "assigned_programs": [
+        "BS Computer Science",
+        "BS Entertainment and Multimedia Computing"
+      ],
+      "room_1": "SJH-206",
+      "schedule_1": "Monday–Friday | 7:00 AM – 5:00 PM",
+      "room_2": "PGN-105",
+      "schedule_2": "Monday–Friday | 7:00 AM – 9:00 PM",
+      "facebook": "https://www.facebook.com/hauguidance.soccounselor"
+    },
+
+    "related_emotions": [
+      "Neutral"
+    ],
+
+    "risk_level": "LOW",
+
+    "source_document": "School of Computing Counselor Assignment",
+
+    "page_numbers": []
+  },
+
+  {
+    "id": "EC003",
+
+    "topic": "School of Computing Counselor - Ma'am Hannah",
+
+    "category": "Emergency Contacts",
+
+    "keywords": [
+      "ma'am hannah",
+      "bsit",
+      "cybersecurity",
+      "soc counselor"
+    ],
+
+    "question_variations": [
+      "How do I contact Ma'am Hannah?",
+      "Who is the BSIT counselor?",
+      "I need Ma'am Hannah."
+    ],
+
+    "response": "Ma'am Hannah serves as the School of Computing Guidance Counselor for BS Information Technology and BS Cybersecurity.",
+
+    "contact_information": {
+      "assigned_programs": [
+        "BS Information Technology",
+        "BS Cybersecurity"
+      ],
+      "room_1": "SJH-206",
+      "schedule_1": "Monday–Friday | 8:00 AM – 5:00 PM",
+      "room_2": "PGN-105",
+      "schedule_2": "Monday–Friday | 7:00 AM – 9:00 PM",
+      "facebook": "https://www.facebook.com/profile.php?id=100091309162106"
+    },
+
+    "related_emotions": [
+      "Neutral"
+    ],
+
+    "risk_level": "LOW",
+
+    "source_document": "School of Computing Counselor Assignment",
+
+    "page_numbers": []
+  },
+
+  {
+    "id": "EC004",
+
+    "topic": "Emergency Safety",
+
+    "category": "Emergency Contacts",
+
+    "keywords": [
+      "emergency",
+      "911",
+      "ambulance",
+      "immediate danger",
+      "crisis"
+    ],
+
+    "question_variations": [
+      "I need emergency help.",
+      "This is an emergency.",
+      "Someone is in immediate danger."
+    ],
+
+    "response": "If you or someone else is in immediate danger, contact your local emergency services immediately or go to the nearest hospital or emergency department. If possible, stay with the person until help arrives and notify a trusted adult or university official.",
+
+    "contact_information": {
+      "emergency_services": "911 (Philippines)",
+      "nearest_hospital": "Nearest Emergency Department"
+    },
+
+    "related_emotions": [
+      "Fear",
+      "Hopelessness"
+    ],
+
+    "risk_level": "HIGH",
+
+    "source_document": "Suicide Prevention First Aid Guide",
+
+    "page_numbers": []
+  },
+
+  {
+    "id": "EC005",
+
+    "topic": "National Mental Health Crisis Support",
+
+    "category": "Emergency Contacts",
+
+    "keywords": [
+      "mental health hotline",
+      "crisis hotline",
+      "suicide hotline",
+      "help line"
+    ],
+
+    "question_variations": [
+      "Is there a mental health hotline?",
+      "Who can I call for emotional support?",
+      "Is there a suicide hotline?"
+    ],
+
+    "response": "If you need immediate emotional support outside the university, contact an official mental health crisis service in the Philippines or seek assistance from your nearest hospital or emergency department.",
+
+    "contact_information": {
+      "note": "Replace this section with the latest official national mental health hotline numbers before deployment."
+    },
+
+    "related_emotions": [
+      "Hopelessness",
+      "Fear"
+    ],
+
+    "risk_level": "HIGH",
+
+    "source_document": "Official Mental Health Resources",
+
+    "page_numbers": []
+  }
+]

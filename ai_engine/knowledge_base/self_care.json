@@ -1,0 +1,334 @@
+[
+  {
+    "id": "SC001",
+
+    "topic": "What is Self-Care?",
+
+    "category": "Self Care",
+
+    "keywords": [
+      "self care",
+      "taking care of myself",
+      "well being",
+      "healthy habits"
+    ],
+
+    "question_variations": [
+      "What is self-care?",
+      "How do I take care of myself?",
+      "I keep forgetting to take care of myself."
+    ],
+
+    "response": "Self-care refers to intentional activities that support your physical, emotional, mental, and social well-being. Taking care of yourself is not selfish—it helps you stay healthy, manage stress, and continue meeting your responsibilities more effectively.",
+
+    "related_emotions": [
+      "Stress",
+      "Burned Out"
+    ],
+
+    "possible_intents": [
+      "Self Care",
+      "Mental Health"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Which part of self-care do you think you've been neglecting?",
+      "Would you like some simple self-care ideas?"
+    ],
+
+    "recommended_resources": [
+      "stress_management",
+      "burnout"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [25]
+  },
+
+  {
+    "id": "SC002",
+
+    "topic": "Get Enough Sleep",
+
+    "category": "Self Care",
+
+    "keywords": [
+      "sleep",
+      "rest",
+      "insomnia",
+      "late nights",
+      "tired"
+    ],
+
+    "question_variations": [
+      "I barely sleep.",
+      "I stay up all night studying.",
+      "I'm always tired.",
+      "I can't sleep."
+    ],
+
+    "response": "Adequate sleep supports concentration, memory, emotional regulation, and overall health. Establishing a regular sleep schedule and reducing screen time before bed can improve sleep quality.",
+
+    "related_emotions": [
+      "Stress",
+      "Burned Out"
+    ],
+
+    "possible_intents": [
+      "Self Care"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "How many hours do you usually sleep each night?",
+      "Has your sleep changed recently?"
+    ],
+
+    "recommended_resources": [
+      "stress_management",
+      "time_management"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [25]
+  },
+
+  {
+    "id": "SC003",
+
+    "topic": "Eat Regular and Balanced Meals",
+
+    "category": "Self Care",
+
+    "keywords": [
+      "food",
+      "nutrition",
+      "eat",
+      "meals",
+      "healthy eating"
+    ],
+
+    "question_variations": [
+      "I keep skipping meals.",
+      "I forget to eat.",
+      "I'm too busy to eat properly."
+    ],
+
+    "response": "Regular, balanced meals provide the energy your body and brain need to function well. Skipping meals may contribute to fatigue, difficulty concentrating, and reduced productivity.",
+
+    "related_emotions": [
+      "Stress"
+    ],
+
+    "possible_intents": [
+      "Self Care"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Have you been eating regularly lately?",
+      "Would planning meal times fit into your daily routine?"
+    ],
+
+    "recommended_resources": [
+      "time_management"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [25]
+  },
+
+  {
+    "id": "SC004",
+
+    "topic": "Make Time for Physical Activity",
+
+    "category": "Self Care",
+
+    "keywords": [
+      "exercise",
+      "walk",
+      "movement",
+      "fitness",
+      "physical activity"
+    ],
+
+    "question_variations": [
+      "I never exercise.",
+      "I'm always sitting.",
+      "Can exercise help with stress?"
+    ],
+
+    "response": "Regular physical activity can improve mood, reduce stress, increase energy levels, and support overall health. Even short walks or light stretching can be beneficial.",
+
+    "related_emotions": [
+      "Stress",
+      "Burned Out"
+    ],
+
+    "possible_intents": [
+      "Self Care",
+      "Mental Health"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Would you be able to fit in a short walk each day?",
+      "What kind of physical activity do you enjoy?"
+    ],
+
+    "recommended_resources": [
+      "stress_management",
+      "burnout"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [25]
+  },
+
+  {
+    "id": "SC005",
+
+    "topic": "Take Meaningful Breaks",
+
+    "category": "Self Care",
+
+    "keywords": [
+      "break",
+      "rest",
+      "relax",
+      "pause",
+      "recover"
+    ],
+
+    "question_variations": [
+      "I never take breaks.",
+      "I feel guilty resting.",
+      "I work all day."
+    ],
+
+    "response": "Taking regular breaks allows your mind and body to recover. Short periods of rest can improve focus, creativity, and productivity while reducing the risk of burnout.",
+
+    "related_emotions": [
+      "Burned Out",
+      "Stress"
+    ],
+
+    "possible_intents": [
+      "Self Care"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "When was the last time you had a real break?",
+      "What activities help you relax?"
+    ],
+
+    "recommended_resources": [
+      "burnout",
+      "stress_management"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [25]
+  },
+
+  {
+    "id": "SC006",
+
+    "topic": "Stay Connected With Others",
+
+    "category": "Self Care",
+
+    "keywords": [
+      "friends",
+      "family",
+      "support",
+      "relationships",
+      "social support"
+    ],
+
+    "question_variations": [
+      "I've been isolating myself.",
+      "I don't talk to anyone.",
+      "I feel alone."
+    ],
+
+    "response": "Maintaining healthy relationships with trusted family members, friends, classmates, or mentors can provide emotional support during difficult times. You do not have to face challenges alone.",
+
+    "related_emotions": [
+      "Loneliness",
+      "Sadness",
+      "Stress"
+    ],
+
+    "possible_intents": [
+      "Self Care",
+      "Emotional Support"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Is there someone you trust that you could talk to?",
+      "Would you like to talk about what's making you feel alone?"
+    ],
+
+    "recommended_resources": [
+      "friendships",
+      "relationship_concerns",
+      "guidance_services"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [25]
+  }
+]

@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login — HAU SOC Guidance Chatbot</title>
+
+    <link rel="stylesheet" href="/static/css/base.css" />
+    <link rel="stylesheet" href="/static/css/login.css" />
+  </head>
+  <body>
+    <div class="login-page">
+      <!-- LEFT: Brand Panel -->
+      <div class="login-brand">
+        <img
+          src="/static/img/soc-logo.png"
+          alt="SOC Guidance Office logo"
+          class="hau-logo brand-logo"
+        />
+        <h1 class="brand-title">SOC Guidance Office</h1>
+        <p class="brand-sub">School of Computing</p>
+        <div class="gold-rule"></div>
+      </div>
+
+      <!-- RIGHT: Form Panel -->
+      <div class="login-form-panel">
+        <div class="login-form-inner">
+          <h2>Welcome back</h2>
+          <p class="login-sub">Sign in to continue to the Guidance Chatbot</p>
+
+          <div class="login-notice" id="login-notice" aria-live="polite" hidden>
+            <span class="login-notice-icon">i</span>
+            <div>
+              <strong id="login-notice-title">Session required</strong>
+              <p id="login-notice-text">Please sign in to continue.</p>
+            </div>
+          </div>
+
+          <div class="alert-error" id="login-error">
+            ⚠ Incorrect email or password. Please try again.
+          </div>
+
+          <form
+            class="login-form"
+            id="login-form"
+            onsubmit="handleLogin(event)"
+          >
+            <div class="form-group">
+              <label class="form-label" for="email">Email Address</label>
+              <input
+                class="form-input"
+                type="email"
+                id="email"
+                placeholder="e.g. student@hau.edu.ph"
+                autocomplete="email"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="password">Password</label>
+
+              <div class="password-wrap">
+                <input
+                  class="form-input"
+                  type="password"
+                  id="password"
+                  placeholder="Enter your password"
+                  autocomplete="current-password"
+                  required
+                />
+                <button
+                  type="button"
+                  class="toggle-pw"
+                  onclick="togglePassword()"
+                >
+                  👁
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              class="btn btn-primary w-full login-submit"
+              id="login-btn"
+            >
+              Sign In
+            </button>
+          </form>
+
+          <div class="login-footer">
+            <div class="divider login-footer-divider">School Accounts</div>
+
+            <div class="demo-credentials">
+              Use your school-issued email and password.
+            </div>
+
+            <p class="login-note">
+              This system is for SOC Guidance Office use only.<br />
+              For technical issues, contact your system administrator.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const API_BASE = window.location.origin;
+
+      function redirectToPage(path) {
+        window.location.replace(path);
+      }
+
+      function togglePassword() {
+        const pw = document.getElementById("password");
+        pw.type = pw.type === "password" ? "text" : "password";
+      }
+
+      function handleLogin(e) {
+        e.preventDefault();
+
+        const email = document.getElementById("email").value.trim();
+        const pw = document.getElementById("password").value;
+
+        const btn = document.getElementById("login-btn");
+        const err = document.getElementById("login-error");
+
+        btn.textContent = "Signing in...";
+        btn.disabled = true;
+        err.classList.remove("show");
+
+        fetch(`${API_BASE}/auth/login`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email,
+            password: pw,
+          }),
+        })
+          .then(async (response) => {
+            const data = await response.json();
+
+            if (!response.ok) {
+              throw new Error(data.error || "Login failed");
+            }
+
+            return data;
+          })
+          .then((user) => {
+            sessionStorage.setItem(
+              "hau_user",
+              JSON.stringify({
+                email: user.email,
+                name: user.full_name,
+                role: user.role,
+              }),
+            );
+
+            if (user.role === "staff" || user.role === "admin") {
+              redirectToPage("/dashboard");
+            } else {
+              redirectToPage("/chatbot");
+            }
+          })
+          .catch(() => {
+            err.classList.add("show");
+            btn.textContent = "Sign In";
+            btn.disabled = false;
+            document.getElementById("password").classList.add("error");
+          });
+      }
+
+      function showLoginNotice() {
+        const notice = document.getElementById("login-notice");
+        const title = document.getElementById("login-notice-title");
+        const text = document.getElementById("login-notice-text");
+
+        const params = new URLSearchParams(window.location.search);
+        const reason = params.get("reason");
+
+        if (!reason) return;
+
+        if (reason === "session-required") {
+          title.textContent = "Protected access";
+          text.textContent =
+            "Sign in to continue to the chatbot, dashboard, or appointment pages.";
+        } else if (reason === "logged-out") {
+          title.textContent = "Signed out";
+          text.textContent =
+            "Please sign in again to continue protected access.";
+        } else {
+          title.textContent = "Protected access";
+          text.textContent = "Your account is required to continue.";
+        }
+
+        notice.hidden = false;
+      }
+
+      // Already logged in
+      const session = sessionStorage.getItem("hau_user");
+
+      if (session) {
+        const user = JSON.parse(session);
+
+        if (user.role === "staff" || user.role === "admin") {
+          redirectToPage("/dashboard");
+        } else {
+          redirectToPage("/chatbot");
+        }
+      }
+
+      showLoginNotice();
+    </script>
+  </body>
+</html>

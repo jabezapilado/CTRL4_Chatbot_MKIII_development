@@ -1,0 +1,1008 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Staff Dashboard — SOC Guidance Office</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/base.css') }}"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/dashboard.css') }}"
+    />
+  </head>
+  <body>
+    <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle menu">
+      ☰
+    </button>
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <div class="dash-shell">
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+          <img
+            src="{{ url_for('static', filename='img/soc-logo.png') }}"
+            alt="SOC logo"
+            class="sidebar-logo-img"
+          />
+          <div>
+            <div class="sidebar-brand-text">SOC Guidance</div>
+            <div class="sidebar-brand-sub">Staff Portal</div>
+          </div>
+        </div>
+
+        <nav class="sidebar-nav">
+          <div class="nav-item active" data-view="inbox">
+            <span>Inbox</span>
+          </div>
+          <div class="nav-item" data-view="flagged">
+            <span>Flagged Cases</span>
+            <span class="nav-badge" id="flagged-count">3</span>
+          </div>
+          <div class="nav-item" data-view="appointments">
+            <span>Appointments</span>
+          </div>
+          <div class="nav-item" data-view="resolved">
+            <span>Resolved</span>
+          </div>
+          <div class="nav-item" data-view="reports">
+            <span>Reports</span>
+          </div>
+          <div class="nav-item" data-view="settings">
+            <span>Settings</span>
+          </div>
+        </nav>
+
+        <div class="sidebar-footer">
+          Logged in as<br /><strong>Guidance Counselor</strong>
+          <div style="margin-top: 10px">
+            <button class="btn btn-outline btn-sm" onclick="logout()">
+              Logout
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <main class="dash-main">
+        <header class="dash-header" id="dash-header">
+          <div>
+            <h1 id="header-title">Inquiry Dashboard</h1>
+            <p id="header-sub">
+              Screen, organize, and prioritize student concerns
+            </p>
+          </div>
+          <div id="header-actions">
+            <button class="btn btn-primary" id="new-entry-btn">
+              New Manual Entry
+            </button>
+          </div>
+        </header>
+
+        <div class="dash-body">
+          <div class="view active" id="view-inbox">
+            <section class="stat-grid">
+              <div class="stat-card">
+                <div class="stat-label">Total Inquiries Today</div>
+                <div class="stat-value">18</div>
+                <div class="stat-sub">+4 since yesterday</div>
+              </div>
+              <div class="stat-card alert">
+                <div class="stat-label">Flagged — Negative Emotion</div>
+                <div class="stat-value" id="stat-flagged">3</div>
+                <div class="stat-sub">Needs review</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-label">Auto-Resolved</div>
+                <div class="stat-value">14</div>
+                <div class="stat-sub">Routine inquiries</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-label">Avg. Response Time</div>
+                <div class="stat-value">&lt;1s</div>
+                <div class="stat-sub">Chatbot response</div>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-header">
+                <h2>Inbox</h2>
+                <div class="filter-tabs">
+                  <button class="filter-tab active" data-filter="all">
+                    All
+                  </button>
+                  <button class="filter-tab" data-filter="negative">
+                    Flagged
+                  </button>
+                  <button class="filter-tab" data-filter="neutral">
+                    Routine
+                  </button>
+                  <button class="filter-tab" data-filter="resolved">
+                    Resolved
+                  </button>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table class="inquiry-table">
+                  <thead>
+                    <tr>
+                      <th>Student</th>
+                      <th>Message</th>
+                      <th>Category</th>
+                      <th>Status</th>
+                      <th>Time</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="inquiry-tbody"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+
+          <div class="view" id="view-flagged">
+            <section class="stat-grid">
+              <div class="stat-card alert">
+                <div class="stat-label">Flagged Cases</div>
+                <div class="stat-value" id="stat-flagged-2">3</div>
+                <div class="stat-sub">Needs counselor review</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-label">Pending Review</div>
+                <div class="stat-value">11</div>
+                <div class="stat-sub">Awaiting action</div>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-header">
+                <h2>Flagged — Negative Emotion</h2>
+              </div>
+              <div class="table-wrap">
+                <table class="inquiry-table">
+                  <thead>
+                    <tr>
+                      <th>Student</th>
+                      <th>Message</th>
+                      <th>Category</th>
+                      <th>Status</th>
+                      <th>Time</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="flagged-tbody"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+
+          <div class="view" id="view-appointments">
+            <section class="stat-grid">
+              <div class="stat-card">
+                <div class="stat-label">Total Appointments Today</div>
+
+                <div class="stat-value" id="appointments-today-count">0</div>
+
+                <div class="stat-sub">Appointment records today</div>
+              </div>
+
+              <div class="stat-card alert">
+                <div class="stat-label">Pending Requests</div>
+
+                <div class="stat-value" id="pending-appointments-count">0</div>
+
+                <div class="stat-sub">Awaiting staff review</div>
+              </div>
+
+              <div class="stat-card">
+                <div class="stat-label">Completed Today</div>
+
+                <div class="stat-value" id="completed-appointments-count">
+                  0
+                </div>
+
+                <div class="stat-sub">Completed appointments</div>
+              </div>
+            </section>
+
+            <section class="panel" id="appointment-requests-panel">
+              <div class="panel-header">
+                <h2>Appointment Requests</h2>
+              </div>
+
+              <p class="sub">
+                Pending appointment requests awaiting staff review.
+              </p>
+
+              <div id="appointment-requests-container"></div>
+            </section>
+
+            <section class="panel" id="todays-appointments-panel">
+              <div class="panel-header">
+                <h2>Approved Appointments</h2>
+              </div>
+
+              <p class="sub">Approved appointments awaiting completion.</p>
+
+              <div id="todays-appointments-container"></div>
+            </section>
+
+            <section class="panel" id="appointment-history-panel">
+              <div class="panel-header">
+                <h2>Appointment History</h2>
+              </div>
+
+              <p class="sub">View previous appointment records.</p>
+
+              <div id="appointment-history-container"></div>
+            </section>
+
+            <section class="panel" id="flagged-appointment-panel">
+              <div class="panel-header">
+                <h2>Flagged Cases Requiring Appointment</h2>
+              </div>
+
+              <p class="sub">
+                Students recommended for counselor intervention.
+              </p>
+
+              <div id="flagged-appointment-cases-container"></div>
+            </section>
+
+            <section class="panel" id="manual-appointment-panel">
+              <div class="panel-header">
+                <h2>Manual Appointment Entry</h2>
+              </div>
+
+              <p class="sub">
+                Create walk-in, hotline, messenger, or email appointments.
+              </p>
+
+              <div id="manual-appointment-entry-container"></div>
+            </section>
+          </div>
+
+          <div class="view" id="view-resolved">
+            <section class="stat-grid">
+              <div class="stat-card">
+                <div class="stat-label">Total Resolved</div>
+                <div class="stat-value">86</div>
+                <div class="stat-sub">72.8% resolution rate</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-label">Auto-Resolved</div>
+                <div class="stat-value">14</div>
+                <div class="stat-sub">Routine inquiries</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-label">Staff Resolved</div>
+                <div class="stat-value">72</div>
+                <div class="stat-sub">Manual closure</div>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-header"><h2>Resolved Inquiries</h2></div>
+              <div class="table-wrap">
+                <table class="inquiry-table">
+                  <thead>
+                    <tr>
+                      <th>Student</th>
+                      <th>Message</th>
+                      <th>Category</th>
+                      <th>Status</th>
+                      <th>Time</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="resolved-tbody"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+          <div class="view" id="view-reports">
+            <section class="stat-grid">
+              <div class="stat-card">
+                <div class="stat-label">Total Inquiries</div>
+                <div class="stat-value" id="report-total-inquiries">0</div>
+                <div class="stat-sub">+4 since yesterday</div>
+              </div>
+              <div class="stat-card alert">
+                <div class="stat-label">Flagged Cases</div>
+                <div class="stat-value" id="report-flagged-cases">0</div>
+                <div class="stat-sub">Needs review</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-label">Resolved Cases</div>
+                <div class="stat-value" id="report-resolved-cases">0</div>
+                <div class="stat-sub">72.8% resolution rate</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-label">AI Assistant Status</div>
+                <div class="stat-value">Online</div>
+                <div class="stat-sub">Gemini service available</div>
+              </div>
+            </section>
+
+            <div class="report-grid">
+              <div class="panel">
+                <div class="bar-chart-area">
+                  <div class="bar-chart-title">Inquiry Categories</div>
+                  <div class="bar-chart-sub">Top student inquiry topics</div>
+                  <div class="bar-row">
+                    <span class="bar-label">Office Schedule</span>
+                    <div class="bar-track">
+                      <div class="bar-fill" style="width: 85%"></div>
+                    </div>
+                    <span class="bar-num">39</span>
+                  </div>
+                  <div class="bar-row">
+                    <span class="bar-label">Appointment</span>
+                    <div class="bar-track">
+                      <div class="bar-fill" style="width: 70%"></div>
+                    </div>
+                    <span class="bar-num">32</span>
+                  </div>
+                  <div class="bar-row">
+                    <span class="bar-label">Counseling</span>
+                    <div class="bar-track">
+                      <div class="bar-fill" style="width: 50%"></div>
+                    </div>
+                    <span class="bar-num">23</span>
+                  </div>
+                  <div class="bar-row">
+                    <span class="bar-label">Document Request</span>
+                    <div class="bar-track">
+                      <div class="bar-fill" style="width: 37%"></div>
+                    </div>
+                    <span class="bar-num">17</span>
+                  </div>
+                  <div class="bar-row">
+                    <span class="bar-label">General Inquiry</span>
+                    <div class="bar-track">
+                      <div class="bar-fill" style="width: 15%"></div>
+                    </div>
+                    <span class="bar-num">7</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="panel">
+                <div class="case-summary-area">
+                  <div class="case-summary-title">Case Status Summary</div>
+                  <div class="case-summary-sub">Current inquiry queue</div>
+                  <div class="case-status-row">
+                    <span
+                      ><span class="dot" style="background: #f59e0b"></span
+                      >Pending Review</span
+                    >
+                    <span class="count">11</span>
+                  </div>
+                  <div class="case-status-row">
+                    <span
+                      ><span class="dot" style="background: #1e7d46"></span
+                      >Resolved</span
+                    >
+                    <span class="count">86</span>
+                  </div>
+                  <div class="case-status-row">
+                    <span
+                      ><span class="dot" style="background: #9a9490"></span
+                      >Auto-resolved Routine</span
+                    >
+                    <span class="count">14</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <section class="panel">
+              <div class="flagged-table-header">
+                <div>
+                  <h3>Recent Flagged Concerns</h3>
+                  <p>Students requiring review or possible staff assistance</p>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table class="inquiry-table">
+                  <thead>
+                    <tr>
+                      <th>Student</th>
+                      <th>Category</th>
+                      <th>Status</th>
+                      <th>Time</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="reports-flagged-tbody"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+
+          <div class="view" id="view-settings">
+            <div class="settings-grid">
+              <div class="settings-panel">
+                <h3>Guidance Office Information</h3>
+                <p class="sub">
+                  These details appear in chatbot responses for office-related
+                  inquiries.
+                </p>
+                <div class="field-grid-2">
+                  <div class="field-group">
+                    <label>Office Hours</label>
+                    <input value="Monday to Friday, 8:00 AM - 5:00 PM" />
+                  </div>
+                  <div class="field-group">
+                    <label>Office Email</label>
+                    <input value="guidance@hau.edu.ph" />
+                  </div>
+                  <div class="field-group">
+                    <label>Contact Number</label>
+                    <input value="(045) 123-4567" />
+                  </div>
+                  <div class="field-group">
+                    <label>Office Location</label>
+                    <input value="SOC Guidance Office, Holy Angel University" />
+                  </div>
+                </div>
+              </div>
+
+              <div class="settings-panel">
+                <h3>Escalation Settings</h3>
+                <p class="sub">
+                  Configure what happens when negative emotion is detected.
+                </p>
+                <div class="toggle-row">
+                  <span>Auto-flag negative emotion</span>
+                  <input type="checkbox" checked />
+                </div>
+                <div class="toggle-row">
+                  <span>Show supportive message</span>
+                  <input type="checkbox" />
+                </div>
+                <div class="field-group" style="margin-top: 14px">
+                  <label>Escalation Message</label>
+                  <textarea>
+Your concern may need further attention from Guidance Office personnel. Please wait for proper assistance or contact the office directly if urgent.</textarea
+                  >
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-panel" style="margin-bottom: 18px">
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  justify-content: space-between;
+                  margin-bottom: 16px;
+                "
+              >
+                <div>
+                  <h3>FAQ Responses</h3>
+                  <p class="sub" style="margin-bottom: 0">
+                    Edit common inquiry responses used by the chatbot.
+                  </p>
+                </div>
+                <button
+                  class="btn btn-primary btn-sm"
+                  id="add-faq-btn"
+                  onclick="addFaqFromButton()"
+                >
+                  Add FAQ
+                </button>
+              </div>
+              <div class="faq-list">
+                <div class="faq-block">
+                  <div class="faq-block-header">
+                    <div class="faq-title">Office Hours</div>
+                    <div class="faq-q">What are your office hours?</div>
+                  </div>
+                  <div class="faq-block-body">
+                    <textarea>
+The SOC Guidance Office is open from Monday to Friday, 8:00 AM to 5:00 PM.</textarea
+                    >
+                  </div>
+                </div>
+                <div class="faq-block">
+                  <div class="faq-block-header">
+                    <div class="faq-title">Book Appointment</div>
+                    <div class="faq-q">How can I book an appointment?</div>
+                  </div>
+                  <div class="faq-block-body">
+                    <textarea>
+You may book an appointment by selecting the Book Appointment option and submitting your preferred date and reason for appointment.</textarea
+                    >
+                  </div>
+                </div>
+                <div class="faq-block">
+                  <div class="faq-block-header">
+                    <div class="faq-title">Counseling Services</div>
+                    <div class="faq-q">Can I speak with a counselor?</div>
+                  </div>
+                  <div class="faq-block-body">
+                    <textarea>
+Yes, you may request counseling assistance through the chatbot or visit the SOC Guidance Office during office hours.</textarea
+                    >
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="settings-panel"
+              id="student-password-panel"
+              style="margin-top: 18px"
+            >
+              <h3>Change Password</h3>
+              <p class="sub">
+                Staff users can change only their own password. Account creation
+                and management remain administrator-only.
+              </p>
+              <div class="field-group">
+                <label for="current-password">Current Password</label>
+                <input
+                  type="password"
+                  id="current-password"
+                  autocomplete="current-password"
+                />
+              </div>
+              <div class="field-group">
+                <label for="new-password">New Password</label>
+                <input
+                  type="password"
+                  id="new-password"
+                  autocomplete="new-password"
+                />
+              </div>
+              <div class="field-group">
+                <label for="confirm-password">Confirm New Password</label>
+                <input
+                  type="password"
+                  id="confirm-password"
+                  autocomplete="new-password"
+                />
+              </div>
+              <button
+                class="btn btn-primary"
+                id="change-password-btn"
+                style="margin-top: 12px"
+              >
+                Update Password
+              </button>
+              <div class="sub" style="margin-top: 10px; color: var(--gray-600)">
+                For security, administrators cannot change another user's
+                password from this portal. Staff users are responsible for
+                updating their own passwords.
+              </div>
+            </div>
+          </div>
+
+          <div class="view" id="view-manual-entry">
+            <div class="entry-layout">
+              <div class="entry-form-panel">
+                <h3>Student Concern Details</h3>
+                <p class="sub">
+                  Create an inquiry record for concerns received outside the
+                  chatbot.
+                </p>
+
+                <div class="form-row">
+                  <div class="field-group">
+                    <label>Student Name</label>
+                    <input id="entry-name" placeholder="e.g. John Dela Cruz" />
+                  </div>
+                  <div class="field-group">
+                    <label>Student Number</label>
+                    <input id="entry-id" placeholder="e.g. 2022-05621" />
+                  </div>
+                </div>
+                <div class="form-row" style="margin-top: 12px">
+                  <div class="field-group">
+                    <label>Email Address</label>
+                    <input
+                      id="entry-email"
+                      placeholder="student@hau.edu.ph"
+                      type="email"
+                    />
+                  </div>
+                  <div class="field-group">
+                    <label>Date and Time Received</label>
+                    <input id="entry-datetime" type="datetime-local" />
+                  </div>
+                </div>
+                <div class="form-row" style="margin-top: 12px">
+                  <div class="field-group">
+                    <label>Category</label>
+                    <select id="entry-category">
+                      <option>General Inquiry</option>
+                      <option>Counseling</option>
+                      <option>Document Request</option>
+                      <option>Appointment</option>
+                      <option>Concern Report</option>
+                      <option>Office Schedule</option>
+                    </select>
+                  </div>
+                  <div class="field-group">
+                    <label>Status</label>
+                    <select id="entry-status">
+                      <option>Pending</option>
+                      <option>Resolved</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="field-group" style="margin-top: 12px">
+                  <label>Student Message / Concern</label>
+                  <textarea
+                    id="entry-message"
+                    style="min-height: 110px"
+                    placeholder="Enter the message or concern as reported by the student…"
+                  ></textarea>
+                </div>
+                <div class="field-group" style="margin-top: 12px">
+                  <label>Staff Notes</label>
+                  <textarea
+                    id="entry-notes"
+                    style="min-height: 80px"
+                    placeholder="Add internal notes, action taken, or referral details…"
+                  ></textarea>
+                </div>
+                <div class="form-actions">
+                  <button class="btn btn-primary" id="save-entry-btn">
+                    Save Entry
+                  </button>
+                  <button class="btn btn-outline" id="clear-entry-btn">
+                    Clear Form
+                  </button>
+                </div>
+              </div>
+
+              <div class="entry-guide">
+                <h4>Entry Guide</h4>
+                <ul>
+                  <li>
+                    Use this page for walk-in, phone, email, or manually
+                    reported concerns.
+                  </li>
+                  <li>
+                    Set the category that best matches the student concern.
+                  </li>
+                  <li>
+                    Use <strong>Pending</strong> if the case still requires
+                    counselor review.
+                  </li>
+                  <li>
+                    Use <strong>Resolved</strong> only after the concern has
+                    been addressed.
+                  </li>
+                </ul>
+                <div class="guide-note">
+                  Sensitive or emotional concerns should be reviewed by Guidance
+                  Office personnel as soon as possible.
+                </div>
+                <div class="guide-status">
+                  <div class="gs-label">Default Status</div>
+                  <div class="gs-value">Pending Review</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="view" id="view-case-details">
+            <div class="case-layout">
+              <div class="case-main-panel">
+                <div class="case-profile-card">
+                  <div class="case-profile-top">
+                    <div class="case-avatar" id="case-avatar">MS</div>
+                    <div style="flex: 1">
+                      <div
+                        style="
+                          display: flex;
+                          align-items: center;
+                          gap: 10px;
+                          flex-wrap: wrap;
+                        "
+                      >
+                        <span class="case-profile-name" id="case-name"
+                          >Maria Santos</span
+                        >
+                        <span class="badge negative" id="case-badge"
+                          >Negative</span
+                        >
+                      </div>
+                      <div class="case-profile-meta" id="case-meta">
+                        Student Number: — · Student Email: —
+                      </div>
+                    </div>
+                  </div>
+                  <h3>AI Summary</h3>
+                  <div class="case-message-box" id="case-message">
+                    AI-generated case summary will appear here.
+                  </div>
+                  <div class="case-meta-grid">
+                    <div class="case-meta-cell">
+                      <div class="case-meta-label">Category</div>
+                      <div class="case-meta-value" id="case-category">
+                        Counseling
+                      </div>
+                    </div>
+                    <div class="case-meta-cell">
+                      <div class="case-meta-label">Detected Emotion</div>
+                      <div class="case-meta-value" id="case-emotion">
+                        Negative Emotion
+                      </div>
+                    </div>
+                    <div class="case-meta-cell">
+                      <div class="case-meta-label">Time Received</div>
+                      <div class="case-meta-value" id="case-time">7:42 AM</div>
+                    </div>
+                    <div class="case-meta-cell">
+                      <div class="case-meta-label">Case Status</div>
+                      <div class="case-meta-value" id="case-status-label">
+                        Pending Review
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="case-info-panel">
+                  <h3>AI Recommendation</h3>
+                  <div id="case-recommendation"></div>
+                  <h3>Conversation Statistics</h3>
+
+                  <div class="conversation-insights">
+                    <div class="insight-row">
+                      <span>Total Messages</span>
+                      <strong id="case-total-messages">0</strong>
+                    </div>
+
+                    <div class="insight-row">
+                      <span>Student Messages</span>
+                      <strong id="case-student-messages">0</strong>
+                    </div>
+
+                    <div class="insight-row">
+                      <span>AI Responses</span>
+                      <strong id="case-ai-messages">0</strong>
+                    </div>
+
+                    <div class="insight-row">
+                      <span>Escalation Status</span>
+                      <strong id="case-escalation-status">No Escalation</strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="case-side-panel">
+                <div class="case-actions-card">
+                  <h4>Staff Actions</h4>
+                  <p class="sub">
+                    Select the next action for this student concern.
+                  </p>
+                  <div class="action-stack">
+                    <button
+                      class="btn btn-primary"
+                      style="width: 100%; justify-content: center"
+                      id="case-resolve-btn"
+                    >
+                      Mark as Resolved
+                    </button>
+
+                    <button
+                      class="btn btn-primary"
+                      style="width: 100%; justify-content: center"
+                      id="case-pending-btn"
+                    >
+                      Mark as Pending
+                    </button>
+                  </div>
+                  <div class="action-warn-note">
+                    Sensitive concerns should be handled by Guidance Office
+                    personnel.
+                  </div>
+                </div>
+
+                <div class="staff-notes-card">
+                  <h4>Counselor Notes</h4>
+                  <div class="notes-sub">Internal Notes</div>
+                  <textarea
+                    id="case-notes-input"
+                    placeholder="Write notes for follow-up, referral, or action taken…"
+                  ></textarea>
+                  <div class="notes-actions">
+                    <button
+                      class="btn btn-primary btn-sm"
+                      id="save-notes-btn"
+                      disabled
+                    >
+                      Save Notes
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="view" id="view-appointment-details">
+            <div class="case-layout">
+              <div class="case-main-panel">
+                <div class="case-profile-card">
+                  <div class="case-profile-top">
+                    <div class="case-avatar" id="appointment-avatar">MS</div>
+                    <div style="flex: 1">
+                      <div
+                        style="
+                          display: flex;
+                          align-items: center;
+                          gap: 10px;
+                          flex-wrap: wrap;
+                        "
+                      >
+                        <span
+                          class="case-profile-name"
+                          id="appointment-student-name"
+                        >
+                          Maria Santos
+                        </span>
+                        <span
+                          class="badge pending"
+                          id="appointment-status-badge"
+                        >
+                          Pending
+                        </span>
+                      </div>
+                      <div class="case-profile-meta">
+                        Student Number:
+                        <span id="appointment-student-number">—</span>
+                        &nbsp;·&nbsp; Email:
+                        <span id="appointment-email">student@hau.edu.ph</span>
+                        &nbsp;·&nbsp; Contact:
+                        <span id="appointment-contact-number">—</span>
+                      </div>
+                    </div>
+                  </div>
+                  <h3>Reason for Appointment</h3>
+                  <div class="case-message-box" id="appointment-reason">
+                    Student appointment reason will appear here.
+                  </div>
+                  <div class="case-meta-grid">
+                    <div class="case-meta-cell">
+                      <div class="case-meta-label">Category</div>
+                      <div class="case-meta-value" id="appointment-category">
+                        Personal Counseling
+                      </div>
+                    </div>
+                    <div class="case-meta-cell">
+                      <div class="case-meta-label">Mode</div>
+                      <div class="case-meta-value" id="appointment-mode">
+                        Face-to-Face
+                      </div>
+                    </div>
+                    <div class="case-meta-cell">
+                      <div class="case-meta-label">Preferred Date</div>
+                      <div
+                        class="case-meta-value"
+                        id="appointment-preferred-date"
+                      >
+                        July 30, 2026
+                      </div>
+                    </div>
+                    <div class="case-meta-cell">
+                      <div class="case-meta-label">Preferred Time</div>
+                      <div
+                        class="case-meta-value"
+                        id="appointment-preferred-time"
+                      >
+                        9:00 AM
+                      </div>
+                    </div>
+                    <div class="case-meta-cell">
+                      <div class="case-meta-label">Status</div>
+                      <div class="case-meta-value" id="appointment-status">
+                        Pending
+                      </div>
+                    </div>
+                    <div class="case-meta-cell">
+                      <div class="case-meta-label">Source</div>
+                      <div class="case-meta-value" id="appointment-source">
+                        Student Portal
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="case-info-panel">
+                  <h3>Student & Appointment Information</h3>
+                  <div class="conversation-insights">
+                    <div class="insight-row">
+                      <span>Program</span>
+                      <strong id="appointment-program"
+                        >BS Computer Science</strong
+                      >
+                    </div>
+                    <div class="insight-row">
+                      <span>Assigned To</span>
+                      <strong id="appointment-assigned-to">—</strong>
+                    </div>
+                    <div class="insight-row">
+                      <span>Created At</span>
+                      <strong id="appointment-created-at"
+                        >July 28, 2026 • 8:13 AM</strong
+                      >
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="case-side-panel">
+                <div class="case-actions-card">
+                  <h4>Appointment Actions</h4>
+                  <p class="sub">Manage this appointment request.</p>
+                  <div class="action-stack">
+                    <button
+                      class="btn btn-primary"
+                      style="width: 100%; justify-content: center"
+                      id="appointment-approve-btn"
+                    >
+                      Approve Appointment
+                    </button>
+
+                    <button
+                      class="btn btn-primary"
+                      style="width: 100%; justify-content: center"
+                      id="appointment-done-btn"
+                      hidden
+                    >
+                      Mark as Done
+                    </button>
+
+                    <button
+                      class="btn btn-outline"
+                      style="width: 100%; justify-content: center"
+                      id="appointment-dna-btn"
+                      hidden
+                    >
+                      Mark as Did Not Attend
+                    </button>
+
+                    <button
+                      class="btn btn-outline"
+                      style="width: 100%; justify-content: center"
+                      id="appointment-cancel-btn"
+                    >
+                      Cancel Appointment
+                    </button>
+                  </div>
+                  <div class="action-warn-note">
+                    Changes made here will immediately update the appointment
+                    status.
+                  </div>
+                </div>
+                <div class="staff-notes-card">
+                  <h4>Counselor Notes</h4>
+                  <div class="notes-sub">Internal appointment notes</div>
+                  <textarea
+                    id="appointment-notes-input"
+                    placeholder="Write counselor notes for this appointment..."
+                  ></textarea>
+                  <div class="notes-actions">
+                    <button
+                      class="btn btn-primary btn-sm"
+                      id="save-appointment-notes-btn"
+                    >
+                      Save Notes
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+  </body>
+</html>

@@ -1,0 +1,303 @@
+[
+  {
+    "id": "OFF001",
+
+    "topic": "University Guidance Center Office Hours",
+
+    "category": "Guidance Office",
+
+    "keywords": [
+      "office hours",
+      "opening hours",
+      "schedule",
+      "guidance office",
+      "when is guidance open"
+    ],
+
+    "question_variations": [
+      "What are the Guidance Office hours?",
+      "When is the Guidance Office open?",
+      "What time can I visit the counselor?",
+      "When can I go to the Guidance Office?"
+    ],
+
+    "response": "The University Guidance Center offers counseling services from Monday to Friday. Depending on your assigned counselor and location, counseling services are available between 7:00 AM and 9:00 PM. Students are encouraged to visit during office hours or contact their assigned counselor before visiting whenever possible.",
+
+    "related_emotions": [
+      "Neutral"
+    ],
+
+    "possible_intents": [
+      "Office Hours",
+      "Guidance Services"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Would you like your assigned counselor's schedule?",
+      "Would you like the Guidance Office's Facebook page?"
+    ],
+
+    "recommended_resources": [
+      "guidance_services",
+      "appointment_process",
+      "faq"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Guidance Office Information",
+
+    "page_numbers": []
+  },
+
+  {
+    "id": "OFF002",
+
+    "topic": "School of Computing Counselor Assignments",
+
+    "category": "Guidance Office",
+
+    "keywords": [
+      "computer science",
+      "IT",
+      "cybersecurity",
+      "EMC",
+      "assigned counselor"
+    ],
+
+    "question_variations": [
+      "Who is our counselor?",
+      "Who is the counselor for Computer Science?",
+      "Who handles BSIT students?",
+      "Who is assigned to my program?"
+    ],
+
+    "response": "For the School of Computing, counselor assignments are organized by academic program. BS Computer Science and BS EMC (Digital Animation) students are assigned to Sir Ryan. BS Information Technology (Web Development and Network Administration) and BS Cybersecurity students are assigned to Ma'am Hannah.",
+
+    "related_emotions": [
+      "Neutral"
+    ],
+
+    "possible_intents": [
+      "Guidance Services",
+      "FAQ"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Which program are you currently enrolled in?",
+      "Would you like your counselor's office schedule?"
+    ],
+
+    "recommended_resources": [
+      "appointment_process",
+      "office_hours"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "School of Computing Counselor Assignments",
+
+    "page_numbers": []
+  },
+
+  {
+    "id": "OFF003",
+
+    "topic": "Ma'am Hannah's Office Schedule",
+
+    "category": "Guidance Office",
+
+    "keywords": [
+      "Ma'am Hannah",
+      "Hannah",
+      "BSIT",
+      "Cybersecurity"
+    ],
+
+    "question_variations": [
+      "When is Ma'am Hannah available?",
+      "Where is Ma'am Hannah's office?",
+      "How can I meet Ma'am Hannah?"
+    ],
+
+    "response": "Ma'am Hannah provides both onsite and online counseling services.\n\nSJH-206\n• Monday–Friday\n• 8:00 AM – 5:00 PM\n\nPGN-105\n• Monday–Friday\n• 7:00 AM – 9:00 PM\n\nStudents may also contact her through her official Facebook account.",
+
+    "related_emotions": [
+      "Neutral"
+    ],
+
+    "possible_intents": [
+      "Office Hours",
+      "Appointment"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Would you like Ma'am Hannah's Facebook page?",
+      "Would you like information on scheduling counseling?"
+    ],
+
+    "recommended_resources": [
+      "appointment_process"
+    ],
+
+    "external_links": [
+      {
+        "name": "Ma'am Hannah Facebook",
+        "url": "https://www.facebook.com/profile.php?id=100091309162106"
+      }
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "School of Computing Counselor Assignments",
+
+    "page_numbers": []
+  },
+
+  {
+    "id": "OFF004",
+
+    "topic": "Sir Ryan's Office Schedule",
+
+    "category": "Guidance Office",
+
+    "keywords": [
+      "Sir Ryan",
+      "Ryan",
+      "Computer Science",
+      "EMC"
+    ],
+
+    "question_variations": [
+      "When is Sir Ryan available?",
+      "Where is Sir Ryan's office?",
+      "How can I meet Sir Ryan?"
+    ],
+
+    "response": "Sir Ryan provides both onsite and online counseling services.\n\nSJH-206\n• Monday–Friday\n• 7:00 AM – 5:00 PM\n\nPGN-105\n• Monday–Friday\n• 7:00 AM – 9:00 PM\n\nStudents may also contact him through his official Facebook account.",
+
+    "related_emotions": [
+      "Neutral"
+    ],
+
+    "possible_intents": [
+      "Office Hours",
+      "Appointment"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Would you like Sir Ryan's Facebook page?",
+      "Would you like to know how to schedule counseling?"
+    ],
+
+    "recommended_resources": [
+      "appointment_process"
+    ],
+
+    "external_links": [
+      {
+        "name": "Sir Ryan Facebook",
+        "url": "https://www.facebook.com/hauguidance.soccounselor"
+      }
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "School of Computing Counselor Assignments",
+
+    "page_numbers": []
+  },
+
+  {
+    "id": "OFF005",
+
+    "topic": "Official Guidance Office Contact Channels",
+
+    "category": "Guidance Office",
+
+    "keywords": [
+      "facebook",
+      "contact",
+      "guidance office page",
+      "official page"
+    ],
+
+    "question_variations": [
+      "How can I contact the Guidance Office?",
+      "What's the official Facebook page?",
+      "Where can I message the Guidance Office?"
+    ],
+
+    "response": "The University Guidance Center maintains official Facebook pages for announcements and student communication. Students may also contact their assigned counselor through their official Facebook pages for counseling-related inquiries and scheduling.",
+
+    "related_emotions": [
+      "Neutral"
+    ],
+
+    "possible_intents": [
+      "Contact Information",
+      "FAQ"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Would you like your assigned counselor's Facebook page?",
+      "Would you like information about counseling services?"
+    ],
+
+    "recommended_resources": [
+      "guidance_services",
+      "appointment_process"
+    ],
+
+    "external_links": [
+      {
+        "name": "HAU Guidance Office",
+        "url": "https://www.facebook.com/hauguidanceoffice"
+      },
+      {
+        "name": "Ma'am Hannah",
+        "url": "https://www.facebook.com/profile.php?id=100091309162106"
+      },
+      {
+        "name": "Sir Ryan",
+        "url": "https://www.facebook.com/hauguidance.soccounselor"
+      }
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Official Guidance Office Contact Information",
+
+    "page_numbers": []
+  }
+]

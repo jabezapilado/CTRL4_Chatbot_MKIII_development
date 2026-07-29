@@ -1,0 +1,291 @@
+[
+  {
+    "id": "BO001",
+
+    "topic": "Understanding Burnout",
+
+    "category": "Mental Health",
+
+    "keywords": [
+      "burnout",
+      "burned out",
+      "emotionally exhausted",
+      "drained",
+      "mental exhaustion"
+    ],
+
+    "question_variations": [
+      "I'm burned out.",
+      "I'm emotionally exhausted.",
+      "I feel completely drained.",
+      "I'm tired of everything.",
+      "I have no energy anymore."
+    ],
+
+    "response": "Burnout is a state of physical, emotional, and mental exhaustion that can develop after prolonged stress. It often leaves people feeling drained, detached, and less motivated to continue tasks they once managed well. Recovery usually begins by recognizing the signs, allowing yourself to rest, and seeking support when needed.",
+
+    "related_emotions": [
+      "Burned Out",
+      "Stress",
+      "Hopelessness"
+    ],
+
+    "possible_intents": [
+      "Mental Health",
+      "Emotional Support"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "How long have you been feeling this exhausted?",
+      "What has been taking most of your energy recently?",
+      "Have you been able to get enough rest?"
+    ],
+
+    "recommended_resources": [
+      "stress_management",
+      "self_care",
+      "coping_strategies"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [27]
+  },
+
+  {
+    "id": "BO002",
+
+    "topic": "Recognizing the Signs of Burnout",
+
+    "category": "Mental Health",
+
+    "keywords": [
+      "no motivation",
+      "always tired",
+      "emotionally numb",
+      "fatigue",
+      "can't focus"
+    ],
+
+    "question_variations": [
+      "I don't enjoy studying anymore.",
+      "I have no motivation.",
+      "I'm tired every day.",
+      "I don't care anymore."
+    ],
+
+    "response": "Burnout may appear as constant fatigue, reduced motivation, difficulty concentrating, emotional detachment, irritability, or feeling ineffective despite continued effort. Recognizing these signs early can help prevent further exhaustion.",
+
+    "related_emotions": [
+      "Burned Out",
+      "Stress"
+    ],
+
+    "possible_intents": [
+      "Mental Health"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Have these feelings been affecting your studies?",
+      "Do you still enjoy activities that you used to like?"
+    ],
+
+    "recommended_resources": [
+      "self_care",
+      "stress_management"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [27]
+  },
+
+  {
+    "id": "BO003",
+
+    "topic": "Recovering from Burnout",
+
+    "category": "Mental Health",
+
+    "keywords": [
+      "recover",
+      "rest",
+      "balance",
+      "burnout recovery"
+    ],
+
+    "question_variations": [
+      "How do I recover from burnout?",
+      "How can I feel motivated again?",
+      "How do I stop feeling exhausted?"
+    ],
+
+    "response": "Recovering from burnout often involves slowing down, setting realistic expectations, getting enough sleep, eating regular meals, taking meaningful breaks, reconnecting with supportive people, and gradually rebuilding healthy routines. Recovery takes time, so be patient with yourself.",
+
+    "related_emotions": [
+      "Burned Out",
+      "Stress"
+    ],
+
+    "possible_intents": [
+      "Mental Health",
+      "Self Care"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Which area of your life feels the most exhausting right now?",
+      "Would creating a lighter schedule help?"
+    ],
+
+    "recommended_resources": [
+      "self_care",
+      "time_management",
+      "coping_strategies"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [27]
+  },
+
+  {
+    "id": "BO004",
+
+    "topic": "Preventing Burnout",
+
+    "category": "Mental Health",
+
+    "keywords": [
+      "prevent burnout",
+      "balance",
+      "healthy routine",
+      "self care"
+    ],
+
+    "question_variations": [
+      "How do I avoid burnout?",
+      "I don't want to burn out again.",
+      "How can I stay healthy during the semester?"
+    ],
+
+    "response": "Burnout can be reduced by maintaining healthy routines, balancing responsibilities with rest, setting realistic goals, taking regular breaks, and asking for help before stress becomes overwhelming.",
+
+    "related_emotions": [
+      "Stress"
+    ],
+
+    "possible_intents": [
+      "Mental Health",
+      "Self Care"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Would you like help planning a healthier routine?",
+      "Do you think your current workload is manageable?"
+    ],
+
+    "recommended_resources": [
+      "goal_setting",
+      "stress_management",
+      "time_management"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [27]
+  },
+
+  {
+    "id": "BO005",
+
+    "topic": "When Burnout Requires Support",
+
+    "category": "Mental Health",
+
+    "keywords": [
+      "can't continue",
+      "emotionally exhausted",
+      "hopeless",
+      "need help"
+    ],
+
+    "question_variations": [
+      "I can't keep doing this.",
+      "I'm completely exhausted.",
+      "I'm losing hope.",
+      "I'm breaking down."
+    ],
+
+    "response": "If burnout continues to affect your academic performance, relationships, sleep, or daily functioning despite trying healthy coping strategies, consider reaching out to the Guidance Office or another qualified mental health professional. You don't have to face prolonged exhaustion on your own.",
+
+    "related_emotions": [
+      "Burned Out",
+      "Hopelessness",
+      "Stress"
+    ],
+
+    "possible_intents": [
+      "Mental Health",
+      "Counseling Services"
+    ],
+
+    "risk_level": "MEDIUM",
+
+    "follow_up_questions": [
+      "Would you like information about talking with a Guidance Counselor?",
+      "Has burnout been affecting multiple areas of your life?"
+    ],
+
+    "recommended_resources": [
+      "guidance_services",
+      "appointment_process",
+      "stress_management"
+    ],
+
+    "escalation": {
+      "required": true,
+      "trigger_conditions": [
+        "can't continue",
+        "breaking down",
+        "hopeless"
+      ],
+      "action": "Recommend contacting the Guidance Office. If the conversation also includes thoughts of self-harm or suicide, immediately transition to the crisis support protocol."
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [27]
+  }
+]

@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SOC Guidance Office — Chatbot</title>
+
+    <link rel="stylesheet" href="/static/css/base.css" />
+    <link rel="stylesheet" href="/static/css/chatbot.css" />
+  </head>
+  <body>
+    <div class="page">
+      <!-- HEADER -->
+      <header class="header">
+        <div class="header-inner">
+          <img src="/static/img/soc-logo.png" alt="SOC logo" class="logo-img" />
+
+          <div class="header-text">
+            <div class="header-title">SOC Guidance Office</div>
+            <div class="header-sub">School of Computing</div>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 10px">
+            <div class="status-dot" title="Online"></div>
+
+            <button class="btn btn-outline" type="button" onclick="logout()">
+              Logout
+            </button>
+          </div>
+        </div>
+
+        <div class="gold-bar"></div>
+      </header>
+
+      <!-- CHAT AREA -->
+      <div class="chat-area scrollable" id="chat-area">
+        <div class="date-divider">
+          <span>Today</span>
+        </div>
+      </div>
+
+      <!-- QUICK REPLIES -->
+      <div class="quick-replies" id="quick-replies">
+        <button
+          class="qr-btn"
+          onclick="sendQuick('What are your office hours?')"
+        >
+          Office Hours
+        </button>
+
+        <button
+          class="qr-btn"
+          onclick="sendQuick('How do I book an appointment?')"
+        >
+          Book Appointment
+        </button>
+
+        <button class="qr-btn" onclick="sendQuick('I need counseling support')">
+          Counseling
+        </button>
+
+        <button
+          class="qr-btn"
+          onclick="sendQuick('I have a concern about a classmate')"
+        >
+          Report Concern
+        </button>
+      </div>
+
+      <!-- INPUT BAR -->
+      <div class="input-bar">
+        <div class="input-wrap">
+          <textarea
+            id="msg-input"
+            rows="1"
+            placeholder="Type your message here…"
+            aria-label="Message input"
+          ></textarea>
+        </div>
+
+        <button
+          class="send-btn"
+          onclick="sendMessage()"
+          aria-label="Send message"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="white"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <script src="/static/js/auth.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
+
+    <script src="/static/js/chat.js"></script>
+  </body>
+</html>

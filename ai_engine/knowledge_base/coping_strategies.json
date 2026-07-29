@@ -1,0 +1,290 @@
+[
+  {
+    "id": "CS001",
+
+    "topic": "Healthy Coping Strategies",
+
+    "category": "Mental Health",
+
+    "keywords": [
+      "coping",
+      "cope",
+      "stress relief",
+      "healthy habits",
+      "manage emotions"
+    ],
+
+    "question_variations": [
+      "How do I cope?",
+      "How can I deal with my emotions?",
+      "What can I do when I'm overwhelmed?",
+      "How do I manage stress?"
+    ],
+
+    "response": "Healthy coping strategies include getting enough rest, exercising regularly, maintaining balanced meals, talking to trusted people, practicing relaxation techniques, engaging in hobbies, and seeking support when needed. Healthy coping focuses on improving well-being rather than avoiding problems.",
+
+    "related_emotions": [
+      "Stress",
+      "Anxiety",
+      "Burned Out"
+    ],
+
+    "possible_intents": [
+      "Mental Health",
+      "Emotional Support"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "What has been helping you cope so far?",
+      "Would you like some simple coping techniques you can try today?"
+    ],
+
+    "recommended_resources": [
+      "stress_management",
+      "self_care",
+      "burnout"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [28]
+  },
+
+  {
+    "id": "CS002",
+
+    "topic": "Practice Deep Breathing",
+
+    "category": "Mental Health",
+
+    "keywords": [
+      "breathing",
+      "relax",
+      "calm",
+      "panic",
+      "deep breathing"
+    ],
+
+    "question_variations": [
+      "I can't calm down.",
+      "I'm panicking.",
+      "How do I relax?",
+      "My heart is racing."
+    ],
+
+    "response": "Slow, deep breathing may help reduce physical tension and promote relaxation. Try breathing in slowly through your nose for four seconds, holding briefly, and breathing out gently through your mouth for six seconds. Repeat several times while focusing on your breathing.",
+
+    "related_emotions": [
+      "Anxiety",
+      "Stress"
+    ],
+
+    "possible_intents": [
+      "Mental Health"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Would you like to try another relaxation technique?",
+      "Has your breathing started to feel calmer?"
+    ],
+
+    "recommended_resources": [
+      "anxiety",
+      "stress_management"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [28]
+  },
+
+  {
+    "id": "CS003",
+
+    "topic": "Talk to Someone You Trust",
+
+    "category": "Mental Health",
+
+    "keywords": [
+      "talk",
+      "friends",
+      "family",
+      "support",
+      "share"
+    ],
+
+    "question_variations": [
+      "I don't know who to talk to.",
+      "I feel alone.",
+      "Should I tell someone?"
+    ],
+
+    "response": "Sharing your thoughts and feelings with a trusted friend, family member, mentor, or Guidance Counselor can provide emotional support and help you feel less alone. You don't have to carry everything by yourself.",
+
+    "related_emotions": [
+      "Sadness",
+      "Loneliness",
+      "Stress"
+    ],
+
+    "possible_intents": [
+      "Emotional Support",
+      "Mental Health"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Is there someone you trust that you could talk to today?",
+      "Would you like information about Guidance Office services?"
+    ],
+
+    "recommended_resources": [
+      "guidance_services",
+      "friendships",
+      "relationship_concerns"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [28]
+  },
+
+  {
+    "id": "CS004",
+
+    "topic": "Focus on What You Can Control",
+
+    "category": "Mental Health",
+
+    "keywords": [
+      "control",
+      "uncertainty",
+      "overthinking",
+      "focus"
+    ],
+
+    "question_variations": [
+      "Everything feels out of control.",
+      "I'm worried about everything.",
+      "I keep thinking about worst-case scenarios."
+    ],
+
+    "response": "When life feels overwhelming, try identifying the things that are within your control today. Focusing on small, manageable actions can reduce feelings of helplessness and make challenges feel more manageable.",
+
+    "related_emotions": [
+      "Anxiety",
+      "Stress"
+    ],
+
+    "possible_intents": [
+      "Mental Health"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "What's one small thing you can accomplish today?",
+      "Would making a simple plan help you feel more in control?"
+    ],
+
+    "recommended_resources": [
+      "goal_setting",
+      "time_management",
+      "anxiety"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [28]
+  },
+
+  {
+    "id": "CS005",
+
+    "topic": "Know When to Seek Additional Support",
+
+    "category": "Mental Health",
+
+    "keywords": [
+      "need help",
+      "can't cope",
+      "support",
+      "guidance counselor"
+    ],
+
+    "question_variations": [
+      "Nothing is helping anymore.",
+      "I don't know what to do.",
+      "I need help."
+    ],
+
+    "response": "If your usual coping strategies are no longer helping or your emotional distress is becoming difficult to manage, consider reaching out to the Guidance Office or another qualified mental health professional. Seeking support is a healthy step toward recovery.",
+
+    "related_emotions": [
+      "Stress",
+      "Anxiety",
+      "Hopelessness"
+    ],
+
+    "possible_intents": [
+      "Mental Health",
+      "Counseling Services"
+    ],
+
+    "risk_level": "MEDIUM",
+
+    "follow_up_questions": [
+      "Would you like information about speaking with a Guidance Counselor?",
+      "Would you like to know how to schedule an appointment?"
+    ],
+
+    "recommended_resources": [
+      "guidance_services",
+      "appointment_process",
+      "stress_management"
+    ],
+
+    "escalation": {
+      "required": true,
+      "trigger_conditions": [
+        "can't cope",
+        "nothing is helping",
+        "overwhelmed"
+      ],
+      "action": "Recommend contacting the Guidance Office. If there are signs of self-harm or suicidal thoughts, immediately transition to the crisis support protocol."
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [28]
+  }
+]

@@ -1,0 +1,362 @@
+[
+  {
+    "id": "ADJ001",
+
+    "topic": "Adjusting to College Life",
+
+    "category": "Student Adjustment",
+
+    "keywords": [
+      "adjustment",
+      "college life",
+      "freshman",
+      "new student",
+      "transition",
+      "adapting"
+    ],
+
+    "question_variations": [
+      "I'm having a hard time adjusting.",
+      "College feels different.",
+      "Everything is overwhelming.",
+      "I don't know how to adapt.",
+      "I'm struggling with college life."
+    ],
+
+    "response": "Adjusting to college is a process. It is normal to experience new routines, responsibilities, and expectations while adapting to university life. Give yourself time to learn, ask for help when needed, and remember that every student adjusts at their own pace.",
+
+    "related_emotions": [
+      "Stress",
+      "Anxiety",
+      "Fear"
+    ],
+
+    "possible_intents": [
+      "Academic Concern",
+      "Emotional Support"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "What has been the biggest challenge since starting college?",
+      "Are your concerns mostly academic, social, or personal?",
+      "Would you like some strategies to help with your adjustment?"
+    ],
+
+    "recommended_resources": [
+      "welcome",
+      "campus_life",
+      "academic_stress"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [5, 7, 8]
+  },
+
+  {
+    "id": "ADJ002",
+
+    "topic": "You Belong Here",
+
+    "category": "Student Adjustment",
+
+    "keywords": [
+      "belong",
+      "confidence",
+      "community",
+      "campus",
+      "self worth",
+      "friends"
+    ],
+
+    "question_variations": [
+      "I don't feel like I belong.",
+      "Everyone is better than me.",
+      "Maybe I'm in the wrong school.",
+      "I'm doubting myself.",
+      "I don't fit in."
+    ],
+
+    "response": "Feeling uncertain about whether you belong is common during the transition to college. Every student has different experiences and strengths. Give yourself time to grow, focus on learning, and remember that asking for support is a sign of strength rather than weakness.",
+
+    "related_emotions": [
+      "Fear",
+      "Anxiety",
+      "Loneliness"
+    ],
+
+    "possible_intents": [
+      "Emotional Support"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Have you been able to connect with classmates?",
+      "What makes you feel that you don't belong?",
+      "Would you like ideas for getting more involved on campus?"
+    ],
+
+    "recommended_resources": [
+      "friendships",
+      "campus_life",
+      "welcome"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [5, 7]
+  },
+
+  {
+    "id": "ADJ003",
+
+    "topic": "Take Responsibility for Your Learning",
+
+    "category": "Academic Success",
+
+    "keywords": [
+      "responsibility",
+      "attendance",
+      "deadlines",
+      "organization",
+      "study"
+    ],
+
+    "question_variations": [
+      "I keep missing deadlines.",
+      "I can't keep up with requirements.",
+      "I'm always late.",
+      "I don't know how to stay organized."
+    ],
+
+    "response": "College requires students to take ownership of their learning. Managing your schedule, attending classes regularly, completing requirements on time, and seeking help when necessary are important habits for academic success.",
+
+    "related_emotions": [
+      "Stress",
+      "Frustration"
+    ],
+
+    "possible_intents": [
+      "Academic Concern",
+      "Study Skills"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Would you like help organizing your schedule?",
+      "Are deadlines your biggest challenge?",
+      "Would you like time management tips?"
+    ],
+
+    "recommended_resources": [
+      "time_management",
+      "study_skills",
+      "goal_setting"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [8]
+  },
+
+  {
+    "id": "ADJ004",
+
+    "topic": "Be Intentional With Your Choices",
+
+    "category": "Personal Development",
+
+    "keywords": [
+      "choices",
+      "discipline",
+      "priorities",
+      "decision making",
+      "goals"
+    ],
+
+    "question_variations": [
+      "I always procrastinate.",
+      "I don't know what to prioritize.",
+      "I waste too much time.",
+      "I keep making bad decisions."
+    ],
+
+    "response": "College provides greater independence, but it also comes with greater responsibility. Making thoughtful decisions, setting priorities, and developing healthy routines can help you stay focused on your personal and academic goals.",
+
+    "related_emotions": [
+      "Stress",
+      "Frustration"
+    ],
+
+    "possible_intents": [
+      "Goal Setting",
+      "Academic Concern"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "What usually distracts you the most?",
+      "Would you like to create a weekly plan?",
+      "Would you like help setting priorities?"
+    ],
+
+    "recommended_resources": [
+      "goal_setting",
+      "time_management",
+      "study_skills"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [7]
+  },
+
+  {
+    "id": "ADJ005",
+
+    "topic": "Stay Committed During Challenges",
+
+    "category": "Resilience",
+
+    "keywords": [
+      "motivation",
+      "commitment",
+      "resilience",
+      "perseverance",
+      "consistency"
+    ],
+
+    "question_variations": [
+      "I'm losing motivation.",
+      "I want to quit.",
+      "Everything feels difficult.",
+      "I'm tired of studying."
+    ],
+
+    "response": "Every student encounters challenges during college. Staying committed means continuing to work toward your goals even when motivation is low. Progress often comes through consistent effort rather than perfection.",
+
+    "related_emotions": [
+      "Burned Out",
+      "Stress",
+      "Frustration"
+    ],
+
+    "possible_intents": [
+      "Academic Concern",
+      "Emotional Support"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "What's been affecting your motivation recently?",
+      "Would you like to talk about what's making college difficult?",
+      "Would you like some strategies to stay motivated?"
+    ],
+
+    "recommended_resources": [
+      "motivation",
+      "goal_setting",
+      "academic_stress"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [7, 8]
+  },
+
+  {
+    "id": "ADJ006",
+
+    "topic": "Get Involved in Campus Life",
+
+    "category": "Campus Engagement",
+
+    "keywords": [
+      "organizations",
+      "clubs",
+      "activities",
+      "friends",
+      "campus life",
+      "involvement"
+    ],
+
+    "question_variations": [
+      "I don't have friends.",
+      "How do I meet people?",
+      "Should I join organizations?",
+      "I'm always alone."
+    ],
+
+    "response": "Participating in student organizations, clubs, volunteer work, or university events can help you build friendships, strengthen your skills, and develop a stronger sense of belonging within the university community.",
+
+    "related_emotions": [
+      "Loneliness",
+      "Anxiety"
+    ],
+
+    "possible_intents": [
+      "Student Adjustment",
+      "Emotional Support"
+    ],
+
+    "risk_level": "LOW",
+
+    "follow_up_questions": [
+      "Are there any organizations you're interested in?",
+      "Would you like suggestions for meeting new people?",
+      "Have you attended any campus events?"
+    ],
+
+    "recommended_resources": [
+      "campus_life",
+      "friendships",
+      "welcome"
+    ],
+
+    "escalation": {
+      "required": false,
+      "trigger_conditions": [],
+      "action": null
+    },
+
+    "source_document": "Survival Guide Handbook",
+
+    "page_numbers": [8]
+  }
+]
