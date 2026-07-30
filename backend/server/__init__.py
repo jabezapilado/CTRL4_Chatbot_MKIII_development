@@ -5,10 +5,9 @@ from pathlib import Path
 from flask import Flask, jsonify
 from flask_cors import CORS
 
-from .auth import auth_bp
 from .config import Config
 from .db import initialize_database
-from .routes import api_bp
+from .routes import register_blueprints
 
 
 def create_app() -> Flask:
@@ -25,8 +24,7 @@ def create_app() -> Flask:
     
     CORS(app)
 
-    app.register_blueprint(auth_bp)
-    app.register_blueprint(api_bp)
+    register_blueprints(app)
 
     @app.errorhandler(404)
     def not_found(_error):

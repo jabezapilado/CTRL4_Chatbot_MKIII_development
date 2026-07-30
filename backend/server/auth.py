@@ -8,6 +8,18 @@ from .db import fetch_account_by_email
 
 auth_bp = Blueprint("auth", __name__)
 
+def get_logged_in_user():
+    user = session.get("hau_user")
+    return user if isinstance(user, dict) and user.get("email") else None
+
+
+def role_landing_path(user: dict) -> str:
+    role = str(user.get("role", "student")).lower()
+
+    if role in {"staff", "admin"}:
+        return "/dashboard"
+
+    return "/chatbot"
 
 @auth_bp.post("/auth/login")
 def login():
