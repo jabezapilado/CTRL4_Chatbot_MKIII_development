@@ -51,6 +51,10 @@ Features:
 - Topic Classification
 - Conversation Statistics
 - Session Management
+- Active Conversation Session
+- Session-Based Conversation Persistence
+- Conversation Restoration
+- Automatic Session Cleanup
 
 ---
 
@@ -226,7 +230,8 @@ No manual counselor assignment is required.
 
 Student-created:
 
-- Chatbot
+- AI Guidance Chatbot
+- Appointment Form
 
 Staff-created:
 
@@ -247,6 +252,14 @@ All appointment sources MUST use the same conflict detection algorithm.
 Student
 ↓
 Book Appointment
+↓
+Choose Booking Method
+↓
+AI Guidance Chatbot
+OR
+Appointment Form
+↓
+Submit Appointment Request
 ↓
 Pending
 ↓
@@ -535,14 +548,54 @@ The following buttons SHALL NOT exist in production:
 
 Conversation management is fully automatic.
 
+The active conversation is maintained throughout the authenticated user session.
+
+The active conversation SHALL continue during:
+
+- Page navigation
+- Page refresh
+- Returning from the appointment form
+
+Temporary conversation data is preserved only for the duration of the active authenticated session to maintain conversational context.
+
+The system automatically restores the active conversation while the session remains valid.
+
 The system determines when conversations end through:
 
 - User inactivity
 - Session timeout
 - Logout
-- Appointment submission
+
+When a conversation ends, the system shall:
+
+- Generate an AI Counselor Intake Summary.
+- Permanently store only the approved summary and metadata.
+- Automatically delete the temporary conversation data.
 
 ---
+
+# ACTIVE CONVERSATION SESSION
+
+The chatbot maintains a temporary active conversation during an authenticated user session.
+
+The active conversation:
+
+- Survives page navigation.
+- Survives page refresh.
+- Survives returning from the appointment form.
+- Uses temporary session storage only.
+- Is automatically restored while the session remains active.
+
+The active conversation is automatically finalized when:
+
+- The user logs out.
+- The session times out due to inactivity.
+
+Upon finalization:
+
+- An AI Counselor Intake Summary is generated.
+- Required conversation metadata is permanently stored.
+- Temporary conversation data is permanently deleted.
 
 # DATA PRIVACY PHILOSOPHY
 
@@ -699,6 +752,11 @@ The following decisions are FINAL:
 - Students SHALL NEVER directly edit appointment information.
 - Rescheduling is implemented by cancelling the current appointment and creating a new appointment request.
 - Direct appointment editing is not supported.
+- Active conversations persist only during authenticated sessions.
+- Page refresh and page navigation do not terminate active conversations.
+- Active conversations are automatically restored while the session remains active.
+- Conversation finalization occurs only on logout or inactivity timeout.
+- Temporary conversation data is deleted immediately after AI summary generation.
 
 ---
 

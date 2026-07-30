@@ -1,5 +1,3 @@
-
-
 # CTRL4 MK II - APPOINTMENT ENGINE ARCHITECTURE
 
 > This document defines the appointment business logic architecture of CTRL4 MK II.
@@ -19,7 +17,7 @@ Its responsibilities are to:
 - Automatically assign counselors using program-based routing.
 - Create appointment records.
 - Manage appointment status transitions.
-- Support chatbot and manual appointment creation.
+- Support AI Guidance Chatbot, Appointment Form, and manual appointment creation.
 - Provide a single source of truth for appointment business logic.
 
 ---
@@ -30,6 +28,12 @@ Its responsibilities are to:
 
 ```text
 Student
+    ↓
+Choose Booking Method
+    ↓
+AI Guidance Chatbot
+OR
+Appointment Form
     ↓
 Submit Appointment Request
     ↓
@@ -43,6 +47,8 @@ Save Appointment
     ↓
 Pending
 ```
+
+Both student booking methods converge into the same Appointment Engine. Regardless of the interface used, every appointment request follows the same validation pipeline, conflict detection process, counselor assignment logic, and status workflow.
 
 ## Manual Appointment
 
@@ -139,7 +145,8 @@ Students never select a counselor directly.
 
 Supported appointment sources:
 
-- Chatbot
+- AI Guidance Chatbot
+- Appointment Form
 - Walk-in
 - Hotline
 - Messenger
@@ -147,6 +154,8 @@ Supported appointment sources:
 - Staff Manual
 
 These values are treated as system constants.
+
+The appointment source identifies only how the request entered the system. It does not change the Appointment Engine's business rules, validation sequence, conflict detection, counselor assignment, or appointment lifecycle.
 
 ---
 
@@ -196,3 +205,7 @@ The Appointment Engine follows these principles:
 - Centralized conflict detection.
 - Predictable appointment status transitions.
 - Separation of business logic from database access.
+- The Appointment Engine is shared by the AI Guidance Chatbot and the Appointment Form.
+- Appointment interfaces do not contain independent business logic.
+- All booking methods converge into a single validation and decision pipeline.
+- Conversation management is independent of the Appointment Engine; submitting an appointment does not terminate an active conversation.

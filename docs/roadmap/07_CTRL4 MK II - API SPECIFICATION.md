@@ -193,6 +193,8 @@ Cancel an appointment.
 
 # CHATBOT
 
+The Chatbot API manages conversational interactions only. Appointment creation, validation, conflict detection, and counselor assignment are delegated to the shared Appointment Engine through the Appointment Service.
+
 ## POST /api/chatbot/message
 
 Send a chatbot message.
@@ -211,6 +213,7 @@ Send a chatbot message.
 {
     "reply": "",
     "appointment_recommended": false,
+    "appointment_detected": false,
     "flagged": false
 }
 ```
@@ -219,7 +222,17 @@ Send a chatbot message.
 
 ## GET /api/chatbot/session
 
-Return the current chatbot session.
+Return the active conversation session for the authenticated user.
+
+The endpoint restores the active conversation while the authenticated session remains valid. It does not return permanently stored conversation history.
+
+---
+
+## POST /api/chatbot/session/finalize
+
+Finalize the active conversation.
+
+This endpoint generates the AI Counselor Intake Summary, stores the approved summary and metadata, and permanently deletes the temporary conversation data. It is intended for logout and automatic session timeout workflows rather than direct user interaction.
 
 ---
 
@@ -383,6 +396,10 @@ The API SHALL:
 - Follow the Appointment Engine business rules.
 - Follow the Data Privacy architecture.
 - Maintain backward compatibility within the same API version.
+- Chatbot conversation management is independent of appointment business logic.
+- The Appointment Engine serves both the AI Guidance Chatbot and the Appointment Form.
+- Temporary conversation sessions are restored only while the authenticated session remains valid.
+- Raw conversation data is temporary and is deleted after AI Counselor Intake Summary generation.
 
 ---
 
@@ -397,3 +414,8 @@ The following API decisions are FINAL:
 - Validation occurs before database operations.
 - API routes remain thin and delegate business logic to services.
 - Version 1 endpoints use the `/api` base path.
+- The Chatbot API never implements appointment business rules directly.
+- Conversation restoration is limited to the active authenticated session.
+- Appointment submission does not terminate the active conversation.
+- AI Counselor Intake Summaries are generated before temporary conversation data is deleted.
+- The API does not expose permanent raw conversation history.

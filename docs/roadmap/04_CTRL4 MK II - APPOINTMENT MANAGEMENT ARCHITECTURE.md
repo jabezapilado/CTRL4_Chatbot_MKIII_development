@@ -24,6 +24,8 @@ The appointment module is NOT a standalone appointment system.
 
 It is a component of the Guidance Office Management System.
 
+The Appointment Management Module is shared by both the traditional appointment form and the AI Guidance Chatbot. Both interfaces use the same appointment management workflow, business rules, validation, counselor assignment, and conflict detection logic.
+
 ---
 
 # APPOINTMENT MANAGEMENT MODULE
@@ -31,6 +33,8 @@ It is a component of the Guidance Office Management System.
 Features:
 
 - Appointment Booking
+- Shared Appointment Management
+- Chatbot and Appointment Form Integration
 - Appointment Conflict Detection
 - Appointment Monitoring
 - Appointment History
@@ -47,7 +51,8 @@ Features:
 
 Students may create appointments through:
 
-- Chatbot
+- AI Guidance Chatbot
+- Appointment Form
 
 Staff users may create appointments through:
 
@@ -61,6 +66,7 @@ The following values are SYSTEM CONSTANTS:
 
 ```text
 chatbot
+appointment_form
 walk_in
 hotline
 messenger
@@ -69,6 +75,19 @@ staff_manual
 ```
 
 These values are NOT editable.
+
+---
+
+# STUDENT APPOINTMENT BOOKING
+
+Students may choose either booking method:
+
+- AI Guidance Chatbot
+- Appointment Form
+
+Both methods use the same appointment management workflow, validation rules, conflict detection, counselor assignment, and appointment statuses.
+
+Students may switch between the chatbot and the appointment form without losing the active conversation while the authenticated session remains active.
 
 ---
 
@@ -82,6 +101,16 @@ Student
 ↓
 
 Book Appointment
+
+↓
+
+Choose Booking Method
+
+↓
+
+Chatbot
+OR
+Appointment Form
 
 ↓
 
@@ -111,6 +140,8 @@ OR
 
 Cancelled
 ```
+
+Submitting an appointment request does not terminate the active conversation. Students may continue interacting with the chatbot after the appointment has been successfully submitted.
 
 Only chatbot appointments begin with:
 
@@ -1097,3 +1128,7 @@ The following decisions are FINAL:
 - Students SHALL NEVER directly edit appointment information.
 - Rescheduling is implemented by cancelling the current appointment and creating a new appointment request.
 - Direct appointment editing is not supported.
+- Students may book appointments through either the AI Guidance Chatbot or the Appointment Form.
+- Both booking methods use the same appointment management workflow and business rules.
+- Appointment submission does not terminate an active conversation.
+- Students may return to the chatbot after using the appointment form while preserving the active conversation.

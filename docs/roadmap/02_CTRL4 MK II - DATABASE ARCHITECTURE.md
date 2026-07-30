@@ -16,6 +16,7 @@ The database architecture follows the principles of:
 - Guidance Office Operational Requirements
 - Role-Based Access Control
 - Program-Based Counselor Assignment
+- Temporary Conversation Persistence
 
 The system shall only store information necessary for:
 
@@ -238,15 +239,14 @@ status ENUM(
 counselor_notes TEXT NULL,
 
 appointment_source ENUM(
-
-'chatbot',
-'walk_in',
-'hotline',
-'messenger',
-'email',
-'staff_manual'
-
-) NOT NULL,
+    'chatbot',
+    'appointment_form',
+    'walk_in',
+    'hotline',
+    'messenger',
+    'email',
+    'staff_manual'
+    ) NOT NULL,
 
 created_at DATETIME NOT NULL,
 
@@ -286,19 +286,16 @@ The following values are LOCKED.
 
 ```text
 chatbot
-
+appointment_form
 walk_in
-
 hotline
-
 messenger
-
 email
-
 staff_manual
 ```
 
 These are NOT editable.
+The appointment source records only how an appointment request entered the system. It does not affect validation, conflict detection, counselor assignment, appointment status transitions, or other Appointment Engine business rules.
 
 ---
 
@@ -456,6 +453,8 @@ The conversation_summaries table stores:
 
 The table SHALL NOT store:
 
+Active conversations are maintained only as temporary session data during an authenticated user session. Temporary conversation data is used solely to preserve conversational context and is automatically deleted after AI Counselor Intake Summary generation. Only the generated summary and related metadata are permanently stored in the database.
+
 - Raw conversations
 - Chat logs
 - Message history
@@ -554,6 +553,7 @@ The system SHALL permanently retain:
 - Appointment records
 - Counselor notes
 - AI summaries
+- Conversation metadata
 - Reports
 - Settings
 
@@ -581,3 +581,7 @@ The following decisions are FINAL:
 - AI summaries are permanently stored.
 - Appointment records are permanently stored.
 - Data minimization principles are enforced.
+- Active conversations are never stored permanently in the database.
+- Temporary conversation persistence exists only for authenticated session continuity.
+- Only AI Counselor Intake Summaries and conversation metadata are retained after conversation finalization.
+- Appointment Form and AI Guidance Chatbot share the same Appointment Engine and appointment records.

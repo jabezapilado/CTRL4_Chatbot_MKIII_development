@@ -29,7 +29,14 @@ Students SHALL NOT:
 - Export conversations.
 - Manage conversation history.
 
+
 The system SHALL automatically manage the entire conversation lifecycle.
+
+The active conversation is maintained throughout the authenticated user session.
+
+Students may freely navigate between system pages or refresh the page without losing the active conversation.
+
+Conversation continuity is automatically restored while the authenticated session remains valid.
 
 ---
 
@@ -51,6 +58,12 @@ Topic classification
 Appointment detection
         ↓
 Flagged case detection
+        ↓
+Active authenticated session
+        ↓
+Page navigation / Page refresh (optional)
+        ↓
+Conversation restored
         ↓
 Conversation becomes inactive
         ↓
@@ -78,6 +91,10 @@ WAITING
 
 ↓
 
+RESTORED
+
+↓
+
 INACTIVE
 
 ↓
@@ -98,6 +115,10 @@ Definitions:
 ### WAITING
 
 - No recent activity detected.
+
+### RESTORED
+
+- The active conversation has been automatically restored after page navigation or page refresh while the authenticated session remains valid.
 
 ### INACTIVE
 
@@ -124,6 +145,8 @@ Examples include:
 - Temporary application storage
 
 Temporary storage SHALL NOT be considered permanent storage.
+
+Temporary conversation storage exists solely to preserve conversational context during the authenticated session. It is automatically restored after page navigation or refresh and is permanently removed after conversation finalization.
 
 ---
 
@@ -190,10 +213,15 @@ Triggers include:
 
 - User inactivity
 - Logout
-- Appointment submission
 - Session timeout
 
 No user action is required.
+
+The following events SHALL NOT terminate an active conversation:
+
+- Page navigation
+- Page refresh
+- Returning from the appointment form
 
 ---
 
@@ -407,16 +435,22 @@ Appointment Requested
         ↓
 Appointment Submitted
         ↓
-AI Summary Generated
+Conversation Continues
         ↓
-Conversation Deleted
+Logout / Inactivity Timeout
         ↓
-Appointment Record Saved
+AI Counselor Intake Summary Generated
+        ↓
+Temporary Conversation Deleted
+        ↓
+Appointment Record Retained
         ↓
 Counselor Review
         ↓
 Appointment Completed
 ```
+
+Submitting an appointment request does not finalize the active conversation. The conversation remains active throughout the authenticated session and is finalized only after logout, session timeout, or prolonged inactivity.
 
 The counselor shall only see:
 
@@ -518,3 +552,8 @@ The following decisions are FINAL:
 - Only metadata and summaries are permanently retained.
 - Privacy-by-Design principles are enforced throughout the system.
 - CTRL4 prioritizes student confidentiality and data minimization.
+- Active conversations persist only during authenticated sessions.
+- Page navigation and page refresh do not terminate active conversations.
+- Active conversations are automatically restored while the authenticated session remains valid.
+- Temporary conversation storage exists only to preserve conversational context.
+- Conversation finalization occurs only after logout or inactivity timeout.

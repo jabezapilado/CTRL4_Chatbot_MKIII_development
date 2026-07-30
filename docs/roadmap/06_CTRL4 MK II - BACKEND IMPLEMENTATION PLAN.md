@@ -39,6 +39,9 @@ Frontend
 API Routes
         │
         ▼
+Conversation Session Manager
+        │
+        ▼
 Service Layer
         │
         ▼
@@ -71,6 +74,7 @@ backend/
 ├── services/
 │     appointment_service.py
 │     chatbot_service.py
+│     conversation_session_service.py
 │     counselor_service.py
 │     summary_service.py
 │
@@ -121,11 +125,17 @@ Appointment Engine
 Conversation Intelligence
 
 - Conversation Processing
+- Active Conversation Session
+- Conversation Restoration
+- Session-Based Conversation Persistence
 - Emotion Detection
 - Intent Detection
 - Topic Classification
 - AI Counselor Intake Summary
 - Automatic Conversation Deletion
+- Session Cleanup
+
+The Conversation Session Manager is responsible for preserving active conversations during an authenticated session, restoring conversations after page navigation or refresh, and cleaning up temporary conversation data after AI summary generation.
 
 ---
 
@@ -173,6 +183,9 @@ The backend shall follow these principles:
 - Database access remains inside `db.py`.
 - Every endpoint returns a consistent JSON response.
 - Business rules must follow the approved architecture documents.
+- Conversation session management shall remain separate from appointment business logic.
+- Appointment validation and chatbot appointment requests shall use the same Appointment Service.
+- Temporary conversation persistence shall never be treated as permanent storage.
 
 ---
 
@@ -182,6 +195,8 @@ The backend shall follow these principles:
 Authentication
         ↓
 Appointment Engine
+        ↓
+Conversation Session Manager
         ↓
 Conversation Intelligence
         ↓
@@ -204,3 +219,6 @@ The following implementation decisions are FINAL:
 - Services shall contain all business rules.
 - Architecture documents (00–05) remain the source of truth.
 - This document defines how those architectural decisions are implemented.
+- Active conversations shall be restored automatically while the authenticated session remains valid.
+- Conversation finalization shall generate an AI Counselor Intake Summary before deleting temporary conversation data.
+- The Appointment Engine shall serve both the AI Guidance Chatbot and the Appointment Form.
