@@ -42,7 +42,13 @@ def list_staff_appointments_route():
 
     items = list_staff_appointments(user["id"])
 
-    return jsonify({"items": items}), 200
+    return jsonify(
+        {
+            "success": True,
+            "message": "Appointments retrieved successfully.",
+            "data": {"items": items},
+        }
+    ), 200
 
 
 @appointment_bp.post("")
@@ -51,22 +57,52 @@ def create_appointment():
     user = require_login()
 
     if not user:
-        return jsonify({"error": "Login required."}), 401
+        return jsonify(
+            {
+                "success": False,
+                "message": "Login required.",
+                "errors": None,
+            }
+        ), 401
 
     try:
         appointment_id = create_student_appointment(user, payload)
     except ValueError as exc:
         message, fields = exc.args[0]
-        return jsonify({"error": message, "fields": fields}), 400
+        return jsonify(
+            {
+                "success": False,
+                "message": message,
+                "errors": fields,
+            }
+        ), 400
     except RuntimeError as exc:
-        return jsonify({"error": str(exc)}), 409
+        return jsonify(
+            {
+                "success": False,
+                "message": str(exc),
+                "errors": None,
+            }
+        ), 409
     except LookupError as exc:
         message = str(exc)
         status = 404 if "Student account" in message else 400
-        return jsonify({"error": message}), status
+        return jsonify(
+            {
+                "success": False,
+                "message": message,
+                "errors": None,
+            }
+        ), status
 
     logger.info("Student %s created appointment %s", user["id"], appointment_id)
-    return jsonify({"id": appointment_id, "status": "saved"}), 201
+    return jsonify(
+        {
+            "success": True,
+            "message": "Appointment created successfully.",
+            "data": {"id": appointment_id, "status": "saved"},
+        }
+    ), 201
 
 
 @appointment_bp.get("/my")
@@ -75,11 +111,12 @@ def my_appointments():
     if error:
         return error
 
+    items = list_student_appointments(user["id"])
     return jsonify(
         {
-            "items": list_student_appointments(
-                user["id"]
-            )
+            "success": True,
+            "message": "Appointments retrieved successfully.",
+            "data": {"items": items},
         }
     ), 200
 
@@ -93,16 +130,46 @@ def cancel_my_appointment(appointment_id: int):
     try:
         cancel_student_appointment(user, appointment_id)
     except LookupError as exc:
-        return jsonify({"error": str(exc)}), 404
+        return jsonify(
+            {
+                "success": False,
+                "message": str(exc),
+                "errors": None,
+            }
+        ), 404
     except PermissionError as exc:
-        return jsonify({"error": str(exc)}), 403
+        return jsonify(
+            {
+                "success": False,
+                "message": str(exc),
+                "errors": None,
+            }
+        ), 403
     except RuntimeError as exc:
-        return jsonify({"error": str(exc)}), 400
+        return jsonify(
+            {
+                "success": False,
+                "message": str(exc),
+                "errors": None,
+            }
+        ), 400
     except ValueError as exc:
-        return jsonify({"error": str(exc)}), 400
+        return jsonify(
+            {
+                "success": False,
+                "message": str(exc),
+                "errors": None,
+            }
+        ), 400
 
     logger.info("Student %s cancelled appointment %s", user["id"], appointment_id)
-    return jsonify({"status": "cancelled"}), 200
+    return jsonify(
+        {
+            "success": True,
+            "message": "Appointment cancelled successfully.",
+            "data": {"status": "cancelled"},
+        }
+    ), 200
 
 
 @appointment_bp.post("/my/<int:appointment_id>/reschedule")
@@ -116,17 +183,47 @@ def reschedule_my_appointment(appointment_id: int):
     try:
         new_id = reschedule_student_appointment(user, appointment_id, payload)
     except LookupError as exc:
-        return jsonify({"error": str(exc)}), 404
+        return jsonify(
+            {
+                "success": False,
+                "message": str(exc),
+                "errors": None,
+            }
+        ), 404
     except PermissionError as exc:
-        return jsonify({"error": str(exc)}), 403
+        return jsonify(
+            {
+                "success": False,
+                "message": str(exc),
+                "errors": None,
+            }
+        ), 403
     except RuntimeError as exc:
         status = 409 if str(exc) == "This schedule is already taken." else 400
-        return jsonify({"error": str(exc)}), status
+        return jsonify(
+            {
+                "success": False,
+                "message": str(exc),
+                "errors": None,
+            }
+        ), status
     except ValueError as exc:
         if exc.args and isinstance(exc.args[0], tuple):
             message, fields = exc.args[0]
-            return jsonify({"error": message, "fields": fields}), 400
-        return jsonify({"error": str(exc)}), 400
+            return jsonify(
+                {
+                    "success": False,
+                    "message": message,
+                    "errors": fields,
+                }
+            ), 400
+        return jsonify(
+            {
+                "success": False,
+                "message": str(exc),
+                "errors": None,
+            }
+        ), 400
 
     logger.info(
         "Student %s rescheduled appointment %s -> %s",
@@ -134,7 +231,13 @@ def reschedule_my_appointment(appointment_id: int):
         appointment_id,
         new_id,
     )
-    return jsonify({"status": "rescheduled", "appointment_id": new_id}), 201
+    return jsonify(
+        {
+            "success": True,
+            "message": "Appointment rescheduled successfully.",
+            "data": {"status": "rescheduled", "appointment_id": new_id},
+        }
+    ), 201
 
 
 @appointment_bp.post("/manual")
@@ -150,17 +253,47 @@ def create_manual_appointment_route():
     except ValueError as exc:
         if exc.args and isinstance(exc.args[0], tuple):
             message, fields = exc.args[0]
-            return jsonify({"error": message, "fields": fields}), 400
-        return jsonify({"error": str(exc)}), 400
+            return jsonify(
+                {
+                    "success": False,
+                    "message": message,
+                    "errors": fields,
+                }
+            ), 400
+        return jsonify(
+            {
+                "success": False,
+                "message": str(exc),
+                "errors": None,
+            }
+        ), 400
     except RuntimeError as exc:
-        return jsonify({"error": str(exc)}), 409
+        return jsonify(
+            {
+                "success": False,
+                "message": str(exc),
+                "errors": None,
+            }
+        ), 409
     except LookupError as exc:
         message = str(exc)
         status = 404 if "Student account" in message else 400
-        return jsonify({"error": message}), status
+        return jsonify(
+            {
+                "success": False,
+                "message": message,
+                "errors": None,
+            }
+        ), status
 
     logger.info("Staff %s created manual appointment %s", user["id"], appointment_id)
-    return jsonify({"id": appointment_id, "status": "created"}), 201
+    return jsonify(
+        {
+            "success": True,
+            "message": "Manual appointment created successfully.",
+            "data": {"id": appointment_id, "status": "created"},
+        }
+    ), 201
 
 
 @appointment_bp.patch("/<int:appointment_id>")
@@ -175,11 +308,29 @@ def change_appointment(appointment_id: int):
     try:
         update_appointment_status_service(user, appointment_id, status)
     except ValueError as exc:
-        return jsonify({"error": str(exc)}), 400
+        return jsonify(
+            {
+                "success": False,
+                "message": str(exc),
+                "errors": None,
+            }
+        ), 400
     except LookupError as exc:
-        return jsonify({"error": str(exc)}), 404
+        return jsonify(
+            {
+                "success": False,
+                "message": str(exc),
+                "errors": None,
+            }
+        ), 404
     except RuntimeError as exc:
-        return jsonify({"error": str(exc)}), 400
+        return jsonify(
+            {
+                "success": False,
+                "message": str(exc),
+                "errors": None,
+            }
+        ), 400
 
     logger.info(
         "Staff %s updated appointment %s to status '%s'",
@@ -187,7 +338,13 @@ def change_appointment(appointment_id: int):
         appointment_id,
         status,
     )
-    return jsonify({"status": "updated"}), 200
+    return jsonify(
+        {
+            "success": True,
+            "message": "Appointment status updated successfully.",
+            "data": {"status": "updated"},
+        }
+    ), 200
 
 
 @appointment_bp.get("/<int:appointment_id>")
@@ -202,9 +359,21 @@ def appointment_details(appointment_id: int):
             appointment_id,
         )
     except LookupError as exc:
-        return jsonify({"error": str(exc)}), 404
+        return jsonify(
+            {
+                "success": False,
+                "message": str(exc),
+                "errors": None,
+            }
+        ), 404
 
-    return jsonify(appointment), 200
+    return jsonify(
+        {
+            "success": True,
+            "message": "Appointment details retrieved successfully.",
+            "data": appointment,
+        }
+    ), 200
 
 
 @appointment_bp.patch("/<int:appointment_id>/notes")
@@ -219,15 +388,39 @@ def update_counselor_notes_route(appointment_id: int):
     try:
         update_counselor_notes_service(user, appointment_id, notes)
     except LookupError as exc:
-        return jsonify({"error": str(exc)}), 404
+        return jsonify(
+            {
+                "success": False,
+                "message": str(exc),
+                "errors": None,
+            }
+        ), 404
     except RuntimeError as exc:
-        return jsonify({"error": str(exc)}), 400
+        return jsonify(
+            {
+                "success": False,
+                "message": str(exc),
+                "errors": None,
+            }
+        ), 400
     except ValueError as exc:
-        return jsonify({"error": str(exc)}), 400
+        return jsonify(
+            {
+                "success": False,
+                "message": str(exc),
+                "errors": None,
+            }
+        ), 400
 
     logger.info(
         "Staff %s updated counselor notes for appointment %s",
         user["id"],
         appointment_id,
     )
-    return jsonify({"status": "saved"}), 200
+    return jsonify(
+        {
+            "success": True,
+            "message": "Counselor notes updated successfully.",
+            "data": {"status": "saved"},
+        }
+    ), 200

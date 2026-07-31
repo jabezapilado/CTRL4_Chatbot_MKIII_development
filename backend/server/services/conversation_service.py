@@ -1,6 +1,7 @@
-
-
 from __future__ import annotations
+
+import logging
+from typing import Final
 
 from ..db import (
     current_time,
@@ -9,6 +10,21 @@ from ..db import (
 )
 
 from . import summary_service
+
+logger = logging.getLogger(__name__)
+
+ESCALATION_PENDING: Final[str] = "pending"
+
+
+def _save_escalation(summary_id: int, account_id: int) -> None:
+    save_escalation(
+        {
+            "account_id": account_id,
+            "summary_id": summary_id,
+            "status": ESCALATION_PENDING,
+            "created_at": current_time(),
+        }
+    )
 
 
 def finalize_conversation(
@@ -20,6 +36,11 @@ def finalize_conversation(
     emotion: str,
     flagged: bool,
 ) -> dict:
+    logger.info(
+        "Finalizing conversation for account_id=%s flagged=%s",
+        user["id"],
+        flagged,
+    )
     summary = summary_service.generate_summary(
         student_name=user["full_name"],
         conversation=conversation,
@@ -47,14 +68,12 @@ def finalize_conversation(
     )
 
     if summary.flagged:
-        save_escalation(
-            {
-                "account_id": user["id"],
-                "summary_id": summary_id,
-                "status": "pending",
-                "created_at": current_time(),
-            }
-        )
+        _save_escalation(summary_id, user["id"])
+
+    logger.info(
+        "Conversation finalized successfully. summary_id=%s",
+        summary_id,
+    )
 
     return {
         "success": True,

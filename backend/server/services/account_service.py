@@ -10,6 +10,9 @@ from ..db import (
 
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
+# Centralized valid roles
+VALID_ROLES = frozenset({"student", "staff", "admin"})
+
 
 def create_account_service(payload: dict) -> dict:
     full_name = str(payload.get("full_name", "")).strip()
@@ -33,10 +36,10 @@ def create_account_service(payload: dict) -> dict:
             raise ValueError("Program is required.")
         if not gender:
             raise ValueError("Gender is required.")
-    elif role in {"staff", "admin"}:
+    elif role in VALID_ROLES - {"student"}:
         if not gender:
             raise ValueError("Gender is required.")
-    else:
+    elif role not in VALID_ROLES:
         raise ValueError("Invalid account role.")
 
     return create_account(
@@ -67,6 +70,10 @@ def login_service(payload: dict) -> dict:
     if account.get("status") != "active":
         raise RuntimeError("Account is disabled.")
 
+    role = str(account.get("role", "")).strip().lower()
+    if role not in VALID_ROLES:
+        raise PermissionError("Invalid account configuration.")
+
     stored_password = str(account.get("password_hash", ""))
     if stored_password.startswith(("pbkdf2:", "scrypt:")):
         password_ok = check_password_hash(stored_password, password)
@@ -81,7 +88,7 @@ def login_service(payload: dict) -> dict:
         "student_number": account.get("student_number"),
         "email": account["email"],
         "full_name": account["full_name"],
-        "role": account["role"],
+        "role": role,
     }
 
     session["hau_user"] = user

@@ -25,12 +25,27 @@ chatbot_bp = Blueprint(
 @chatbot_bp.post("/chat")
 def chat():
     payload = request.get_json(silent=True) or {}
+
+    user = require_login()
+    if not user:
+        return jsonify(
+            {
+                "success": False,
+                "message": "Login required.",
+                "errors": None,
+            }
+        ), 401
+
     message = str(payload.get("message", "")).strip()
 
     if not message:
-        return jsonify({"error": "Message is required."}), 400
-
-    user = require_login()
+        return jsonify(
+            {
+                "success": False,
+                "message": "Message is required.",
+                "errors": None,
+            }
+        ), 400
 
     try:
         result = ai_service.respond(
@@ -56,7 +71,10 @@ def chat():
             return jsonify(
                 {
                     "success": False,
-                    "response": result.response,
+                    "message": "Unable to generate a response.",
+                    "data": {
+                        "response": result.response,
+                    },
                 }
             ), 200
 
@@ -73,13 +91,16 @@ def chat():
 
         return jsonify(
             {
-                "success": result.success,
-                "response": result.response,
-                "emotion": result.emotion,
-                "sentiment": result.sentiment,
-                "language": result.language,
-                "escalated": result.escalated,
-                "confidence": round(result.confidence, 4),
+                "success": True,
+                "message": "Response generated successfully.",
+                "data": {
+                    "response": result.response,
+                    "emotion": result.emotion,
+                    "sentiment": result.sentiment,
+                    "language": result.language,
+                    "escalated": result.escalated,
+                    "confidence": round(result.confidence, 4),
+                },
             }
         ), 200
 
@@ -88,7 +109,8 @@ def chat():
         return jsonify(
             {
                 "success": False,
-                "error": "Unable to process chat request.",
+                "message": "Internal server error.",
+                "errors": None,
             }
         ), 500
 
@@ -97,15 +119,26 @@ def chat():
 def finalize_chat():
     payload = request.get_json(silent=True) or {}
 
+    user = require_login()
+    if not user:
+        return jsonify(
+            {
+                "success": False,
+                "message": "Login required.",
+                "errors": None,
+            }
+        ), 401
+
     conversation = payload.get("conversation", [])
 
     if not conversation:
-        return jsonify({"error": "Conversation is required."}), 400
-
-    user = require_login()
-
-    if not user:
-        return jsonify({"error": "Login required."}), 401
+        return jsonify(
+            {
+                "success": False,
+                "message": "Conversation is required.",
+                "errors": None,
+            }
+        ), 400
 
     try:
         result = finalize_conversation(
@@ -117,7 +150,13 @@ def finalize_chat():
             flagged=bool(payload.get("flagged", False)),
         )
 
-        return jsonify(result), 200
+        return jsonify(
+            {
+                "success": True,
+                "message": "Conversation finalized successfully.",
+                "data": result,
+            }
+        ), 200
 
     except Exception:
         logger.exception(
@@ -128,6 +167,7 @@ def finalize_chat():
         return jsonify(
             {
                 "success": False,
-                "error": "Unable to finalize conversation.",
+                "message": "Internal server error.",
+                "errors": None,
             }
         ), 500

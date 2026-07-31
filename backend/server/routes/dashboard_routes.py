@@ -20,7 +20,20 @@ def dashboard_stats():
         return error
 
     try:
-        return jsonify(get_dashboard_stats()), 200
+        stats = get_dashboard_stats()
+        return jsonify(
+            {
+                "success": True,
+                "message": "Dashboard statistics retrieved successfully.",
+                "data": stats,
+            }
+        ), 200
     except Exception:
         logger.exception("Failed to retrieve dashboard statistics.")
-        return jsonify({"error": "Internal server error."}), 500
+        return jsonify(
+            {
+                "success": False,
+                "message": "Internal server error.",
+                "errors": None,
+            }
+        ), 500

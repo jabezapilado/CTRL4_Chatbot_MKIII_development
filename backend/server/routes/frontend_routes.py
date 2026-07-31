@@ -2,6 +2,11 @@ import logging
 from flask import Blueprint, render_template, request, jsonify, redirect
 
 from ..auth import get_logged_in_user, role_landing_path
+from ..request_validation import (
+    ROLE_ADMIN,
+    ROLE_STAFF,
+    ROLE_STUDENT,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -53,14 +58,20 @@ def require_login_for_private_routes():
     if not user:
         if path.startswith("/api/") or path == "/chat":
             logger.warning("Unauthorized API access to %s", path)
-            return jsonify({"error": "Login required."}), 401
+            return jsonify(
+                {
+                    "success": False,
+                    "message": "Login required.",
+                    "errors": None,
+                }
+            ), 401
         logger.info("Redirecting unauthenticated user to login from %s", path)
         return redirect("/login?reason=session-required")
 
-    role = str(user.get("role", "student")).lower()
-    if path in {"/chatbot", "/appointment"} and role in {"staff", "admin"}:
+    role = str(user.get("role", ROLE_STUDENT)).lower()
+    if path in {"/chatbot", "/appointment"} and role in {ROLE_STAFF, ROLE_ADMIN}:
         return redirect("/dashboard")
-    if path in {"/dashboard", "/chatbot_admin"} and role == "student":
+    if path in {"/dashboard", "/chatbot_admin"} and role == ROLE_STUDENT:
         return redirect("/chatbot")
 
     return None

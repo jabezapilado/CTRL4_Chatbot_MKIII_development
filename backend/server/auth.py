@@ -20,8 +20,11 @@ def get_logged_in_user() -> dict | None:
 def role_landing_path(user: dict) -> str:
     role = str(user.get("role", "student")).lower()
 
-    if role in {"staff", "admin"}:
+    if role == "staff":
         return "/dashboard"
+
+    if role == "admin":
+        return "/admin"
 
     return "/chatbot"
 

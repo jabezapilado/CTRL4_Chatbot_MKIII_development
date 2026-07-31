@@ -14,7 +14,20 @@ health_bp = Blueprint(
 @health_bp.get("/health")
 def health():
     try:
-        return jsonify(get_service_status()), 200
+        status = get_service_status()
+        return jsonify(
+            {
+                "success": True,
+                "message": "Service status retrieved successfully.",
+                "data": status,
+            }
+        ), 200
     except Exception:
         logger.exception("Health check failed.")
-        return jsonify({"error": "Internal server error."}), 500
+        return jsonify(
+            {
+                "success": False,
+                "message": "Internal server error.",
+                "errors": None,
+            }
+        ), 500

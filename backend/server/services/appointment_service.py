@@ -18,6 +18,16 @@ from ..db import (
 
 MODIFICATION_DEADLINE: Final[timedelta] = timedelta(hours=1)
 
+VALID_STATUSES: Final[frozenset[str]] = frozenset(
+    {
+        "pending",
+        "approved",
+        "done",
+        "did_not_attend",
+        "cancelled",
+    }
+)
+
 # Helper: students may only modify appointments at least 1 hour before scheduled time
 def can_student_modify_appointment(appointment_record: dict) -> bool:
     appointment_datetime = datetime.strptime(
@@ -29,6 +39,19 @@ def can_student_modify_appointment(appointment_record: dict) -> bool:
         appointment_datetime - datetime.now()
         >= MODIFICATION_DEADLINE
     )
+
+
+def _require_student_ownership(student_account: dict, appointment: dict) -> None:
+    if appointment["account_id"] != student_account["id"]:
+        raise PermissionError("You may only manage your own appointments.")
+
+
+def _require_staff_assignment(staff_account: dict, appointment_id: int) -> None:
+    allowed = {
+        item["id"] for item in list_staff_appointments(staff_account["id"])
+    }
+    if appointment_id not in allowed:
+        raise LookupError("Appointment not found.")
 
 
 def create_student_appointment(student_account: dict, payload: dict) -> int:
@@ -94,8 +117,7 @@ def cancel_student_appointment(student_account: dict, appointment_id: int) -> No
     if not appointment:
         raise LookupError("Appointment not found.")
 
-    if appointment["account_id"] != student_account["id"]:
-        raise PermissionError("You may only cancel your own appointments.")
+    _require_student_ownership(student_account, appointment)
 
     if not can_student_modify_appointment(appointment):
         raise RuntimeError(
@@ -118,8 +140,7 @@ def reschedule_student_appointment(
     if not appointment:
         raise LookupError("Appointment not found.")
 
-    if appointment["account_id"] != student_account["id"]:
-        raise PermissionError("You may only reschedule your own appointments.")
+    _require_student_ownership(student_account, appointment)
 
     if appointment["status"] != "pending":
         raise ValueError("Only pending appointments may be rescheduled.")
@@ -240,15 +261,7 @@ def update_appointment_status_service(
     appointment_id: int,
     status: str,
 ) -> None:
-    valid_statuses = {
-        "pending",
-        "approved",
-        "done",
-        "did_not_attend",
-        "cancelled",
-    }
-
-    if status not in valid_statuses:
+    if status not in VALID_STATUSES:
         raise ValueError("Invalid appointment status.")
 
     appointment = get_appointment_by_id(appointment_id)
@@ -256,13 +269,7 @@ def update_appointment_status_service(
     if not appointment:
         raise LookupError("Appointment not found.")
 
-    allowed = {
-        item["id"]
-        for item in list_staff_appointments(staff_account["id"])
-    }
-
-    if appointment_id not in allowed:
-        raise LookupError("Appointment not found.")
+    _require_staff_assignment(staff_account, appointment_id)
 
     current_status = appointment["status"]
 
@@ -292,13 +299,7 @@ def update_counselor_notes_service(
     if not appointment:
         raise LookupError("Appointment not found.")
 
-    allowed = {
-        item["id"]
-        for item in list_staff_appointments(staff_account["id"])
-    }
-
-    if appointment_id not in allowed:
-        raise LookupError("Appointment not found.")
+    _require_staff_assignment(staff_account, appointment_id)
 
     counselor_notes = counselor_notes.strip()
 
@@ -350,10 +351,7 @@ def get_appointment_details_service(
     if not rows:
         raise LookupError("Appointment not found.")
 
-    if (
-        str(user.get("role", "")).lower() == "student"
-        and rows[0]["account_id"] != user["id"]
-    ):
-        raise LookupError("Appointment not found.")
+    if str(user.get("role", "")).lower() == "student":
+        _require_student_ownership(user, rows[0])
 
     return rows[0]

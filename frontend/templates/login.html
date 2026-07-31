@@ -158,8 +158,10 @@
               }),
             );
 
-            if (user.role === "staff" || user.role === "admin") {
+            if (user.role === "staff") {
               redirectToPage("/dashboard");
+            } else if (user.role === "admin") {
+              redirectToPage("/admin");
             } else {
               redirectToPage("/chatbot");
             }
@@ -204,8 +206,10 @@
       if (session) {
         const user = JSON.parse(session);
 
-        if (user.role === "staff" || user.role === "admin") {
+        if (user.role === "staff") {
           redirectToPage("/dashboard");
+        } else if (user.role === "admin") {
+          redirectToPage("/admin");
         } else {
           redirectToPage("/chatbot");
         }
