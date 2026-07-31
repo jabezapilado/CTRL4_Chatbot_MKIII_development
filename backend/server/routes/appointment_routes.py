@@ -20,6 +20,8 @@ from ..db import (
 
 from ..services.appointment_service import (
     can_student_modify_appointment,
+    create_student_appointment,
+    cancel_student_appointment,
 )
 
 appointment_bp = Blueprint(
@@ -59,61 +61,17 @@ def create_appointment():
     if not user:
         return jsonify({"error": "Login required."}), 401
 
-    required_fields = [
-        "contact_number",
-        "appointment_category",
-        "appointment_mode",
-        "preferred_date",
-        "preferred_time_slot",
-        "reason",
-    ]
-    missing_fields = [field for field in required_fields if not str(payload.get(field, "")).strip()]
-
-    if missing_fields:
-        return jsonify({"error": "Missing required fields.", "fields": missing_fields}), 400
-    
-    if has_appointment_conflict(
-        payload["preferred_date"],
-        payload["preferred_time_slot"],
-    ):
-        return jsonify(
-            {
-                "error": "This schedule is already taken."
-            }
-        ), 409
-
-    student = get_student_by_id(user["id"])
-
-    if not student:
-        return jsonify({"error": "Student account not found."}), 404
-
-    student_program = str(student.get("program", "")).strip()
-
-    counselor = get_staff_by_program(student_program)
-
-    if counselor is None:
-        return jsonify(
-            {
-                "error": "No counselor is currently assigned to your program. Please contact the Guidance Office."
-            }
-        ), 400
-
-    appointment_id = save_appointment(
-        {
-            "account_id": user["id"],
-            "contact_number": payload["contact_number"],
-            "appointment_category": payload["appointment_category"],
-            "appointment_mode": payload["appointment_mode"],
-            "preferred_date": payload["preferred_date"],
-            "preferred_time_slot": payload["preferred_time_slot"],
-            "reason": payload["reason"],
-            "status": "pending",
-            "counselor_notes": None,
-            "appointment_source": "chatbot",
-            "created_at": current_time(),
-            "updated_at": current_time(),
-        }
-    )
+    try:
+        appointment_id = create_student_appointment(user, payload)
+    except ValueError as exc:
+        message, fields = exc.args[0]
+        return jsonify({"error": message, "fields": fields}), 400
+    except RuntimeError as exc:
+        return jsonify({"error": str(exc)}), 409
+    except LookupError as exc:
+        message = str(exc)
+        status = 404 if "Student account" in message else 400
+        return jsonify({"error": message}), status
 
     return jsonify({"id": appointment_id, "status": "saved"}), 201
 
@@ -146,27 +104,16 @@ def cancel_my_appointment(appointment_id: int):
     if str(user.get("role", "student")).lower() != "student":
         return jsonify({"error": "Student access required."}), 403
 
-    appointment = get_appointment_by_id(appointment_id)
-
-    if not appointment:
-        return jsonify({"error": "Appointment not found."}), 404
-
-    if appointment["account_id"] != user["id"]:
-        return jsonify({"error": "You may only cancel your own appointments."}), 403
-
-    if not can_student_modify_appointment(appointment):
-        return jsonify(
-            {
-                "error": "This appointment can no longer be modified because it is scheduled within the next hour."
-            }
-        ), 400
-
-    if appointment["status"] != "pending":
-        return jsonify(
-            {"error": "Only pending appointments may be cancelled."}
-        ), 400
-
-    update_appointment_status(appointment_id, "cancelled")
+    try:
+        cancel_student_appointment(user, appointment_id)
+    except LookupError as exc:
+        return jsonify({"error": str(exc)}), 404
+    except PermissionError as exc:
+        return jsonify({"error": str(exc)}), 403
+    except RuntimeError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
 
     return jsonify({"status": "cancelled"}), 200
 
