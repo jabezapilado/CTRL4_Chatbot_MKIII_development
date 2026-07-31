@@ -11,6 +11,7 @@ from ..db import (
     get_appointment_by_id,
     list_staff_appointments,
     update_appointment_status,
+    update_counselor_notes,
 )
 
 # Helper: students may only modify appointments at least 1 hour before scheduled time
@@ -275,3 +276,36 @@ def update_appointment_status_service(
         )
 
     update_appointment_status(appointment_id, status)
+
+
+def update_counselor_notes_service(
+    staff_account: dict,
+    appointment_id: int,
+    counselor_notes: str,
+) -> None:
+    appointment = get_appointment_by_id(appointment_id)
+
+    if not appointment:
+        raise LookupError("Appointment not found.")
+
+    allowed = {
+        item["id"]
+        for item in list_staff_appointments(staff_account["id"])
+    }
+
+    if appointment_id not in allowed:
+        raise LookupError("Appointment not found.")
+
+    status = str(appointment.get("status", "")).lower()
+
+    if status == "pending":
+        raise RuntimeError(
+            "Counselor notes cannot be added while the appointment is pending."
+        )
+
+    if status == "done" and not counselor_notes:
+        raise ValueError(
+            "Counselor notes are required for completed appointments."
+        )
+
+    update_counselor_notes(appointment_id, counselor_notes)

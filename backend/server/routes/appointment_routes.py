@@ -9,7 +9,7 @@ from ..db import (
     list_staff_appointments,
     list_student_appointments,
     get_appointment_by_id,
-    update_counselor_notes,
+    update_appointment_status,
 )
 
 from ..services.appointment_service import (
@@ -18,6 +18,7 @@ from ..services.appointment_service import (
     reschedule_student_appointment,
     create_manual_appointment,
     update_appointment_status_service,
+    update_counselor_notes_service,
 )
 
 appointment_bp = Blueprint(
@@ -241,45 +242,16 @@ def update_counselor_notes_route(appointment_id: int):
     if not user or str(user.get("role", "")).lower() != "staff":
         return jsonify({"error": "Staff access required."}), 403
 
-    appointment = get_appointment_by_id(appointment_id)
-
-    if not appointment:
-        return jsonify({"error": "Appointment not found."}), 404
-    
-    allowed = {
-        item["id"]
-        for item in list_staff_appointments(user["id"])
-    }
-
-    if appointment_id not in allowed:
-        return jsonify(
-            {
-                "error": "Appointment not found."
-            }
-        ), 404
-
     payload = request.get_json(silent=True) or {}
     notes = str(payload.get("counselor_notes", "")).strip()
-    
-    status = str(appointment.get("status", "")).lower()
 
-    if status == "pending":
-        return jsonify(
-            {
-                "error": "Counselor notes cannot be added while the appointment is pending."
-            }
-        ), 400
-
-    if status == "done" and not notes:
-        return jsonify(
-            {
-                "error": "Counselor notes are required for completed appointments."
-            }
-        ), 400
-
-    update_counselor_notes(
-        appointment_id,
-        notes,
-    )
+    try:
+        update_counselor_notes_service(user, appointment_id, notes)
+    except LookupError as exc:
+        return jsonify({"error": str(exc)}), 404
+    except RuntimeError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
 
     return jsonify({"status": "saved"}), 200
