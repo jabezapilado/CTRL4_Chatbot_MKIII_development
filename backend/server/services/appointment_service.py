@@ -162,3 +162,68 @@ def reschedule_student_appointment(
 
     update_appointment_status(appointment_id, "cancelled")
     return new_id
+
+
+def create_manual_appointment(staff_account: dict, payload: dict) -> int:
+    required_fields = [
+        "account_id",
+        "appointment_category",
+        "appointment_mode",
+        "preferred_date",
+        "preferred_time_slot",
+        "reason",
+        "appointment_source",
+    ]
+
+    missing_fields = [
+        field
+        for field in required_fields
+        if not str(payload.get(field, "")).strip()
+    ]
+
+    if missing_fields:
+        raise ValueError(("Missing required fields.", missing_fields))
+
+    if payload["appointment_source"] not in {
+        "walk_in",
+        "hotline",
+        "messenger",
+        "email",
+        "staff_manual",
+    }:
+        raise ValueError("Invalid appointment source.")
+
+    student = get_student_by_id(payload["account_id"])
+
+    if not student:
+        raise LookupError("Student account not found.")
+
+    counselor = get_staff_by_program(str(student["program"]).strip())
+
+    if counselor is None:
+        raise LookupError(
+            "No counselor is currently assigned to the student's program."
+        )
+
+    if has_appointment_conflict(
+        payload["preferred_date"],
+        payload["preferred_time_slot"],
+    ):
+        raise RuntimeError("This schedule is already taken.")
+
+    return save_appointment(
+        {
+            "account_id": payload["account_id"],
+            "contact_number": student.get("contact_number") or "",
+            "appointment_category": payload["appointment_category"],
+            "appointment_mode": payload["appointment_mode"],
+            "preferred_date": payload["preferred_date"],
+            "preferred_time_slot": payload["preferred_time_slot"],
+            "reason": payload["reason"],
+            "status": "approved",
+            "counselor_notes": None,
+            "appointment_source": payload["appointment_source"],
+            "created_at": current_time(),
+            "updated_at": current_time(),
+        }
+    )

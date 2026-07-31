@@ -22,6 +22,7 @@ from ..services.appointment_service import (
     create_student_appointment,
     cancel_student_appointment,
     reschedule_student_appointment,
+    create_manual_appointment,
 )
 
 appointment_bp = Blueprint(
@@ -148,9 +149,8 @@ def reschedule_my_appointment(appointment_id: int):
 
 
 
-
 @appointment_bp.post("/manual")
-def create_manual_appointment():
+def create_manual_appointment_route():
     user = get_logged_in_user()
 
     if not user or str(user.get("role", "")).lower() != "staff":
@@ -158,77 +158,19 @@ def create_manual_appointment():
 
     payload = request.get_json(silent=True) or {}
 
-    required_fields = [
-        "account_id",
-        "appointment_category",
-        "appointment_mode",
-        "preferred_date",
-        "preferred_time_slot",
-        "reason",
-        "appointment_source",
-    ]
-
-    missing = [
-        field
-        for field in required_fields
-        if not str(payload.get(field, "")).strip()
-    ]
-
-    if missing:
-        return jsonify({"error": "Missing required fields.", "fields": missing}), 400
-
-    if payload["appointment_source"] not in {
-        "walk_in",
-        "hotline",
-        "messenger",
-        "email",
-        "staff_manual",
-    }:
-        return jsonify({"error": "Invalid appointment source."}), 400
-
-    student = get_student_by_id(
-        payload["account_id"]
-    )
-
-    if not student:
-        return jsonify({"error": "Student account not found."}), 404
-
-    counselor = get_staff_by_program(
-        str(student["program"]).strip()
-    )
-
-    if counselor is None:
-        return jsonify(
-            {
-                "error": (
-                    "No counselor is currently assigned "
-                    "to the student's program."
-                )
-            }
-        ), 400
-
-    if has_appointment_conflict(
-        payload["preferred_date"],
-        payload["preferred_time_slot"],
-    ):
-        return jsonify({"error": "This schedule is already taken."}), 409
-
-    appointment_id = save_appointment(
-        {
-            "account_id": payload["account_id"],
-            "contact_number": student.get("contact_number") or "",
-            "appointment_category": payload["appointment_category"],
-            "appointment_mode": payload["appointment_mode"],
-            "preferred_date": payload["preferred_date"],
-            "preferred_time_slot": payload["preferred_time_slot"],
-            "reason": payload["reason"],
-            "status": "approved",
-            "counselor_notes": None,
-            "appointment_source": payload["appointment_source"],
-            "created_at": current_time(),
-            "updated_at": current_time(),
-        }
-    )
+    try:
+        appointment_id = create_manual_appointment(user, payload)
+    except ValueError as exc:
+        if exc.args and isinstance(exc.args[0], tuple):
+            message, fields = exc.args[0]
+            return jsonify({"error": message, "fields": fields}), 400
+        return jsonify({"error": str(exc)}), 400
+    except RuntimeError as exc:
+        return jsonify({"error": str(exc)}), 409
+    except LookupError as exc:
+        message = str(exc)
+        status = 404 if "Student account" in message else 400
+        return jsonify({"error": message}), status
 
     return jsonify({"id": appointment_id, "status": "created"}), 201
 
