@@ -30,7 +30,10 @@ CREATE TABLE IF NOT EXISTS accounts (
         'active',
         'disabled'
     ) NOT NULL DEFAULT 'active',
-    created_at DATETIME NOT NULL
+    created_at DATETIME NOT NULL,
+    INDEX idx_accounts_email (email),
+    INDEX idx_accounts_role (role),
+    INDEX idx_accounts_status (status)
 );
 
 CREATE TABLE IF NOT EXISTS inquiries (
@@ -43,7 +46,9 @@ CREATE TABLE IF NOT EXISTS inquiries (
     created_at DATETIME NOT NULL,
     FOREIGN KEY (account_id)
     REFERENCES accounts(id)
-    ON DELETE SET NULL
+    ON DELETE SET NULL,
+    INDEX idx_inquiries_account (account_id),
+    INDEX idx_inquiries_created (created_at)
 );
 
 CREATE TABLE IF NOT EXISTS conversation_summaries (
@@ -62,7 +67,10 @@ CREATE TABLE IF NOT EXISTS conversation_summaries (
     created_at DATETIME NOT NULL,
     FOREIGN KEY (account_id)
     REFERENCES accounts(id)
-    ON DELETE SET NULL
+    ON DELETE SET NULL,
+    INDEX idx_conversation_summaries_account (account_id),
+    INDEX idx_conversation_summaries_flagged_status (flagged_status),
+    INDEX idx_conversation_summaries_created (created_at)
 );
 
 CREATE TABLE IF NOT EXISTS escalations (
@@ -78,7 +86,10 @@ CREATE TABLE IF NOT EXISTS escalations (
     ON DELETE SET NULL,
     FOREIGN KEY (summary_id)
     REFERENCES conversation_summaries(id)
-    ON DELETE SET NULL
+    ON DELETE SET NULL,
+    INDEX idx_escalations_account (account_id),
+    INDEX idx_escalations_summary (summary_id),
+    INDEX idx_escalations_status (status)
 );
 
 CREATE TABLE IF NOT EXISTS appointments (
@@ -110,7 +121,11 @@ CREATE TABLE IF NOT EXISTS appointments (
     updated_at DATETIME NOT NULL,
     FOREIGN KEY (account_id)
     REFERENCES accounts(id)
-    ON DELETE RESTRICT
+    ON DELETE RESTRICT,
+    INDEX idx_appointments_account (account_id),
+    INDEX idx_appointments_preferred_date (preferred_date),
+    INDEX idx_appointments_status (status),
+    INDEX idx_appointments_created (created_at)
 );
 
 CREATE TABLE IF NOT EXISTS settings (

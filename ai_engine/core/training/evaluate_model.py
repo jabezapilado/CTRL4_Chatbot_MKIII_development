@@ -1,0 +1,386 @@
+"""Post-training evaluation pipeline for the English emotion recognition model.
+
+This script evaluates the saved model on the test split and generates
+artifacts used in Chapter 4 of the thesis.
+
+Evaluation artifacts are stored under docs/models/evaluation/.
+"""
+
+from ai_engine.core.models.model_loader import load_model
+from ai_engine.core.training.dataset import prepare_dataset, label_encoder
+from ai_engine.core.tokenizers.tokenizer import load_tokenizer
+
+import numpy as np
+from transformers import Trainer
+
+import json
+import os
+import pandas as pd
+from sklearn.metrics import (
+    accuracy_score,
+    classification_report,
+    confusion_matrix,
+    precision_recall_fscore_support,
+)
+import matplotlib.pyplot as plt
+
+
+BASE_OUTPUT_DIR = os.path.join("docs", "models")
+EVALUATION_OUTPUT_DIR = os.path.join(BASE_OUTPUT_DIR, "evaluation")
+
+CLASS_NAMES = [
+    emotion
+    for emotion, _ in sorted(label_encoder.items(), key=lambda item: item[1])
+]
+
+
+def load_resources():
+    """Load the trained model, tokenizer, and prepared dataset."""
+    model = load_model("english")
+    tokenizer = load_tokenizer("english")
+    dataset = prepare_dataset()
+    test_dataset = dataset["test"]
+    return model, tokenizer, test_dataset
+
+
+def predict_test_set(model, tokenizer, test_dataset):
+    """Generate predictions for the test dataset.
+
+    TODO: Implement Hugging Face Trainer-based prediction.
+    Should return (y_true, y_pred).
+    """
+    trainer = Trainer(
+        model=model,
+        tokenizer=tokenizer,
+    )
+
+    predictions = trainer.predict(test_dataset)
+
+    y_pred = np.argmax(predictions.predictions, axis=1)
+    y_true = predictions.label_ids
+
+    return y_true, y_pred
+
+
+def compute_overall_metrics(y_true, y_pred):
+    """Compute overall accuracy, precision, recall, and F1-score."""
+    os.makedirs(EVALUATION_OUTPUT_DIR, exist_ok=True)
+
+    accuracy = accuracy_score(y_true, y_pred)
+    precision, recall, f1, _ = precision_recall_fscore_support(
+        y_true,
+        y_pred,
+        average="weighted",
+        zero_division=0,
+    )
+
+    metrics = {
+        "Accuracy": accuracy,
+        "Precision": precision,
+        "Recall": recall,
+        "F1-score": f1,
+    }
+
+    with open(os.path.join(EVALUATION_OUTPUT_DIR, "overall_metrics.json"), "w") as f:
+        json.dump(metrics, f, indent=4)
+
+    pd.DataFrame([
+        {
+            "Metric": key,
+            "Value": value,
+        }
+        for key, value in metrics.items()
+    ]).to_csv(
+        os.path.join(EVALUATION_OUTPUT_DIR, "overall_metrics.csv"),
+        index=False,
+    )
+
+    print("Overall metrics saved.")
+
+    return metrics
+
+def generate_overall_metrics_chart(metrics):
+    """Generate and save the overall model performance chart."""
+    os.makedirs(EVALUATION_OUTPUT_DIR, exist_ok=True)
+
+    metric_names = list(metrics.keys())
+    metric_values = list(metrics.values())
+
+    plt.figure(figsize=(8, 6))
+    plt.bar(metric_names, metric_values)
+    plt.title("Overall Model Performance")
+    plt.xlabel("Metric")
+    plt.ylabel("Score")
+    plt.ylim(0, 1.05)
+
+    for index, value in enumerate(metric_values):
+        plt.text(index, value + 0.02, f"{value:.3f}", ha="center")
+
+    plt.tight_layout()
+
+    output_path = os.path.join(
+        EVALUATION_OUTPUT_DIR,
+        "overall_metrics.png",
+    )
+    plt.savefig(output_path, dpi=300, bbox_inches="tight")
+    plt.close()
+
+    print(f"Overall metrics chart saved to {output_path}")
+
+
+def generate_confusion_matrix(y_true, y_pred):
+    """Generate and save the confusion matrix as both PNG and CSV."""
+    os.makedirs(EVALUATION_OUTPUT_DIR, exist_ok=True)
+
+    cm = confusion_matrix(
+        y_true,
+        y_pred,
+        labels=range(len(CLASS_NAMES)),
+    )
+
+    plt.figure(figsize=(8, 6))
+    plt.imshow(cm, interpolation="nearest")
+    plt.title("Confusion Matrix")
+    plt.colorbar()
+    tick_marks = np.arange(len(CLASS_NAMES))
+    plt.xticks(tick_marks, CLASS_NAMES, rotation=45, ha="right")
+    plt.yticks(tick_marks, CLASS_NAMES)
+
+    for i in range(cm.shape[0]):
+        for j in range(cm.shape[1]):
+            plt.text(
+                j,
+                i,
+                str(cm[i, j]),
+                ha="center",
+                va="center",
+                color="white" if cm[i, j] > cm.max() / 2 else "black",
+            )
+
+    plt.xlabel("Predicted Label")
+    plt.ylabel("True Label")
+    plt.tight_layout()
+
+    pd.DataFrame(
+        cm,
+        index=CLASS_NAMES,
+        columns=CLASS_NAMES,
+    ).to_csv(
+        os.path.join(EVALUATION_OUTPUT_DIR, "confusion_matrix.csv")
+    )
+
+    plt.savefig(
+        os.path.join(EVALUATION_OUTPUT_DIR, "confusion_matrix.png"),
+        dpi=300,
+        bbox_inches="tight",
+    )
+    plt.close()
+
+    print("Confusion matrix saved.")
+
+
+def generate_classification_report(y_true, y_pred):
+    """Generate and save the classification report."""
+    os.makedirs(EVALUATION_OUTPUT_DIR, exist_ok=True)
+
+    report = classification_report(
+        y_true,
+        y_pred,
+        labels=range(len(CLASS_NAMES)),
+        target_names=CLASS_NAMES,
+        output_dict=True,
+        zero_division=0,
+    )
+
+    report_df = pd.DataFrame(report).transpose()
+
+    report_path = os.path.join(
+        EVALUATION_OUTPUT_DIR,
+        "classification_report.csv",
+    )
+    report_df.to_csv(report_path, index=True)
+
+    print(f"Classification report saved to {report_path}")
+
+    return report_df
+
+
+def generate_per_class_metrics(report_df):
+    """Generate and save the per-class metrics chart from the classification report."""
+    os.makedirs(EVALUATION_OUTPUT_DIR, exist_ok=True)
+
+    class_df = report_df.loc[
+        CLASS_NAMES,
+        ["precision", "recall", "f1-score"],
+    ]
+
+    ax = class_df.plot(kind="bar", figsize=(10, 6))
+    ax.set_title("Per-Class Precision, Recall, and F1-score")
+    ax.set_xlabel("Class")
+    ax.set_ylabel("Score")
+    ax.set_ylim(0, 1.05)
+    plt.xticks(ticks=range(len(CLASS_NAMES)), labels=CLASS_NAMES, rotation=45, ha="right")
+    plt.tight_layout()
+
+    output_path = os.path.join(
+        EVALUATION_OUTPUT_DIR,
+        "per_class_metrics.png",
+    )
+    plt.savefig(output_path, dpi=300, bbox_inches="tight")
+    plt.close()
+
+    class_df.to_csv(
+        os.path.join(EVALUATION_OUTPUT_DIR, "per_class_metrics.csv")
+    )
+
+    print(f"Per-class metrics saved to {output_path}")
+
+    return class_df
+
+
+def generate_training_history_plots():
+    """Load training history and generate training/validation loss and accuracy plots."""
+    history_path = os.path.join(BASE_OUTPUT_DIR, "training_history.json")
+    if not os.path.exists(history_path):
+        print(f"Training history file '{history_path}' not found. Skipping training history plots generation.")
+        return
+
+    with open(history_path, "r") as f:
+        history = json.load(f)
+
+    os.makedirs(EVALUATION_OUTPUT_DIR, exist_ok=True)
+
+    # Hugging Face Trainer log_history format: list of dicts
+    if isinstance(history, list):
+        train_loss = []
+        eval_loss = []
+        eval_accuracy = []
+        train_accuracy = []
+        for entry in history:
+            if "loss" in entry:
+                train_loss.append(entry["loss"])
+            if "eval_loss" in entry:
+                eval_loss.append(entry["eval_loss"])
+            if "eval_accuracy" in entry:
+                eval_accuracy.append(entry["eval_accuracy"])
+            if "train_accuracy" in entry:
+                train_accuracy.append(entry["train_accuracy"])
+
+        # Plot training and evaluation loss
+        plt.figure(figsize=(8, 6))
+        if train_loss:
+            plt.plot(range(1, len(train_loss) + 1), train_loss, label="Training Loss")
+        if eval_loss:
+            plt.plot(range(1, len(eval_loss) + 1), eval_loss, label="Validation Loss")
+        plt.title("Training and Validation Loss")
+        plt.xlabel("Epoch")
+        plt.ylabel("Loss")
+        plt.legend()
+        plt.tight_layout()
+        loss_plot_path = os.path.join(EVALUATION_OUTPUT_DIR, "training_validation_loss.png")
+        plt.savefig(loss_plot_path, dpi=300, bbox_inches="tight")
+        plt.close()
+        print(f"Training and validation loss plot saved to {loss_plot_path}")
+
+        plt.figure(figsize=(8, 6))
+        if train_accuracy:
+            plt.plot(
+                range(1, len(train_accuracy) + 1),
+                train_accuracy,
+                label="Training Accuracy",
+            )
+        if eval_accuracy:
+            plt.plot(
+                range(1, len(eval_accuracy) + 1),
+                eval_accuracy,
+                label="Validation Accuracy",
+            )
+
+        if train_accuracy or eval_accuracy:
+            plt.title("Training and Validation Accuracy")
+            plt.xlabel("Epoch")
+            plt.ylabel("Accuracy")
+            plt.ylim(0, 1.05)
+            plt.legend()
+            plt.tight_layout()
+            acc_plot_path = os.path.join(
+                EVALUATION_OUTPUT_DIR,
+                "training_validation_accuracy.png",
+            )
+            plt.savefig(acc_plot_path, dpi=300, bbox_inches="tight")
+            plt.close()
+            print(f"Training and validation accuracy plot saved to {acc_plot_path}")
+        else:
+            print("No accuracy data found in training history. Skipping accuracy plot generation.")
+        return
+
+    # Fallback: dictionary-based plotting logic (legacy format)
+    epochs = list(range(1, len(history.get("loss", [])) + 1))
+
+    # Plot training and validation loss
+    plt.figure(figsize=(8, 6))
+    if "loss" in history:
+        plt.plot(epochs, history["loss"], label="Training Loss")
+    if "val_loss" in history:
+        plt.plot(epochs, history["val_loss"], label="Validation Loss")
+    plt.title("Training and Validation Loss")
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.legend()
+    plt.tight_layout()
+    loss_plot_path = os.path.join(EVALUATION_OUTPUT_DIR, "training_validation_loss.png")
+    plt.savefig(loss_plot_path, dpi=300, bbox_inches="tight")
+    plt.close()
+    print(f"Training and validation loss plot saved to {loss_plot_path}")
+
+    # Plot training and validation accuracy
+    plt.figure(figsize=(8, 6))
+    has_train_acc = "accuracy" in history
+    has_val_acc = "val_accuracy" in history
+
+    if has_train_acc:
+        plt.plot(epochs, history["accuracy"], label="Training Accuracy")
+    if has_val_acc:
+        plt.plot(epochs, history["val_accuracy"], label="Validation Accuracy")
+
+    if has_train_acc or has_val_acc:
+        plt.title("Training and Validation Accuracy" if has_train_acc else "Validation Accuracy")
+        plt.xlabel("Epoch")
+        plt.ylabel("Accuracy")
+        plt.ylim(0, 1.05)
+        plt.legend()
+        plt.tight_layout()
+        acc_plot_path = os.path.join(EVALUATION_OUTPUT_DIR, "training_validation_accuracy.png")
+        plt.savefig(acc_plot_path, dpi=300, bbox_inches="tight")
+        plt.close()
+        print(f"Training and validation accuracy plot saved to {acc_plot_path}")
+    else:
+        print("No accuracy data found in training history. Skipping accuracy plot generation.")
+
+
+def main():
+    generate_training_history_plots()
+
+    model, tokenizer, test_dataset = load_resources()
+
+    y_true, y_pred = predict_test_set(
+        model,
+        tokenizer,
+        test_dataset,
+    )
+    print(f"Test samples: {len(y_true)}")
+    print("Predictions generated successfully.")
+
+    metrics = compute_overall_metrics(y_true, y_pred)
+    print(metrics)
+    generate_overall_metrics_chart(metrics)
+
+    generate_confusion_matrix(y_true, y_pred)
+    report_df = generate_classification_report(y_true, y_pred)
+    print(report_df)
+    per_class_df = generate_per_class_metrics(report_df)
+    print(per_class_df)
+
+
+if __name__ == "__main__":
+    main()

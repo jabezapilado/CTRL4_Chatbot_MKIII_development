@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from bootstrap import setup_paths
 
 setup_paths()
@@ -10,6 +12,8 @@ from server.db import (
     list_accounts,
 )
 
+logger = logging.getLogger(__name__)
+
 
 def main() -> int:
     initialize_database()
@@ -18,12 +22,12 @@ def main() -> int:
 
     accounts = list_accounts()
 
-    print("Database initialized successfully.")
-    print("All required tables have been created or verified.")
-    print(f"Seeded accounts: {len(accounts)}")
+    logger.info("Database initialized successfully.")
+    logger.info("All required tables have been created or verified.")
+    logger.info("Seeded accounts: %s", len(accounts))
 
     for account in accounts:
-        print(f"- {account['email']} ({account['role']})")
+        logger.info("- %s (%s)", account["email"], account["role"])
 
     return 0
 

@@ -21,6 +21,7 @@ Authors:
 from __future__ import annotations
 import logging
 from dataclasses import dataclass
+from typing import Final
 
 from .emotion_service import EmotionPrediction
 from .language_service import LanguagePrediction
@@ -49,7 +50,7 @@ class PromptInput:
 
 class PromptBuilder:
 
-    SYSTEM_PROMPT = """
+    SYSTEM_PROMPT: Final[str] = """
     You are CTRL4, the official AI Guidance Assistant of Holy Angel University.
 
     Your purpose is to provide students with immediate, supportive, and reliable assistance 24 hours a day while respecting the role of the Holy Angel University Guidance Office.
@@ -90,7 +91,7 @@ class PromptBuilder:
     Always be calm, warm, respectful, supportive, and professional.
     """
 
-    EMOTION_GUIDELINES = """
+    EMOTION_GUIDELINES: Final[str] = """
     Emotion Guidelines
 
     Positive
@@ -127,7 +128,7 @@ class PromptBuilder:
     Always interpret emotion using the student's complete message and conversation context.
     """
 
-    ESCALATION_RULES = """
+    ESCALATION_RULES: Final[str] = """
     Safety Rules
 
     Immediately prioritize student safety when messages indicate:
@@ -155,7 +156,7 @@ class PromptBuilder:
     continue supportive conversation first before recommending the Guidance Office.
     """
     
-    PERSONALITY_GUIDELINES = """
+    PERSONALITY_GUIDELINES: Final[str] = """
     Conversation Style
 
     Listen carefully when students share personal experiences.
@@ -182,7 +183,7 @@ class PromptBuilder:
     • "You don't have to go through this alone."
     """
     
-    CONVERSATION_GUIDELINES = """
+    CONVERSATION_GUIDELINES: Final[str] = """
     Conversation Continuity
 
     Assume this is an ongoing conversation unless it is clearly the first interaction.
@@ -226,7 +227,7 @@ class PromptBuilder:
     Your responses should feel like speaking with the same student over time, not answering unrelated questions.
     """
     
-    RESPONSE_STYLE_GUIDELINES = """
+    RESPONSE_STYLE_GUIDELINES: Final[str] = """
     Response Style
 
     Keep responses concise.
@@ -258,7 +259,7 @@ class PromptBuilder:
     Allow moments of reflection without always asking another question.
     """
     
-    EMPATHY_GUIDELINES = """
+    EMPATHY_GUIDELINES: Final[str] = """
     Empathy
 
     When the student shares an experience:
@@ -304,7 +305,7 @@ class PromptBuilder:
     Focus on understanding the student's experience rather than paraphrasing their exact words.
     """
     
-    LANGUAGE_GUIDELINES = """
+    LANGUAGE_GUIDELINES: Final[str] = """
     Language Style
 
     Mirror the student's language naturally.
@@ -333,7 +334,7 @@ class PromptBuilder:
     Always sound like a compassionate Guidance Counselor speaking to a university student.
     """
     
-    TONE_GUIDELINES = """
+    TONE_GUIDELINES: Final[str] = """
     Tone
 
     Be warm.
@@ -357,7 +358,7 @@ class PromptBuilder:
     Speak like a trusted university guidance counselor.
     """
     
-    KNOWLEDGE_GUIDELINES = """
+    KNOWLEDGE_GUIDELINES: Final[str] = """
     Knowledge Usage
 
     Use retrieved Guidance Office information ONLY when the student asks about:
@@ -407,7 +408,7 @@ class PromptBuilder:
     • Never guess policies, schedules, counselor assignments, or procedures.
     """
     
-    STUDENT_SUPPORT_GUIDELINES = """
+    STUDENT_SUPPORT_GUIDELINES: Final[str] = """
     Students may seek support regarding:
 
     • academics
@@ -471,15 +472,10 @@ class PromptBuilder:
 
         logger.debug("=" * 60)
         
-        history = ""
-
-        for message in data.conversation:
-
-            role = message.get("role", "user")
-
-            content = message.get("content", "")
-
-            history += f"{role.title()}: {content}\n"
+        history = "\n".join(
+            f"{message.get('role', 'user').title()}: {message.get('content', '')}"
+            for message in data.conversation
+        )
 
         # -----------------------------------------------------
         # Conversation Analysis
@@ -650,14 +646,10 @@ class PromptBuilder:
                 "Do not invent information. Offer additional help if appropriate."
             )
         
-        retrieved_context = ""
-
-        for document in data.documents:
-
-            retrieved_context += (
-                f"[Source: {document.source}]\n"
-                f"{document.text}\n\n"
-            )
+        retrieved_context = "\n\n".join(
+            f"[Source: {document.source}]\n{document.text}"
+            for document in data.documents
+        )
             
         # -----------------------------------------------------
         # Knowledge Status

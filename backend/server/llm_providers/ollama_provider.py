@@ -14,10 +14,14 @@ Authors:
 
 from __future__ import annotations
 
+import logging
+
 import requests
 
 from ..config import Config
 from .base_provider import BaseProvider, LLMResponse
+
+logger = logging.getLogger(__name__)
 
 
 class OllamaProvider(BaseProvider):
@@ -44,9 +48,7 @@ class OllamaProvider(BaseProvider):
 
                 self.available = True
 
-                print(
-                    "OllamaProvider initialized successfully."
-                )
+                logger.info("OllamaProvider initialized successfully.")
 
             else:
 
@@ -57,12 +59,9 @@ class OllamaProvider(BaseProvider):
         except Exception as exception:
 
             self.initialization_error = str(exception)
-
-            print("=" * 60)
-            print("Ollama Provider Initialization Error")
-            print("=" * 60)
-            print(exception)
-            print("=" * 60)
+            logger.exception(
+                "Failed to initialize Ollama provider."
+            )
 
     def generate(
         self,
@@ -117,11 +116,10 @@ class OllamaProvider(BaseProvider):
 
         except Exception as exception:
 
-            print("=" * 60)
-            print("Ollama Provider Exception")
-            print("=" * 60)
-            print(exception)
-            print("=" * 60)
+            logger.exception(
+                "Ollama provider failed while generating a response using model '%s'.",
+                self.config.OLLAMA_MODEL,
+            )
 
             return LLMResponse(
 

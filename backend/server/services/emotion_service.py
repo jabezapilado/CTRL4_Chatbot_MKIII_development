@@ -14,6 +14,7 @@ Authors:
 """
 
 from dataclasses import dataclass
+from typing import Final
 
 import torch
 
@@ -21,7 +22,7 @@ from ai_engine.core.models.model_loader import load_model
 from ai_engine.core.tokenizers.tokenizer import load_tokenizer
 
 
-LABELS = {
+LABELS: Final = {
     0: "Positive",
     1: "Neutral",
     2: "Anger",
@@ -29,7 +30,7 @@ LABELS = {
     4: "Fear"
 }
 
-NEGATIVE_EMOTIONS = {
+NEGATIVE_EMOTIONS: Final = {
     "Anger",
     "Sadness",
     "Fear",
@@ -38,11 +39,11 @@ NEGATIVE_EMOTIONS = {
     "Loneliness",
 }
 
-POSITIVE_EMOTIONS = {
+POSITIVE_EMOTIONS: Final = {
     "Positive",
 }
 
-NEUTRAL_EMOTIONS = {
+NEUTRAL_EMOTIONS: Final = {
     "Neutral",
 }
 
@@ -114,6 +115,11 @@ class EmotionService:
     
     def predict(self, text: str) -> EmotionPrediction:
 
+        text = text.strip()
+
+        if not text:
+            raise ValueError("Text must not be empty.")
+
         inputs = self.tokenizer(
             text,
             return_tensors="pt",
@@ -165,5 +171,5 @@ class EmotionService:
             emotion=emotion,
             sentiment=sentiment,
             confidence=confidence,
-            is_negative=is_negative
+            is_negative=is_negative,
         )

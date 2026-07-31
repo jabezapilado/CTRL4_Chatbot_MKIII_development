@@ -1,7 +1,10 @@
+import logging
 from flask import Blueprint, jsonify
 
-from ..auth import get_logged_in_user
+from ..request_validation import require_role
 from ..db import get_dashboard_stats
+
+logger = logging.getLogger(__name__)
 
 dashboard_bp = Blueprint(
     "dashboard",
@@ -12,12 +15,12 @@ dashboard_bp = Blueprint(
 
 @dashboard_bp.get("/stats")
 def dashboard_stats():
-    user = get_logged_in_user()
+    user, error = require_role("staff")
+    if error:
+        return error
 
-    if not user:
-        return jsonify({"error": "Login required."}), 401
-
-    if str(user.get("role", "")).lower() != "staff":
-        return jsonify({"error": "Staff access required."}), 403
-
-    return jsonify(get_dashboard_stats()), 200
+    try:
+        return jsonify(get_dashboard_stats()), 200
+    except Exception:
+        logger.exception("Failed to retrieve dashboard statistics.")
+        return jsonify({"error": "Internal server error."}), 500

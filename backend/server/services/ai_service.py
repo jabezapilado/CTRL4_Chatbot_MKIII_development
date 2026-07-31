@@ -22,8 +22,7 @@ Authors:
 """
 
 from __future__ import annotations
-
-import traceback
+import logging
 import time
 
 from dataclasses import dataclass
@@ -37,6 +36,8 @@ from .safety_service import SafetyService
 from .conversation_state import ConversationState
 from .conversation_topic import ConversationTopic
 from .response_validator import ResponseValidator
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -441,18 +442,16 @@ class AIService:
 
         def print_pipeline_metrics():
             total_time = time.perf_counter() - pipeline_start
-            print("=" * 60)
-            print("CTRL4 AI Pipeline Performance")
-            print("=" * 60)
-            print(f"Safety Check      : {safety_time:.3f}s")
-            print(f"Language Detect   : {language_time:.3f}s")
-            print(f"Emotion Detect    : {emotion_time:.3f}s")
-            print(f"RAG Retrieval     : {rag_time:.3f}s")
-            print(f"Prompt Builder    : {prompt_time:.3f}s")
-            print(f"LLM Generation    : {llm_time:.3f}s")
-            print("-" * 60)
-            print(f"Total Pipeline    : {total_time:.3f}s")
-            print("=" * 60)
+            logger.debug(
+                "Pipeline timings | safety=%.3fs language=%.3fs emotion=%.3fs rag=%.3fs prompt=%.3fs llm=%.3fs total=%.3fs",
+                safety_time,
+                language_time,
+                emotion_time,
+                rag_time,
+                prompt_time,
+                llm_time,
+                total_time,
+            )
             
         try:
 
@@ -511,13 +510,12 @@ class AIService:
                 message,
             )
             
-            print("=" * 60)
-            print("Conversation Classification")
-            print("=" * 60)
-            print(f"Message : {message}")
-            print(f"State   : {conversation_state}")
-            print(f"Topic   : {conversation_topic}")
-            print("=" * 60)
+            logger.debug(
+                "Conversation classified | state=%s topic=%s message=%r",
+                conversation_state.value,
+                conversation_topic.value,
+                message,
+            )
 
             # -----------------------------------------
             # Knowledge Retrieval
@@ -577,64 +575,45 @@ class AIService:
             )
 
             if not valid:
-
-                print("=" * 60)
-                print("Response Validator")
-                print("=" * 60)
-                print(f"Validation Failed : {reason}")
-                print("=" * 60)
-
+                logger.debug(
+                    "Response validation failed: %s",
+                    reason,
+                )
                 if reason == "Repeated greeting detected.":
-
                     llm_text = (
                         "Let's continue from where we left off. "
                         "What would you like to talk about next?"
                     )
-
                 elif reason == "Repeated empathy detected.":
-
                     llm_text = (
                         "I want to better understand what you're experiencing. "
                         "Could you tell me a little more about what's been happening?"
                     )
-
                 elif reason == "Repeated introduction detected.":
-
                     llm_text = (
                         "Let's continue our conversation. "
                         "What would you like to share or ask next?"
                     )
-
                 elif reason == "Repeated closing detected.":
-
                     llm_text = (
                         "Before we end our conversation, "
                         "is there anything else you'd like to talk about?"
                     )
-
                 elif reason == "The response is too short.":
-
                     llm_text = (
                         "I'd like to give you a more helpful response. "
                         "Could you tell me a little more about your situation?"
                     )
-
                 elif reason == "The response is empty.":
-
                     llm_text = (
                         "I want to make sure I understand you correctly. "
                         "Could you tell me a little more about what's on your mind?"
                     )
-
                 else:
-
                     llm_text = (
                         "I don't want to make assumptions about what you're going through. "
                         "Could you share a little more so I can respond more appropriately?"
                     )
-                
-                print(f"Replacement Response : {llm_text}")
-                print("=" * 60)
             
             # -----------------------------------------
             # Final Response
@@ -661,17 +640,11 @@ class AIService:
                 confidence=emotion.confidence,
             )
 
-        except Exception as exception:
-
-            print("=" * 60)
-            print("AIService Exception")
-            print("=" * 60)
-            print(f"Message: {message}")
-            print(f"Exception: {exception}")
-
-            traceback.print_exc()
-
-            print("=" * 60)
+        except Exception:
+            logger.exception(
+                "AIService failed while processing message: %r",
+                message,
+            )
 
             return ChatResponse(
                 success=False,

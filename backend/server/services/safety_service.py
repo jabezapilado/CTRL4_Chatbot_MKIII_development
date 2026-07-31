@@ -25,6 +25,7 @@ from __future__ import annotations
 import re
 
 from dataclasses import dataclass
+from typing import Final
 
 
 @dataclass
@@ -41,7 +42,7 @@ class SafetyResult:
 
 class SafetyService:
 
-    CRISIS_PATTERNS = [
+    CRISIS_PATTERNS: Final[tuple[str, ...]] = (
 
         # English
         r"\bkill myself\b",
@@ -71,9 +72,9 @@ class SafetyService:
         r"\bpagod na pagod na ako\b",
         r"\bayoko na\b",
         r"\bdi ko na kaya\b",
-    ]
+    )
 
-    DIAGNOSIS_PATTERNS = [
+    DIAGNOSIS_PATTERNS: Final[tuple[str, ...]] = (
 
         r"\bdo i have depression\b",
         r"\bdo i have anxiety\b",
@@ -93,9 +94,9 @@ class SafetyService:
         r"\bmay bipolar ba ako\b",
         r"\bmay ptsd ba ako\b",
         r"\banong sakit ko\b",
-    ]
+    )
 
-    GREETINGS = {
+    GREETINGS: Final[frozenset[str]] = frozenset({
         "hi",
         "hello",
         "hey",
@@ -112,9 +113,9 @@ class SafetyService:
         "hola",
         "hiya",
         "hello there",
-    }
+    })
 
-    ACKNOWLEDGEMENTS = {
+    ACKNOWLEDGEMENTS: Final[frozenset[str]] = frozenset({
         "thanks",
         "thank you",
         "thank you so much",
@@ -134,7 +135,7 @@ class SafetyService:
         "okay po",
         "okay thanks",
         "salamat marami",
-    }
+    })
 
     def check(
         self,
@@ -142,6 +143,12 @@ class SafetyService:
     ) -> SafetyResult:
 
         text = message.lower().strip()
+
+        if not text:
+            return SafetyResult(
+                safe=True,
+                should_escalate=False,
+            )
 
         if self._is_crisis(text):
 

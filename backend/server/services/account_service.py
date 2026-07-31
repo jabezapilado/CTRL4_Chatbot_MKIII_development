@@ -1,10 +1,14 @@
 from flask import session
 from werkzeug.security import check_password_hash, generate_password_hash
 
+import re
+
 from ..db import (
     create_account,
     fetch_account_by_email,
 )
+
+EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 def create_account_service(payload: dict) -> dict:
@@ -18,6 +22,8 @@ def create_account_service(payload: dict) -> dict:
 
     if not full_name or not email or not password:
         raise ValueError("Missing required fields.")
+    if not EMAIL_PATTERN.fullmatch(email):
+        raise ValueError("Invalid email address.")
 
     if fetch_account_by_email(email):
         raise FileExistsError("Email already exists.")
@@ -51,12 +57,14 @@ def login_service(payload: dict) -> dict:
 
     if not email or not password:
         raise ValueError("Email and password are required.")
+    if not EMAIL_PATTERN.fullmatch(email):
+        raise ValueError("Invalid email address.")
 
     account = fetch_account_by_email(email)
     if not account:
         raise PermissionError("Invalid credentials.")
 
-    if account["status"] != "active":
+    if account.get("status") != "active":
         raise RuntimeError("Account is disabled.")
 
     stored_password = str(account.get("password_hash", ""))

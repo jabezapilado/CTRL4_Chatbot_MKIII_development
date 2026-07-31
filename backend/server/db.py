@@ -4,6 +4,8 @@ import json
 from datetime import date, datetime, time, timedelta
 from typing import Any
 
+from typing import Final
+
 import mysql.connector
 from werkzeug.security import generate_password_hash
 
@@ -11,6 +13,19 @@ from .config import Config
 
 
 config = Config()
+
+ALLOWED_ACCOUNT_ROLES: Final[frozenset[str]] = frozenset({
+    "student",
+    "staff",
+    "admin",
+})
+
+ALLOWED_GENDERS: Final[frozenset[str]] = frozenset({
+    "Male",
+    "Female",
+    "Prefer not to say",
+    "Other",
+})
 
 
 def _connection_kwargs(database: str | None = None) -> dict[str, Any]:
@@ -41,9 +56,6 @@ def _server_connection():
 
 def _database_connection():
     return mysql.connector.connect(**_connection_kwargs(config.DB_NAME))
-
-
-from datetime import datetime
 
 def current_time() -> datetime:
     return datetime.now().replace(microsecond=0)
@@ -991,7 +1003,7 @@ def create_account(
         student_number = None
         staff_number = None
 
-    if role not in {"student", "staff", "admin"}:
+    if role not in ALLOWED_ACCOUNT_ROLES:
         raise ValueError("Invalid account role.")
     
     # No longer require manual entry of student_number or staff_number.
@@ -1016,15 +1028,8 @@ def create_account(
         and fetch_account_by_staff_number(staff_number)
     ):
         raise ValueError("Staff number already exists.")
-        
-    allowed_genders = {
-        "Male",
-        "Female",
-        "Prefer not to say",
-        "Other",
-    }
 
-    if gender and gender not in allowed_genders:
+    if gender and gender not in ALLOWED_GENDERS:
         raise ValueError("Invalid gender.")
 
     with _database_connection() as connection:

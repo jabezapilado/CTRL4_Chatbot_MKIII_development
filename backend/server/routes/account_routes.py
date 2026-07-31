@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
+import logging
 
-from ..auth import get_logged_in_user
+from ..request_validation import require_role
 
 from ..db import (
     list_accounts,
@@ -8,6 +9,8 @@ from ..db import (
 )
 
 from ..services.account_service import create_account_service
+
+logger = logging.getLogger(__name__)
 
 account_bp = Blueprint(
     "accounts",
@@ -22,10 +25,9 @@ def accounts():
 
 @account_bp.get("/search")
 def search_accounts():
-    user = get_logged_in_user()
-
-    if not user or str(user.get("role", "")).lower() != "staff":
-        return jsonify({"error": "Staff access required."}), 403
+    user, error = require_role("staff")
+    if error:
+        return error
 
     query = str(request.args.get("q", "")).strip()
 
@@ -41,10 +43,9 @@ def search_accounts():
 
 @account_bp.post("")
 def create_account_route():
-    user = get_logged_in_user()
-
-    if not user or str(user.get("role", "")).lower() != "admin":
-        return jsonify({"error": "Administrator access required."}), 403
+    user, error = require_role("admin")
+    if error:
+        return error
 
     payload = request.get_json(silent=True) or {}
 
@@ -54,6 +55,15 @@ def create_account_route():
         return jsonify({"error": str(exc)}), 400
     except FileExistsError as exc:
         return jsonify({"error": str(exc)}), 409
+    except Exception:
+        logger.exception("Failed to create account.")
+        return jsonify({"error": "Internal server error."}), 500
+
+    logger.info(
+        "Admin %s created account %s",
+        user["id"],
+        account["id"],
+    )
 
     return jsonify(
         {

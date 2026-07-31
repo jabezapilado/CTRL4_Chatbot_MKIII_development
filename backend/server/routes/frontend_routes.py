@@ -1,6 +1,9 @@
+import logging
 from flask import Blueprint, render_template, request, jsonify, redirect
 
 from ..auth import get_logged_in_user, role_landing_path
+
+logger = logging.getLogger(__name__)
 
 frontend_bp = Blueprint("frontend", __name__)
 
@@ -34,6 +37,7 @@ def dashboard():
 def chatbot_admin():
     return render_template("chatbot_admin.html")
 
+
 @frontend_bp.before_request
 def require_login_for_private_routes():
     public_paths = {"/", "/login", "/health", "/auth/login", "/auth/logout"}
@@ -45,9 +49,12 @@ def require_login_for_private_routes():
         return None
 
     user = get_logged_in_user()
+    logger.debug("Frontend request: path=%s authenticated=%s", path, bool(user))
     if not user:
         if path.startswith("/api/") or path == "/chat":
+            logger.warning("Unauthorized API access to %s", path)
             return jsonify({"error": "Login required."}), 401
+        logger.info("Redirecting unauthenticated user to login from %s", path)
         return redirect("/login?reason=session-required")
 
     role = str(user.get("role", "student")).lower()
@@ -57,4 +64,3 @@ def require_login_for_private_routes():
         return redirect("/chatbot")
 
     return None
-

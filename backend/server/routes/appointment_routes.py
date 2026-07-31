@@ -1,15 +1,17 @@
 from __future__ import annotations
 
+import logging
+
 from flask import Blueprint, jsonify, request
 
-from ..auth import get_logged_in_user
+from ..request_validation import (
+    require_login,
+    require_role,
+)
 
 from ..db import (
-    fetch_rows,
-    list_staff_appointments,
     list_student_appointments,
-    get_appointment_by_id,
-    update_appointment_status,
+    list_staff_appointments,
 )
 
 from ..services.appointment_service import (
@@ -19,7 +21,9 @@ from ..services.appointment_service import (
     create_manual_appointment,
     update_appointment_status_service,
     update_counselor_notes_service,
+    get_appointment_details_service,
 )
+
 
 appointment_bp = Blueprint(
     "appointments",
@@ -27,33 +31,24 @@ appointment_bp = Blueprint(
     url_prefix="/api/appointments",
 )
 
+logger = logging.getLogger(__name__)
+
 
 @appointment_bp.get("")
 def list_staff_appointments_route():
-    user = get_logged_in_user()
-
-    if not user:
-        return jsonify({"error": "Login required."}), 401
-
-    role = str(user.get("role", "")).lower()
-
-    if role != "staff":
-        return jsonify(
-            {
-                "error": "Staff access required."
-            }
-        ), 403
+    user, error = require_role("staff")
+    if error:
+        return error
 
     items = list_staff_appointments(user["id"])
 
     return jsonify({"items": items}), 200
 
 
-
 @appointment_bp.post("")
 def create_appointment():
     payload = request.get_json(silent=True) or {}
-    user = get_logged_in_user()
+    user = require_login()
 
     if not user:
         return jsonify({"error": "Login required."}), 401
@@ -70,17 +65,15 @@ def create_appointment():
         status = 404 if "Student account" in message else 400
         return jsonify({"error": message}), status
 
+    logger.info("Student %s created appointment %s", user["id"], appointment_id)
     return jsonify({"id": appointment_id, "status": "saved"}), 201
 
 
 @appointment_bp.get("/my")
 def my_appointments():
-    user = get_logged_in_user()
-
-    if not user:
-        return jsonify({"error": "Login required."}), 401
-    if str(user.get("role", "student")).lower() != "student":
-        return jsonify({"error": "Student access required."}), 403
+    user, error = require_role("student")
+    if error:
+        return error
 
     return jsonify(
         {
@@ -91,15 +84,11 @@ def my_appointments():
     ), 200
 
 
-
 @appointment_bp.patch("/my/<int:appointment_id>/cancel")
 def cancel_my_appointment(appointment_id: int):
-    user = get_logged_in_user()
-
-    if not user:
-        return jsonify({"error": "Login required."}), 401
-    if str(user.get("role", "student")).lower() != "student":
-        return jsonify({"error": "Student access required."}), 403
+    user, error = require_role("student")
+    if error:
+        return error
 
     try:
         cancel_student_appointment(user, appointment_id)
@@ -112,17 +101,15 @@ def cancel_my_appointment(appointment_id: int):
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
 
+    logger.info("Student %s cancelled appointment %s", user["id"], appointment_id)
     return jsonify({"status": "cancelled"}), 200
 
 
 @appointment_bp.post("/my/<int:appointment_id>/reschedule")
 def reschedule_my_appointment(appointment_id: int):
-    user = get_logged_in_user()
-
-    if not user:
-        return jsonify({"error": "Login required."}), 401
-    if str(user.get("role", "student")).lower() != "student":
-        return jsonify({"error": "Student access required."}), 403
+    user, error = require_role("student")
+    if error:
+        return error
 
     payload = request.get_json(silent=True) or {}
 
@@ -141,16 +128,20 @@ def reschedule_my_appointment(appointment_id: int):
             return jsonify({"error": message, "fields": fields}), 400
         return jsonify({"error": str(exc)}), 400
 
+    logger.info(
+        "Student %s rescheduled appointment %s -> %s",
+        user["id"],
+        appointment_id,
+        new_id,
+    )
     return jsonify({"status": "rescheduled", "appointment_id": new_id}), 201
-
 
 
 @appointment_bp.post("/manual")
 def create_manual_appointment_route():
-    user = get_logged_in_user()
-
-    if not user or str(user.get("role", "")).lower() != "staff":
-        return jsonify({"error": "Staff access required."}), 403
+    user, error = require_role("staff")
+    if error:
+        return error
 
     payload = request.get_json(silent=True) or {}
 
@@ -168,17 +159,16 @@ def create_manual_appointment_route():
         status = 404 if "Student account" in message else 400
         return jsonify({"error": message}), status
 
+    logger.info("Staff %s created manual appointment %s", user["id"], appointment_id)
     return jsonify({"id": appointment_id, "status": "created"}), 201
-
 
 
 @appointment_bp.patch("/<int:appointment_id>")
 def change_appointment(appointment_id: int):
     payload = request.get_json(silent=True) or {}
-    user = get_logged_in_user()
-
-    if not user or str(user.get("role", "")).lower() != "staff":
-        return jsonify({"error": "Staff access required."}), 403
+    user, error = require_role("staff")
+    if error:
+        return error
 
     status = str(payload.get("status", "")).strip() or "pending"
 
@@ -191,56 +181,37 @@ def change_appointment(appointment_id: int):
     except RuntimeError as exc:
         return jsonify({"error": str(exc)}), 400
 
+    logger.info(
+        "Staff %s updated appointment %s to status '%s'",
+        user["id"],
+        appointment_id,
+        status,
+    )
     return jsonify({"status": "updated"}), 200
-
 
 
 @appointment_bp.get("/<int:appointment_id>")
 def appointment_details(appointment_id: int):
-    user = get_logged_in_user()
+    user, error = require_role("staff")
+    if error:
+        return error
 
-    if not user or str(user.get("role", "")).lower() != "staff":
-        return jsonify({"error": "Staff access required."}), 403
+    try:
+        appointment = get_appointment_details_service(
+            user,
+            appointment_id,
+        )
+    except LookupError as exc:
+        return jsonify({"error": str(exc)}), 404
 
-    rows = fetch_rows(
-        """
-        SELECT
-            appointments.*,
-            accounts.full_name AS student_name,
-            accounts.email AS student_email,
-            accounts.student_number,
-            accounts.program
-        FROM appointments
-        JOIN accounts
-            ON appointments.account_id = accounts.id
-        WHERE appointments.id = %s
-        LIMIT 1
-        """,
-        (appointment_id,),
-    )
-
-    if str(user.get("role", "")).lower() == "staff":
-        allowed = {
-            appointment["id"]
-            for appointment in list_staff_appointments(user["id"])
-        }
-
-        if appointment_id not in allowed:
-            return jsonify({"error": "Appointment not found."}), 404
-
-    if not rows:
-        return jsonify({"error": "Appointment not found."}), 404
-
-    return jsonify(rows[0]), 200
-
+    return jsonify(appointment), 200
 
 
 @appointment_bp.patch("/<int:appointment_id>/notes")
 def update_counselor_notes_route(appointment_id: int):
-    user = get_logged_in_user()
-
-    if not user or str(user.get("role", "")).lower() != "staff":
-        return jsonify({"error": "Staff access required."}), 403
+    user, error = require_role("staff")
+    if error:
+        return error
 
     payload = request.get_json(silent=True) or {}
     notes = str(payload.get("counselor_notes", "")).strip()
@@ -254,4 +225,9 @@ def update_counselor_notes_route(appointment_id: int):
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
 
+    logger.info(
+        "Staff %s updated counselor notes for appointment %s",
+        user["id"],
+        appointment_id,
+    )
     return jsonify({"status": "saved"}), 200

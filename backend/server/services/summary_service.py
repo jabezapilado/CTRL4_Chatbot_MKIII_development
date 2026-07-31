@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Final
 from .llm_service import LLMService
 
-FLAGGED_RECOMMENDATION = (
+FLAGGED_RECOMMENDATION: Final[str] = (
     "Guidance Office follow-up is recommended."
 )
 
-NORMAL_RECOMMENDATION = (
+NORMAL_RECOMMENDATION: Final[str] = (
     "No immediate intervention is required."
 )
 
@@ -178,7 +179,7 @@ class SummaryService:
         try:
             return self.generate_text(prompt)
 
-        except RuntimeError as error:
+        except RuntimeError:
             # TODO: Log the error in a future version.
             return (
                 "An automatic summary could not be generated for this "
@@ -210,7 +211,7 @@ class SummaryService:
         transcript suitable for summarization.
         """
 
-        lines = []
+        lines: list[str] = []
 
         for message in conversation:
 
@@ -251,7 +252,7 @@ class SummaryService:
             conversation=conversation,
         )
 
-        return f"""\
+        prompt = f"""\
         You are assisting the Holy Angel University Guidance Office.
 
         Your task is to generate a confidential conversation summary for Guidance personnel.
@@ -273,3 +274,5 @@ class SummaryService:
 
         {transcript}
         """.strip()
+
+        return prompt

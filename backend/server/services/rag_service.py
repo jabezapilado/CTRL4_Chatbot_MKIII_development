@@ -29,6 +29,14 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from typing import Final
+
+SUPPORTED_DOCUMENT_TYPES: Final[frozenset[str]] = frozenset({
+    ".pdf",
+    ".docx",
+    ".txt",
+    ".md",
+})
 
 from ..config import Config
 
@@ -190,7 +198,7 @@ class RAGService:
             [
                 path
                 for path in self.docs_dir.rglob("*")
-                if path.is_file() and path.suffix.lower() in {".pdf", ".docx", ".txt", ".md"}
+                if path.is_file() and path.suffix.lower() in SUPPORTED_DOCUMENT_TYPES
             ]
         )
 
@@ -198,12 +206,7 @@ class RAGService:
         for path in doc_paths:
             raw = read_document_text(path)
 
-            if not raw.strip():
-                continue
-
-            normalized = normalize_text(raw)
-
-            if not normalized:
+            if not normalize_text(raw):
                 continue
 
             for idx, chunk in enumerate(
@@ -305,4 +308,3 @@ class RAGService:
             and self.index is not None
             and self.faiss is not None
         )      
-    

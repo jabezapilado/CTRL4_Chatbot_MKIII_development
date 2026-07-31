@@ -20,9 +20,10 @@ Authors:
 
 import re
 from dataclasses import dataclass
+from typing import Final
 
 
-FILIPINO_WORDS = {
+FILIPINO_WORDS: Final = {
     # Common words
     "ako",
     "ikaw",
@@ -101,7 +102,7 @@ FILIPINO_WORDS = {
 }
 
 
-ENGLISH_WORDS = {
+ENGLISH_WORDS: Final = {
     # Academic
     "school",
     "university",
@@ -190,6 +191,25 @@ ENGLISH_WORDS = {
     "message",
 }
 
+CHAT_EXPRESSIONS: Final = {
+    "haha",
+    "hahaha",
+    "hehe",
+    "hehehe",
+    "hmm",
+    "hm",
+    "ah",
+    "aw",
+    "oh",
+    "ok",
+    "okay",
+    "yes",
+    "no",
+    "yup",
+    "nope",
+    "sure",
+}
+
 
 @dataclass
 class LanguagePrediction:
@@ -207,61 +227,33 @@ class LanguageService:
         # -----------------------------------------
 
         text = text.strip()
-        
+        if not text:
+            return LanguagePrediction(
+                language="unknown",
+                confidence=0.0,
+            )
         words = re.findall(r"\b[\w']+\b", text.lower())
-        
-        # -----------------------------------------
-        # Chat Expressions
-        # -----------------------------------------
-
-        chat_expressions = {
-            "haha",
-            "hahaha",
-            "hehe",
-            "hehehe",
-            "hmm",
-            "hm",
-            "ah",
-            "aw",
-            "oh",
-            "ok",
-            "okay",
-            "yes",
-            "no",
-            "yup",
-            "nope",
-            "sure",
-        }
-        
         # -----------------------------------------
         # Short Chat Messages
         # -----------------------------------------
-
-        if len(words) == 1 and words[0] in chat_expressions:
-
+        if len(words) == 1 and words[0] in CHAT_EXPRESSIONS:
             return LanguagePrediction(
                 language="english",
                 confidence=0.60,
             )
-
         if not words:
-            
             # -----------------------------------------
             # Emoji-only Messages
             # -----------------------------------------
-
             emoji_only = not re.search(r"[A-Za-zÀ-ÿ]", text)
-
             if emoji_only:
-
                 return LanguagePrediction(
                     language="english",
                     confidence=0.50,
                 )
-            
             return LanguagePrediction(
                 language="unknown",
-                confidence=0.0
+                confidence=0.0,
             )
         # -----------------------------------------
         # Strong Language Indicators

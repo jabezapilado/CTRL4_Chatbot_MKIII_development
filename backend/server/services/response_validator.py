@@ -1,4 +1,32 @@
 from __future__ import annotations
+from typing import Final
+
+
+EMPATHY_PHRASES: Final[tuple[str, ...]] = (
+    "it sounds like",
+    "i understand",
+    "i'm sorry you're going through",
+    "that sounds difficult",
+)
+
+INTRODUCTION_PHRASES: Final[tuple[str, ...]] = (
+    "i'm ctrl4",
+    "i am ctrl4",
+    "guidance office ai assistant",
+)
+
+CLOSING_PHRASES: Final[tuple[str, ...]] = (
+    "take care",
+    "i'm here if you need",
+    "feel free to reach out",
+)
+
+GREETING_PHRASES: Final[tuple[str, ...]] = (
+    "hello",
+    "hi",
+    "hi there",
+    "hello there",
+)
 
 
 class ResponseValidator:
@@ -21,29 +49,6 @@ class ResponseValidator:
 
         lower = text.lower()
         
-        # -----------------------------------------
-        # Common repeated phrases
-        # -----------------------------------------
-
-        empathy_phrases = [
-            "it sounds like",
-            "i understand",
-            "i'm sorry you're going through",
-            "that sounds difficult",
-        ]
-
-        introductions = [
-            "i'm ctrl4",
-            "i am ctrl4",
-            "guidance office ai assistant",
-        ]
-
-        closings = [
-            "take care",
-            "i'm here if you need",
-            "feel free to reach out",
-        ]
-        
         assistant_history = []
 
         for message in conversation:
@@ -65,20 +70,13 @@ class ResponseValidator:
         # Don't greet again
         if conversation:
 
-            greetings = [
-                "hello",
-                "hi",
-                "hi there",
-                "hello there",
-            ]
-
-            if any(lower.startswith(g) for g in greetings):
+            if any(lower.startswith(g) for g in GREETING_PHRASES):
 
                 for message in conversation:
                     if message.get("role") == "assistant":
                         previous = message.get("content", "").lower()
 
-                        if any(g in previous for g in greetings):
+                        if any(g in previous for g in GREETING_PHRASES):
                             return (
                                 False,
                                 "Repeated greeting detected.",
@@ -90,7 +88,7 @@ class ResponseValidator:
 
         for previous in assistant_history:
 
-            for phrase in empathy_phrases:
+            for phrase in EMPATHY_PHRASES:
 
                 if phrase in lower and phrase in previous:
 
@@ -105,7 +103,7 @@ class ResponseValidator:
 
         for previous in assistant_history:
 
-            for phrase in introductions:
+            for phrase in INTRODUCTION_PHRASES:
 
                 if phrase in lower and phrase in previous:
 
@@ -120,7 +118,7 @@ class ResponseValidator:
 
         for previous in assistant_history:
 
-            for phrase in closings:
+            for phrase in CLOSING_PHRASES:
 
                 if phrase in lower and phrase in previous:
 

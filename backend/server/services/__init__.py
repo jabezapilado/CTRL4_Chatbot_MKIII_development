@@ -14,6 +14,8 @@ Authors:
 
 from __future__ import annotations
 
+import logging
+
 from .emotion_service import EmotionService
 from .language_service import LanguageService
 from .rag_service import RAGService
@@ -23,9 +25,9 @@ from .safety_service import SafetyService
 from .ai_service import AIService
 from .summary_service import SummaryService
 
-print("=" * 60)
-print("Initializing CTRL4 AI Services...")
-print("=" * 60)
+logger = logging.getLogger(__name__)
+
+logger.info("Initializing CTRL4 AI Services...")
 
 try:
 
@@ -34,15 +36,10 @@ try:
     # --------------------------------------------------
 
     emotion_service = EmotionService()
-
     language_service = LanguageService()
-
     rag_service = RAGService()
-
     prompt_builder = PromptBuilder()
-
     llm_service = LLMService()
-
     safety_service = SafetyService()
 
     # --------------------------------------------------
@@ -66,16 +63,10 @@ try:
         llm=llm_service,
     )
 
-    print("CTRL4 AI Services initialized successfully.")
+    logger.info("CTRL4 AI Services initialized successfully.")
 
-except Exception as exception:
-
-    print("=" * 60)
-    print("CTRL4 Initialization Error")
-    print("=" * 60)
-    print(exception)
-    print("=" * 60)
-
+except Exception:
+    logger.exception("Failed to initialize CTRL4 AI Services.")
     raise
 
 
@@ -104,35 +95,21 @@ def get_service_status() -> dict[str, object]:
         ),
 
         "services": {
-
             "emotion": emotion_service is not None,
-
             "language": language_service is not None,
-
             "rag": rag_service.ready,
-
             "llm": llm_service is not None,
-
             "safety": safety_service is not None,
-
             "ai": ai_service is not None,
-            
             "summary": summary_service is not None,
-
         },
 
         "models": {
-
             "emotion_model_loaded": emotion_service is not None,
-
             "rag_index_loaded": rag_service.ready,
-
             "llm_provider": llm_status.get("provider"),
-
             "llm_ready": llm_status.get("ready"),
-
             "llm_model": llm_status.get("model"),
-
         },
 
         "version": "CTRL4 Chatbot MK II",
@@ -141,22 +118,13 @@ def get_service_status() -> dict[str, object]:
 
 
 __all__ = [
-
     "emotion_service",
-
     "language_service",
-
     "rag_service",
-
     "prompt_builder",
-
     "llm_service",
-
     "safety_service",
-
     "ai_service",
-
     "summary_service",
-
     "get_service_status",
 ]

@@ -14,11 +14,14 @@ Authors:
 
 from __future__ import annotations
 
+import logging
+
 import google.generativeai as genai
 
 from ..config import Config
 from .base_provider import BaseProvider, LLMResponse
 
+logger = logging.getLogger(__name__)
 
 class GeminiProvider(BaseProvider):
     """
@@ -47,7 +50,7 @@ class GeminiProvider(BaseProvider):
                 "Gemini API key is not configured."
             )
 
-            print(
+            logger.warning(
                 "GeminiProvider: No API key configured. Gemini is disabled."
             )
 
@@ -65,19 +68,15 @@ class GeminiProvider(BaseProvider):
 
             self.available = True
 
-            print(
-                "GeminiProvider initialized successfully."
-            )
+            logger.info("GeminiProvider initialized successfully.")
 
         except Exception as exception:
 
             self.initialization_error = str(exception)
 
-            print("=" * 60)
-            print("Gemini Provider Initialization Error")
-            print("=" * 60)
-            print(exception)
-            print("=" * 60)
+            logger.exception(
+                "Failed to initialize Gemini provider."
+            )
 
             self.available = False
 
@@ -110,9 +109,7 @@ class GeminiProvider(BaseProvider):
                     text=response.text.strip(),
                 )
 
-            print("=" * 60)
-            print("Gemini returned an empty response.")
-            print("=" * 60)
+            logger.warning("Gemini returned an empty response.")
 
             return LLMResponse(
                 success=False,
@@ -122,12 +119,10 @@ class GeminiProvider(BaseProvider):
 
         except Exception as exception:
 
-            print("=" * 60)
-            print("Gemini Provider Exception")
-            print("=" * 60)
-            print(f"Model : {self.config.GEMINI_MODEL}")
-            print(f"Error : {exception}")
-            print("=" * 60)
+            logger.exception(
+                "Gemini provider failed while generating a response using model '%s'.",
+                self.config.GEMINI_MODEL,
+            )
 
             return LLMResponse(
                 success=False,

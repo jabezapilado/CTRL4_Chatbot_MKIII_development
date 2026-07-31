@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from typing import Final
 
 from ..db import (
     current_time,
+    fetch_rows,
     get_staff_by_program,
     get_student_by_id,
     has_appointment_conflict,
@@ -14,6 +16,8 @@ from ..db import (
     update_counselor_notes,
 )
 
+MODIFICATION_DEADLINE: Final[timedelta] = timedelta(hours=1)
+
 # Helper: students may only modify appointments at least 1 hour before scheduled time
 def can_student_modify_appointment(appointment_record: dict) -> bool:
     appointment_datetime = datetime.strptime(
@@ -23,7 +27,7 @@ def can_student_modify_appointment(appointment_record: dict) -> bool:
 
     return (
         appointment_datetime - datetime.now()
-        >= timedelta(hours=1)
+        >= MODIFICATION_DEADLINE
     )
 
 
@@ -296,6 +300,8 @@ def update_counselor_notes_service(
     if appointment_id not in allowed:
         raise LookupError("Appointment not found.")
 
+    counselor_notes = counselor_notes.strip()
+
     status = str(appointment.get("status", "")).lower()
 
     if status == "pending":
@@ -309,3 +315,45 @@ def update_counselor_notes_service(
         )
 
     update_counselor_notes(appointment_id, counselor_notes)
+
+
+def get_appointment_details_service(
+    user: dict,
+    appointment_id: int,
+) -> dict:
+    rows = fetch_rows(
+        """
+        SELECT
+            appointments.*,
+            accounts.full_name AS student_name,
+            accounts.email AS student_email,
+            accounts.student_number,
+            accounts.program
+        FROM appointments
+        JOIN accounts
+            ON appointments.account_id = accounts.id
+        WHERE appointments.id = %s
+        LIMIT 1
+        """,
+        (appointment_id,),
+    )
+
+    if str(user.get("role", "")).lower() == "staff":
+        allowed = {
+            appointment["id"]
+            for appointment in list_staff_appointments(user["id"])
+        }
+
+        if appointment_id not in allowed:
+            raise LookupError("Appointment not found.")
+
+    if not rows:
+        raise LookupError("Appointment not found.")
+
+    if (
+        str(user.get("role", "")).lower() == "student"
+        and rows[0]["account_id"] != user["id"]
+    ):
+        raise LookupError("Appointment not found.")
+
+    return rows[0]

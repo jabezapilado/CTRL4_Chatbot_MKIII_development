@@ -5,11 +5,13 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from typing import Final
 
-BASE_DIR = Path(__file__).resolve().parents[1]
-PROJECT_ROOT = BASE_DIR.parent
-AI_ENGINE_DIR = PROJECT_ROOT / "ai_engine"
-DATA_DIR = BASE_DIR / "data"
+
+BASE_DIR: Final = Path(__file__).resolve().parents[1]
+PROJECT_ROOT: Final = BASE_DIR.parent
+AI_ENGINE_DIR: Final = PROJECT_ROOT / "ai_engine"
+DATA_DIR: Final = BASE_DIR / "data"
 load_dotenv(BASE_DIR / ".env")
 load_dotenv(PROJECT_ROOT / ".env")
 
@@ -60,7 +62,7 @@ class Config:
         self.SEED_ADMIN_GENDER = os.getenv("CHATBOT_SEED_ADMIN_GENDER", "Prefer not to say")
         
         # Supported academic programs
-        self.PROGRAMS = (
+        self.PROGRAMS: Final[tuple[str, ...]] = (
             "BS Computer Science",
             "BS Information Technology - Web Development",
             "BS Information Technology - Network Administration",

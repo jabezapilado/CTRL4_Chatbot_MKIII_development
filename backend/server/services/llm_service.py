@@ -14,6 +14,7 @@ Authors:
 """
 
 from __future__ import annotations
+import logging
 
 from ..config import Config
 from ..llm_providers import (
@@ -22,6 +23,8 @@ from ..llm_providers import (
     OllamaProvider,
     LLMResponse,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class LLMService:
@@ -55,8 +58,9 @@ class LLMService:
                 f"Unsupported LLM provider: {provider_name}"
             )
 
-        print(
-            f"LLMService using provider: {provider_name}"
+        logger.info(
+            "LLMService initialized with provider: %s",
+            provider_name,
         )
 
     def generate(

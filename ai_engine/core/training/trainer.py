@@ -7,10 +7,11 @@ Author: CTRL4 Chatbot MK2
 """
 
 from transformers import (
-    Trainer,
     TrainingArguments,
     EarlyStoppingCallback,
 )
+
+from ai_engine.core.training.emotion_trainer import EmotionTrainer
 
 from ai_engine.core.training.metrics import compute_metrics
 from ai_engine.core.utilities.config import load_config
@@ -44,9 +45,7 @@ def create_trainer(
 
         save_strategy=config["save_strategy"],
 
-        logging_strategy="steps",
-
-        logging_steps=config["logging_steps"],
+        logging_strategy="epoch",
 
         save_total_limit=2,
 
@@ -62,7 +61,7 @@ def create_trainer(
 
     )
 
-    trainer = Trainer(
+    trainer = EmotionTrainer(
 
         model=model,
 
@@ -79,7 +78,7 @@ def create_trainer(
         callbacks=[
             EarlyStoppingCallback(
                 early_stopping_patience=2
-            )
+            ),
         ],
 
     )
