@@ -19,9 +19,9 @@ from ..db import (
 )
 
 from ..services.appointment_service import (
-    can_student_modify_appointment,
     create_student_appointment,
     cancel_student_appointment,
+    reschedule_student_appointment,
 )
 
 appointment_bp = Blueprint(
@@ -127,56 +127,22 @@ def reschedule_my_appointment(appointment_id: int):
     if str(user.get("role", "student")).lower() != "student":
         return jsonify({"error": "Student access required."}), 403
 
-    appointment = get_appointment_by_id(appointment_id)
-
-    if not appointment:
-        return jsonify({"error": "Appointment not found."}), 404
-
-    if appointment["account_id"] != user["id"]:
-        return jsonify({"error": "You may only reschedule your own appointments."}), 403
-
-    if appointment["status"] != "pending":
-        return jsonify({"error": "Only pending appointments may be rescheduled."}), 400
-
-    if not can_student_modify_appointment(appointment):
-        return jsonify({
-            "error": "This appointment can no longer be modified because it is scheduled within the next hour."
-        }), 400
-
     payload = request.get_json(silent=True) or {}
 
-    required_fields = [
-        "preferred_date",
-        "preferred_time_slot",
-    ]
-
-    missing = [field for field in required_fields if not str(payload.get(field, "")).strip()]
-    if missing:
-        return jsonify({"error": "Missing required fields.", "fields": missing}), 400
-
-    if has_appointment_conflict(
-        payload["preferred_date"],
-        payload["preferred_time_slot"],
-    ):
-        return jsonify({"error": "This schedule is already taken."}), 409
-
-    new_id = save_appointment(
-        {
-            "account_id": appointment["account_id"],
-            "contact_number": appointment["contact_number"],
-            "appointment_category": appointment["appointment_category"],
-            "appointment_mode": appointment["appointment_mode"],
-            "preferred_date": payload["preferred_date"],
-            "preferred_time_slot": payload["preferred_time_slot"],
-            "reason": appointment["reason"],
-            "status": "pending",
-            "counselor_notes": None,
-            "appointment_source": appointment["appointment_source"],
-            "created_at": current_time(),
-            "updated_at": current_time(),
-        }
-    )
-    update_appointment_status(appointment_id, "cancelled")
+    try:
+        new_id = reschedule_student_appointment(user, appointment_id, payload)
+    except LookupError as exc:
+        return jsonify({"error": str(exc)}), 404
+    except PermissionError as exc:
+        return jsonify({"error": str(exc)}), 403
+    except RuntimeError as exc:
+        status = 409 if str(exc) == "This schedule is already taken." else 400
+        return jsonify({"error": str(exc)}), status
+    except ValueError as exc:
+        if exc.args and isinstance(exc.args[0], tuple):
+            message, fields = exc.args[0]
+            return jsonify({"error": message, "fields": fields}), 400
+        return jsonify({"error": str(exc)}), 400
 
     return jsonify({"status": "rescheduled", "appointment_id": new_id}), 201
 
@@ -340,7 +306,7 @@ def change_appointment(appointment_id: int):
             }
         ), 400
 
-    update_appointment_status(appointment_id, status,)
+    update_appointment_status(appointment_id, status)
     return jsonify({"status": "updated"}), 200
 
 
@@ -390,7 +356,7 @@ def update_counselor_notes_route(appointment_id: int):
     user = get_logged_in_user()
 
     if not user or str(user.get("role", "")).lower() != "staff":
-        return jsonify({"error": "Staff access required."}), 403    
+        return jsonify({"error": "Staff access required."}), 403
 
     appointment = get_appointment_by_id(appointment_id)
 
