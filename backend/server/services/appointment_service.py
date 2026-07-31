@@ -9,6 +9,7 @@ from ..db import (
     has_appointment_conflict,
     save_appointment,
     get_appointment_by_id,
+    list_staff_appointments,
     update_appointment_status,
 )
 
@@ -227,3 +228,50 @@ def create_manual_appointment(staff_account: dict, payload: dict) -> int:
             "updated_at": current_time(),
         }
     )
+
+
+def update_appointment_status_service(
+    staff_account: dict,
+    appointment_id: int,
+    status: str,
+) -> None:
+    valid_statuses = {
+        "pending",
+        "approved",
+        "done",
+        "did_not_attend",
+        "cancelled",
+    }
+
+    if status not in valid_statuses:
+        raise ValueError("Invalid appointment status.")
+
+    appointment = get_appointment_by_id(appointment_id)
+
+    if not appointment:
+        raise LookupError("Appointment not found.")
+
+    allowed = {
+        item["id"]
+        for item in list_staff_appointments(staff_account["id"])
+    }
+
+    if appointment_id not in allowed:
+        raise LookupError("Appointment not found.")
+
+    current_status = appointment["status"]
+
+    allowed_transitions = {
+        "pending": {"approved", "cancelled"},
+        "approved": {"done", "did_not_attend", "cancelled"},
+        "done": set(),
+        "did_not_attend": set(),
+        "cancelled": set(),
+    }
+
+    if status not in allowed_transitions.get(current_status, set()):
+        raise RuntimeError(
+            f"Cannot change appointment status from '{current_status}' to '{status}'."
+        )
+
+    update_appointment_status(appointment_id, status)

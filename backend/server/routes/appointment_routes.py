@@ -5,16 +5,10 @@ from flask import Blueprint, jsonify, request
 from ..auth import get_logged_in_user
 
 from ..db import (
-    current_time,
     fetch_rows,
     list_staff_appointments,
     list_student_appointments,
-    save_appointment,
-    has_appointment_conflict,
     get_appointment_by_id,
-    update_appointment_status,
-    get_staff_by_program,
-    get_student_by_id,
     update_counselor_notes,
 )
 
@@ -23,6 +17,7 @@ from ..services.appointment_service import (
     cancel_student_appointment,
     reschedule_student_appointment,
     create_manual_appointment,
+    update_appointment_status_service,
 )
 
 appointment_bp = Blueprint(
@@ -185,70 +180,16 @@ def change_appointment(appointment_id: int):
         return jsonify({"error": "Staff access required."}), 403
 
     status = str(payload.get("status", "")).strip() or "pending"
-    VALID_STATUSES = {
-        "pending",
-        "approved",
-        "done",
-        "did_not_attend",
-        "cancelled",
-    }
 
-    if status not in VALID_STATUSES:
-        return jsonify(
-            {
-                "error": "Invalid appointment status."
-            }
-        ), 400
+    try:
+        update_appointment_status_service(user, appointment_id, status)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except LookupError as exc:
+        return jsonify({"error": str(exc)}), 404
+    except RuntimeError as exc:
+        return jsonify({"error": str(exc)}), 400
 
-    appointment = get_appointment_by_id(
-        appointment_id
-    )
-
-    if not appointment:
-        return jsonify(
-            {
-                "error": "Appointment not found."
-            }
-        ), 404
-
-    allowed = {
-        item["id"]
-        for item in list_staff_appointments(user["id"])
-    }
-
-    if appointment_id not in allowed:
-        return jsonify({"error": "Appointment not found."}), 404
-
-    current_status = appointment["status"]
-
-    ALLOWED_TRANSITIONS = {
-        "pending": {
-            "approved",
-            "cancelled",
-        },
-        "approved": {
-            "done",
-            "did_not_attend",
-            "cancelled",
-        },
-        "done": set(),
-        "did_not_attend": set(),
-        "cancelled": set(),
-    }
-
-    if status not in ALLOWED_TRANSITIONS.get(
-        current_status,
-        set(),
-    ):
-        return jsonify(
-            {
-                "error":
-                f"Cannot change appointment status from "
-                f"'{current_status}' to '{status}'."
-            }
-        ), 400
-
-    update_appointment_status(appointment_id, status)
     return jsonify({"status": "updated"}), 200
 
 
