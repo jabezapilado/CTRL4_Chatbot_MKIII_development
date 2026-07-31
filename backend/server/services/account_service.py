@@ -1,4 +1,5 @@
-from werkzeug.security import generate_password_hash
+from flask import session
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from ..db import (
     create_account,
@@ -42,3 +43,42 @@ def create_account_service(payload: dict) -> dict:
         gender=gender,
         program=program,
     )
+
+
+def login_service(payload: dict) -> dict:
+    email = str(payload.get("email", "")).strip().lower()
+    password = str(payload.get("password", ""))
+
+    if not email or not password:
+        raise ValueError("Email and password are required.")
+
+    account = fetch_account_by_email(email)
+    if not account:
+        raise PermissionError("Invalid credentials.")
+
+    if account["status"] != "active":
+        raise RuntimeError("Account is disabled.")
+
+    stored_password = str(account.get("password_hash", ""))
+    if stored_password.startswith(("pbkdf2:", "scrypt:")):
+        password_ok = check_password_hash(stored_password, password)
+    else:
+        password_ok = password == stored_password
+
+    if not password_ok:
+        raise PermissionError("Invalid credentials.")
+
+    user = {
+        "id": account["id"],
+        "student_number": account.get("student_number"),
+        "email": account["email"],
+        "full_name": account["full_name"],
+        "role": account["role"],
+    }
+
+    session["hau_user"] = user
+    return user
+
+
+def logout_service() -> None:
+    session.clear()
