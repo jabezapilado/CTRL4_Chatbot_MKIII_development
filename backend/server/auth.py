@@ -72,7 +72,13 @@ def login():
         user["email"],
         user.get("role", "student"),
     )
-    return jsonify(user), 200
+    return jsonify(
+        {
+            "success": True,
+            "message": "Logged in successfully.",
+            "data": user,
+        }
+    ), 200
 
 
 @auth_bp.post("/auth/logout")

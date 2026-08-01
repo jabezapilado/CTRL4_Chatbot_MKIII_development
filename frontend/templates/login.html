@@ -148,7 +148,9 @@
 
             return data;
           })
-          .then((user) => {
+          .then((response) => {
+            const user = response.data;
+
             sessionStorage.setItem(
               "hau_user",
               JSON.stringify({
