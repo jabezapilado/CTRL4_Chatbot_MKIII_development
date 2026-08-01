@@ -151,12 +151,12 @@ The final model was exported separately for deployment within the CTRL4 AI pipel
 | Metric               | Value             |
 | -------------------- | ----------------: |
 | Training Epochs      | 5                 |
-| Training Time        | 4 Hours 24 Minutes|
-| Final Training Loss  | 0.3993            |
-| Validation Accuracy  | 79.45%            |
-| Precision            | 79.52%            |
-| Recall               | 79.45%            |
-| F1-Score             | 79.48%            |
+| Training Time        | 5 Hours 16 Minutes|
+| Final Training Loss  | 0.3999            |
+| Validation Accuracy  | 79.83%            |
+| Precision            | 80.08%            |
+| Recall               | 79.83%            |
+| F1-Score             | 79.88%            |
 
 ---
 

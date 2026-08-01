@@ -20,11 +20,34 @@ ALLOWED_ACCOUNT_ROLES: Final[frozenset[str]] = frozenset({
     "admin",
 })
 
+ALLOWED_ACCOUNT_STATUSES: Final[frozenset[str]] = frozenset({
+    "active",
+    "disabled",
+})
+
 ALLOWED_GENDERS: Final[frozenset[str]] = frozenset({
     "Male",
     "Female",
     "Prefer not to say",
     "Other",
+})
+
+ALLOWED_ACCOUNT_UPDATE_FIELDS: Final[frozenset[str]] = frozenset({
+    "full_name",
+    "email",
+    "gender",
+    "program",
+    "assigned_programs",
+    "office",
+    "support_statement",
+    "consultation_rooms",
+    "consultation_schedules",
+    "status",
+})
+ACCOUNT_JSON_FIELDS: Final[frozenset[str]] = frozenset({
+    "assigned_programs",
+    "consultation_rooms",
+    "consultation_schedules",
 })
 
 
@@ -78,6 +101,12 @@ def _json_safe_value(value: Any) -> Any:
 
 def _json_safe_row(row: dict[str, Any]) -> dict[str, Any]:
     return {key: _json_safe_value(value) for key, value in row.items()}
+
+
+def _json_column_value(value: Any) -> Any:
+    if isinstance(value, (dict, list)):
+        return json.dumps(value)
+    return value
 
 
 def _seed_accounts() -> list[tuple[Any, ...]]:
@@ -702,12 +731,27 @@ def fetch_account_by_staff_number(staff_number: str) -> dict[str, Any] | None:
 
     return row
 
-def list_accounts() -> list[dict[str, Any]]:
+def fetch_account_by_id(
+    account_id: int,
+    *,
+    role: str | None = None,
+) -> dict[str, Any] | None:
     initialize_database()
+
+    role_filter = ""
+    params: list[Any] = [account_id]
+
+    if role:
+        role = role.strip().lower()
+        if role not in ALLOWED_ACCOUNT_ROLES:
+            raise ValueError("Invalid account role.")
+        role_filter = " AND role = %s"
+        params.append(role)
+
     with _database_connection() as connection:
         with connection.cursor(dictionary=True) as cursor:
             cursor.execute(
-                """
+                f"""
                 SELECT id,
                 student_number,
                 staff_number,
@@ -724,11 +768,118 @@ def list_accounts() -> list[dict[str, Any]]:
                 status,
                 created_at
                 FROM accounts
+                WHERE id = %s{role_filter}
+                LIMIT 1
+                """,
+                tuple(params),
+            )
+            row = cursor.fetchone()
+
+    return row
+
+
+def list_accounts(
+    *,
+    role: str | None = None,
+    status: str | None = None,
+) -> list[dict[str, Any]]:
+    initialize_database()
+
+    filters: list[str] = []
+    params: list[Any] = []
+
+    if role:
+        role = role.strip().lower()
+        if role not in ALLOWED_ACCOUNT_ROLES:
+            raise ValueError("Invalid account role.")
+        filters.append("role = %s")
+        params.append(role)
+
+    if status:
+        status = status.strip().lower()
+        if status not in ALLOWED_ACCOUNT_STATUSES:
+            raise ValueError("Invalid account status.")
+        filters.append("status = %s")
+        params.append(status)
+
+    where_clause = ""
+    if filters:
+        where_clause = "WHERE " + " AND ".join(filters)
+
+    with _database_connection() as connection:
+        with connection.cursor(dictionary=True) as cursor:
+            cursor.execute(
+                f"""
+                SELECT id,
+                student_number,
+                staff_number,
+                gender,
+                program,
+                assigned_programs,
+                office,
+                support_statement,
+                consultation_rooms,
+                consultation_schedules,
+                email,
+                full_name,
+                role,
+                status,
+                created_at
+                FROM accounts
+                {where_clause}
                 ORDER BY id ASC
-                """
+                """,
+                tuple(params),
             )
             rows = cursor.fetchall()
     return rows
+
+
+def update_account_fields(
+    account_id: int,
+    updates: dict[str, Any],
+    *,
+    role: str | None = None,
+) -> dict[str, Any] | None:
+    initialize_database()
+
+    if not updates:
+        raise ValueError("No account fields to update.")
+
+    invalid_fields = set(updates) - ALLOWED_ACCOUNT_UPDATE_FIELDS
+    if invalid_fields:
+        raise ValueError("Invalid account update field.")
+
+    role_filter = ""
+    params = [
+        _json_column_value(value) if field in ACCOUNT_JSON_FIELDS else value
+        for field, value in updates.items()
+    ]
+    params.append(account_id)
+
+    if role:
+        role = role.strip().lower()
+        if role not in ALLOWED_ACCOUNT_ROLES:
+            raise ValueError("Invalid account role.")
+        role_filter = " AND role = %s"
+        params.append(role)
+
+    assignments = ", ".join(f"{field} = %s" for field in updates)
+
+    with _database_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"""
+                UPDATE accounts
+                SET {assignments}
+                WHERE id = %s{role_filter}
+                """,
+                tuple(params),
+            )
+
+        connection.commit()
+
+    return fetch_account_by_id(account_id, role=role)
 
 
 def search_student_accounts(query: str) -> list[dict[str, Any]]:
@@ -988,6 +1139,11 @@ def create_account(
     staff_number: str | None = None,
     gender: str | None = None,
     program: str | None = None,
+    assigned_programs: Any | None = None,
+    office: str | None = None,
+    support_statement: str | None = None,
+    consultation_rooms: Any | None = None,
+    consultation_schedules: Any | None = None,
 ) -> dict[str, Any]:
     initialize_database()
     
@@ -996,6 +1152,8 @@ def create_account(
     role = role.strip().lower()
     gender = gender.strip() if gender else None
     program = program.strip() if program else None
+    office = office.strip() if office else None
+    support_statement = support_statement.strip() if support_statement else None
 
     # Automatic account number generation
     if role == "student":
@@ -1007,6 +1165,16 @@ def create_account(
     else:
         student_number = None
         staff_number = None
+
+    if role != "staff":
+        assigned_programs = None
+        office = None
+        support_statement = None
+        consultation_rooms = None
+        consultation_schedules = None
+
+    if role == "admin":
+        program = None
 
     if role not in ALLOWED_ACCOUNT_ROLES:
         raise ValueError("Invalid account role.")
@@ -1047,13 +1215,18 @@ def create_account(
                     staff_number,
                     gender,
                     program,
+                    assigned_programs,
+                    office,
+                    support_statement,
+                    consultation_rooms,
+                    consultation_schedules,
                     email,
                     password_hash,
                     role,
                     status,
                     created_at
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'active', %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'active', %s)
                 """,
                 (
                     full_name,
@@ -1061,6 +1234,11 @@ def create_account(
                     staff_number,
                     gender,
                     program,
+                    _json_column_value(assigned_programs),
+                    office,
+                    support_statement,
+                    _json_column_value(consultation_rooms),
+                    _json_column_value(consultation_schedules),
                     email,
                     password_hash,
                     role,

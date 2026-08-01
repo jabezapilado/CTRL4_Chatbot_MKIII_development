@@ -9,11 +9,13 @@
 
     "learning_rate": 2e-5,
 
-    "epochs": 5,
+    "epochs": 3,
 
     "weight_decay": 0.01,
 
     "warmup_ratio": 0.1,
+
+    "label_smoothing_factor": 0.05,
 
     "evaluation_strategy": "epoch",
 
@@ -26,6 +28,10 @@
     "output_dir": "ai_engine/models/emotion_model",
 
     "best_model_metric": "eval_f1",
+
+    "early_stopping_patience": 1,
+
+    "early_stopping_threshold": 0.0005,
 
     "greater_is_better": true
 }

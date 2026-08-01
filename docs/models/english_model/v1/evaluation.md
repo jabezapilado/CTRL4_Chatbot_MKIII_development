@@ -57,10 +57,10 @@ Before training and evaluation, source dataset labels were consolidated into fiv
 
 | Metric     | Result |
 | ---------- | -----: |
-| Accuracy   | 79.18% |
-| Precision  | 79.21% |
-| Recall     | 79.18% |
-| F1-Score   | 79.16% |
+| Accuracy   | 79.55% |
+| Precision  | 79.67% |
+| Recall     | 79.55% |
+| F1-Score   | 79.53% |
 
 ---
 
@@ -146,7 +146,7 @@ Its predictions are used to:
 
 # Summary
 
-The English Emotion Recognition Model demonstrated reliable performance for multi-class emotion classification, achieving approximately 79.2% overall accuracy with balanced precision, recall, and F1-score.
+The English Emotion Recognition Model demonstrated reliable performance for multi-class emotion classification, achieving approximately 79.6% overall accuracy with balanced precision, recall, and F1-score.
 
 Within CTRL4 Chatbot MK II, the model serves as the emotion detection component of the AI pipeline. Its predictions provide contextual information for prompt construction, allowing the configured large language model to generate responses that are more empathetic and appropriate to the student's emotional state.
 

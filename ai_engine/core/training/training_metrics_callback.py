@@ -1,3 +1,5 @@
+import numpy as np
+from sklearn.metrics import precision_recall_fscore_support
 from transformers import TrainerCallback
 
 
@@ -7,8 +9,12 @@ class TrainingMetricsCallback(TrainerCallback):
     recorded alongside validation metrics in the trainer history.
     """
 
+    def __init__(self, trainer=None, max_train_eval_samples=4096):
+        self.trainer = trainer
+        self.max_train_eval_samples = max_train_eval_samples
+
     def on_epoch_end(self, args, state, control, **kwargs):
-        trainer = kwargs.get("trainer")
+        trainer = kwargs.get("trainer") or self.trainer
 
         if state.epoch is None:
             return control
@@ -32,11 +38,39 @@ class TrainingMetricsCallback(TrainerCallback):
 
         self._logged_epochs.add(completed_epoch)
 
+        eval_dataset = trainer.train_dataset
+        if self.max_train_eval_samples and len(eval_dataset) > self.max_train_eval_samples:
+            eval_dataset = eval_dataset.select(range(self.max_train_eval_samples))
+
         prediction_output = trainer.predict(
-            test_dataset=trainer.train_dataset,
+            test_dataset=eval_dataset,
             metric_key_prefix="train",
         )
 
-        trainer.log(prediction_output.metrics)
+        logits = prediction_output.predictions
+        labels = prediction_output.label_ids
+
+        if logits is None or labels is None:
+            return control
+
+        predictions = np.argmax(logits, axis=-1)
+
+        train_accuracy = float(np.mean(predictions == labels))
+        train_precision, train_recall, train_f1, _ = precision_recall_fscore_support(
+            labels,
+            predictions,
+            average="weighted",
+            zero_division=0,
+        )
+
+        trainer.log(
+            {
+                "train_accuracy": train_accuracy,
+                "train_precision": float(train_precision),
+                "train_recall": float(train_recall),
+                "train_f1": float(train_f1),
+                "train_eval_samples": len(eval_dataset),
+            }
+        )
 
         return control

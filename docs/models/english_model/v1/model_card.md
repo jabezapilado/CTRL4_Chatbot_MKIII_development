@@ -84,10 +84,10 @@ The classifier predicts only these five core emotions.
 
 | Metric     | Result |
 | ---------- | -----: |
-| Accuracy   | 79.18% |
-| Precision  | 79.21% |
-| Recall     | 79.18% |
-| F1-Score   | 79.16% |
+| Accuracy   | 79.55% |
+| Precision  | 79.67% |
+| Recall     | 79.55% |
+| F1-Score   | 79.53% |
 
 ---
 

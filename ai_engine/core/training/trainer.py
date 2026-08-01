@@ -29,6 +29,8 @@ def create_trainer(
     validation_dataset,
 ):
 
+    training_metrics_callback = TrainingMetricsCallback()
+
     training_args = TrainingArguments(
 
         output_dir=config["output_dir"],
@@ -42,6 +44,10 @@ def create_trainer(
         num_train_epochs=config["epochs"],
 
         weight_decay=config["weight_decay"],
+
+        warmup_ratio=config.get("warmup_ratio", 0.0),
+
+        label_smoothing_factor=config.get("label_smoothing_factor", 0.0),
 
         eval_strategy=config["evaluation_strategy"],
 
@@ -78,12 +84,15 @@ def create_trainer(
         compute_metrics=compute_metrics,
 
         callbacks=[
-            TrainingMetricsCallback(),
+            training_metrics_callback,
             EarlyStoppingCallback(
-                early_stopping_patience=2,
+                early_stopping_patience=config.get("early_stopping_patience", 1),
+                early_stopping_threshold=config.get("early_stopping_threshold", 0.0),
             ),
         ],
 
     )
+
+    training_metrics_callback.trainer = trainer
 
     return trainer

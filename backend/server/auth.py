@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 
 from flask import Blueprint, jsonify, request, session
-from .services.account_service import login_service, logout_service
+from .services.account_service import login_service
 from .request_validation import require_login
 
 
@@ -86,7 +86,7 @@ def logout():
                 "errors": None,
             }
         ), 401
-    logout_service()
+    session.clear()
     if user:
         logger.info("User %s logged out", user["email"])
     return jsonify(
