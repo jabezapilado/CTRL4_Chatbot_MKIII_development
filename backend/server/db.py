@@ -977,7 +977,12 @@ def create_account(
     *,
     full_name: str,
     email: str,
-    password_hash: str,
+    
+    # password_hash must already be generated using
+    # werkzeug.security.generate_password_hash().
+    # Plaintext passwords must never be passed here.
+    password_hash: str, 
+    
     role: str,
     student_number: str | None = None,
     staff_number: str | None = None,

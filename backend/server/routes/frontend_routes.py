@@ -49,8 +49,9 @@ def require_login_for_private_routes():
     path = request.path
 
     if path.startswith("/static/") or path in public_paths:
-        if path in {"/", "/login"} and get_logged_in_user():
-            return redirect(role_landing_path(get_logged_in_user()))
+        user = get_logged_in_user()
+        if path in {"/", "/login"} and user:
+            return redirect(role_landing_path(user))
         return None
 
     user = get_logged_in_user()

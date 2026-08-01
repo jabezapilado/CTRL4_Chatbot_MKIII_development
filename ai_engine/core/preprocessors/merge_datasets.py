@@ -43,6 +43,11 @@ DATASETS = [
 ]
 
 
+def normalize_text(text):
+
+    return text.strip().lower()
+
+
 def load_all():
 
     train = []
@@ -83,6 +88,7 @@ def load_all():
 
 
 def remove_duplicates(dataset):
+    # Deduplicate by normalized text within each split.
 
     seen = set()
 
@@ -90,7 +96,7 @@ def remove_duplicates(dataset):
 
     for row in dataset:
 
-        text = row["text"].strip().lower()
+        text = normalize_text(row["text"])
 
         if text in seen:
             continue
@@ -100,6 +106,31 @@ def remove_duplicates(dataset):
         rows.append(row)
 
     return dataset.from_list(rows)
+
+
+def filter_seen_texts(dataset, seen_texts):
+    # Remove rows whose normalized text already exists in previous splits.
+
+    rows = []
+
+    for row in dataset:
+
+        text = normalize_text(row["text"])
+
+        if text in seen_texts:
+            continue
+
+        rows.append(row)
+
+    return dataset.from_list(rows)
+
+
+def collect_texts(dataset):
+
+    return {
+        normalize_text(row["text"])
+        for row in dataset
+    }
 
 
 def print_statistics(name, dataset):
@@ -162,6 +193,22 @@ def main():
     validation = remove_duplicates(validation)
 
     test = remove_duplicates(test)
+
+    # Enforce split isolation to avoid evaluation leakage.
+    # Priority order is train > validation > test.
+    train_texts = collect_texts(train)
+
+    validation = filter_seen_texts(
+        validation,
+        train_texts,
+    )
+
+    validation_texts = collect_texts(validation)
+
+    test = filter_seen_texts(
+        test,
+        train_texts.union(validation_texts),
+    )
 
     train = train.shuffle(seed=42)
 

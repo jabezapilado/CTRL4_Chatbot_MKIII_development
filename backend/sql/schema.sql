@@ -135,4 +135,8 @@ CREATE TABLE IF NOT EXISTS settings (
     updated_at DATETIME NOT NULL
 );
 
--- Insert accounts manually with hashed passwords, or use backend/.env seeding variables with scripts/setup_database.py.
+-- Never store plaintext passwords.
+-- All passwords must be generated using Werkzeug's
+-- generate_password_hash() before insertion.
+-- Accounts can also be seeded through
+-- backend/.env using scripts/setup_database.py.

@@ -38,13 +38,15 @@ This document presents the evaluation results of the English Emotion Recognition
 
 The model was evaluated using a held-out test dataset after fine-tuning on the merged English emotion dataset. Within the chatbot, the model serves as the emotion detection component of the AI pipeline, providing contextual information that helps the Prompt Builder and Large Language Model generate more empathetic and context-aware responses.
 
+Before training and evaluation, source dataset labels were consolidated into five core emotion classes. Metrics below are computed only on those remapped five classes.
+
 ---
 
 # Evaluation Dataset
 
 | Property           | Value                        |
 | ------------------ | ---------------------------- |
-| Test Samples       | 8,107                        |
+| Test Samples       | 8,047                        |
 | Language           | English                      |
 | Emotion Classes    | 5                            |
 | Evaluation Method  | Hold-out Test Set Evaluation |
@@ -55,14 +57,16 @@ The model was evaluated using a held-out test dataset after fine-tuning on the m
 
 | Metric     | Result |
 | ---------- | -----: |
-| Accuracy   | 79.45% |
-| Precision  | 79.52% |
-| Recall     | 79.45% |
-| F1-Score   | 79.48% |
+| Accuracy   | 79.18% |
+| Precision  | 79.21% |
+| Recall     | 79.18% |
+| F1-Score   | 79.16% |
 
 ---
 
 # Supported Emotion Classes
+
+These are the only direct prediction classes produced by the model.
 
 | Label ID | Emotion  | Sentiment |
 | --------:| -------- | --------- |
@@ -71,6 +75,8 @@ The model was evaluated using a held-out test dataset after fine-tuning on the m
 | 2         | Anger    | Negative  |
 | 3         | Sadness  | Negative  |
 | 4         | Fear     | Negative  |
+
+Fine-grained concepts such as anxiety or hopelessness may be inferred later by higher-level services using conversation context, but they are not independent output classes in this classifier.
 
 ---
 
@@ -140,7 +146,7 @@ Its predictions are used to:
 
 # Summary
 
-The English Emotion Recognition Model demonstrated reliable performance for multi-class emotion classification, achieving approximately 79.5% overall accuracy with balanced precision, recall, and F1-score.
+The English Emotion Recognition Model demonstrated reliable performance for multi-class emotion classification, achieving approximately 79.2% overall accuracy with balanced precision, recall, and F1-score.
 
 Within CTRL4 Chatbot MK II, the model serves as the emotion detection component of the AI pipeline. Its predictions provide contextual information for prompt construction, allowing the configured large language model to generate responses that are more empathetic and appropriate to the student's emotional state.
 

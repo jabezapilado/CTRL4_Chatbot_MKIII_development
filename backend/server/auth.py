@@ -4,6 +4,7 @@ import logging
 
 from flask import Blueprint, jsonify, request, session
 from .services.account_service import login_service, logout_service
+from .request_validation import require_login
 
 
 logger = logging.getLogger(__name__)
@@ -34,15 +35,37 @@ def login():
 
     try:
         user = login_service(payload)
+        # Prevent session fixation by issuing a fresh authenticated session.
+        session.clear()
+        session.permanent = True
+        session["hau_user"] = user
     except ValueError as exc:
         logger.warning("Login failed: %s", exc)
-        return jsonify({"error": str(exc)}), 400
+        return jsonify(
+            {
+                "success": False,
+                "message": str(exc),
+                "errors": None,
+            }
+        ), 400
     except PermissionError as exc:
         logger.warning("Login denied: %s", exc)
-        return jsonify({"error": str(exc)}), 401
+        return jsonify(
+            {
+                "success": False,
+                "message": str(exc),
+                "errors": None,
+            }
+        ), 401
     except RuntimeError as exc:
         logger.warning("Login blocked: %s", exc)
-        return jsonify({"error": str(exc)}), 403
+        return jsonify(
+            {
+                "success": False,
+                "message": str(exc),
+                "errors": None,
+            }
+        ), 403
 
     logger.info(
         "User %s logged in as %s",
@@ -54,8 +77,22 @@ def login():
 
 @auth_bp.post("/auth/logout")
 def logout():
-    user = get_logged_in_user()
+    user = require_login()
+    if not user:
+        return jsonify(
+            {
+                "success": False,
+                "message": "Login required.",
+                "errors": None,
+            }
+        ), 401
     logout_service()
     if user:
         logger.info("User %s logged out", user["email"])
-    return jsonify({"status": "logged_out"}), 200
+    return jsonify(
+        {
+            "success": True,
+            "message": "Logged out successfully.",
+            "data": None,
+        }
+    ), 200

@@ -18,6 +18,9 @@ from ai_engine.core.schemas.emotion_record import EmotionRecord
 class BasePreprocessor:
     """
     Base class for all dataset preprocessors.
+
+    All source-specific labels are consolidated into the model's
+    canonical five emotion classes before records are saved.
     """
 
     def __init__(self, dataset_name: str):
@@ -48,6 +51,14 @@ class BasePreprocessor:
 
         self.sentiment_mapping = self.load_json(
             self.config_dir / "sentiment_mapping.json"
+        )
+
+        self.label_encoder = self.load_json(
+            self.config_dir / "label_encoder.json"
+        )
+
+        self.allowed_model_labels = set(
+            self.label_encoder.keys()
         )
 
     # ---------------------------------------------------------
@@ -89,7 +100,8 @@ class BasePreprocessor:
     # ---------------------------------------------------------
 
     def map_emotion(self, original_emotion: str) -> str:
-
+        # Any fine-grained source emotion is mapped into one
+        # of the model's canonical output classes.
         return self.emotion_mapping.get(
             original_emotion.strip().lower(),
             "Neutral"
@@ -168,6 +180,9 @@ class BasePreprocessor:
 
             if key not in record:
                 return False
+
+        if record["emotion"] not in self.allowed_model_labels:
+            return False
 
         return self.validate_text(record["text"])
 

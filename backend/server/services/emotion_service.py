@@ -14,6 +14,8 @@ Authors:
 """
 
 from dataclasses import dataclass
+import json
+from pathlib import Path
 from typing import Final
 
 import torch
@@ -22,21 +24,25 @@ from ai_engine.core.models.model_loader import load_model
 from ai_engine.core.tokenizers.tokenizer import load_tokenizer
 
 
-LABELS: Final = {
-    0: "Positive",
-    1: "Neutral",
-    2: "Anger",
-    3: "Sadness",
-    4: "Fear"
-}
+def _load_labels() -> dict[int, str]:
+    project_root = Path(__file__).resolve().parents[3]
+    encoder_path = project_root / "ai_engine" / "configs" / "label_encoder.json"
+
+    with open(encoder_path, "r", encoding="utf-8") as handle:
+        encoder = json.load(handle)
+
+    return {
+        int(index): emotion
+        for emotion, index in encoder.items()
+    }
+
+
+LABELS: Final = _load_labels()
 
 NEGATIVE_EMOTIONS: Final = {
     "Anger",
     "Sadness",
     "Fear",
-    "Stress",
-    "Anxiety",
-    "Loneliness",
 }
 
 POSITIVE_EMOTIONS: Final = {
@@ -72,7 +78,8 @@ class EmotionService:
 
         text = text.lower()
 
-        # Stress-related keywords
+        # Keep all outputs in the model's five-class taxonomy.
+        # Stress/anxiety indicators are normalized to Fear.
         if any(word in text for word in [
             "stress",
             "stressed",
@@ -84,7 +91,7 @@ class EmotionService:
             "drained",
             "mentally exhausted",
         ]):
-            return "Stress"
+            return "Fear"
 
         # Anxiety-related keywords
         if any(word in text for word in [
@@ -97,9 +104,9 @@ class EmotionService:
             "uneasy",
             "can't relax",
         ]):
-            return "Anxiety"
+            return "Fear"
 
-        # Loneliness
+        # Loneliness-related keywords are normalized to Sadness.
         if any(word in text for word in [
             "alone",
             "lonely",
@@ -108,7 +115,7 @@ class EmotionService:
             "abandoned",
             "no one understands me",
         ]):
-            return "Loneliness"
+            return "Sadness"
 
         # Keep original model prediction
         return emotion

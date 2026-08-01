@@ -25,16 +25,22 @@
 
   "fear": "Fear",
 
-  "nervousness": "Anxiety",
+  "nervousness": "Fear",
+  "anxiety": "Fear",
+  "worry": "Fear",
+  "worried": "Fear",
+  "panic": "Fear",
 
   "sadness": "Sadness",
   "disappointment": "Sadness",
   "embarrassment": "Sadness",
   "remorse": "Sadness",
+  "hopelessness": "Sadness",
+  "grief": "Sadness",
 
-  "grief": "Hopelessness",
+  "frustration": "Anger",
 
-  "stress": "Stress",
-  "burnout": "Burned Out",
-  "loneliness": "Loneliness"
+  "stress": "Fear",
+  "burnout": "Sadness",
+  "loneliness": "Sadness"
 }

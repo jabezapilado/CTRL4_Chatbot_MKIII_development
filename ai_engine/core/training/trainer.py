@@ -11,6 +11,8 @@ from transformers import (
     EarlyStoppingCallback,
 )
 
+from ai_engine.core.training.training_metrics_callback import TrainingMetricsCallback
+
 from ai_engine.core.training.emotion_trainer import EmotionTrainer
 
 from ai_engine.core.training.metrics import compute_metrics
@@ -76,8 +78,9 @@ def create_trainer(
         compute_metrics=compute_metrics,
 
         callbacks=[
+            TrainingMetricsCallback(),
             EarlyStoppingCallback(
-                early_stopping_patience=2
+                early_stopping_patience=2,
             ),
         ],
 

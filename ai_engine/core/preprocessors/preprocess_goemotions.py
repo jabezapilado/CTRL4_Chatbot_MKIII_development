@@ -60,6 +60,9 @@ class GoEmotionsPreprocessor(BasePreprocessor):
 
                 label_ids = row[1].split(",")
 
+                # GoEmotions can be multi-label. Current training behavior
+                # uses the first label ID as the representative label.
+                # This preserves existing single-label pipeline behavior.
                 original = self.label_map.get(
                     label_ids[0],
                     "neutral"

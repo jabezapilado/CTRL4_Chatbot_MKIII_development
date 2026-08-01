@@ -13,7 +13,7 @@ import numpy as np
 accuracy = evaluate.load("accuracy")
 precision = evaluate.load("precision")
 recall = evaluate.load("recall")
-f1 = evaluate.load("f1")
+f1_metric = evaluate.load("f1")
 
 
 def compute_metrics(eval_pred):
@@ -44,7 +44,7 @@ def compute_metrics(eval_pred):
             average="weighted"
         )["recall"],
 
-        "f1": f1.compute(
+        "f1": f1_metric.compute(
             predictions=predictions,
             references=labels,
             average="weighted"

@@ -10,18 +10,25 @@ Author:
 - Wylengco, Teyshaun Zell
 """
 
+import json
+from pathlib import Path
+
 import torch
 
 from ai_engine.core.models.model_loader import load_model
 from ai_engine.core.tokenizers.tokenizer import load_tokenizer
 
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+
+LABEL_ENCODER = PROJECT_ROOT / "configs" / "label_encoder.json"
+
+with open(LABEL_ENCODER, "r", encoding="utf-8") as file:
+    label_encoder = json.load(file)
+
 LABELS = {
-    0: "Positive",
-    1: "Neutral",
-    2: "Anger",
-    3: "Sadness",
-    4: "Fear"
+    int(index): emotion
+    for emotion, index in label_encoder.items()
 }
 
 NEGATIVE_EMOTIONS = {

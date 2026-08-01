@@ -143,7 +143,7 @@
             const data = await response.json();
 
             if (!response.ok) {
-              throw new Error(data.error || "Login failed");
+              throw new Error(data.message || "Login failed");
             }
 
             return data;
@@ -166,11 +166,17 @@
               redirectToPage("/chatbot");
             }
           })
-          .catch(() => {
+          .catch((error) => {
+            err.textContent = `⚠ ${error.message}`;
             err.classList.add("show");
+
             btn.textContent = "Sign In";
             btn.disabled = false;
-            document.getElementById("password").classList.add("error");
+
+            const password = document.getElementById("password");
+            password.value = "";
+            password.classList.add("error");
+            password.focus();
           });
       }
 

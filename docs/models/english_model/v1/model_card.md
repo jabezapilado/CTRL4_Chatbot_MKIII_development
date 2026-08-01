@@ -44,6 +44,12 @@ Rather than generating chatbot responses directly, the model provides emotional 
 
 The model was fine-tuned using a merged English emotion dataset composed of multiple publicly available NLP datasets.
 
+The original source datasets contain many fine-grained emotion labels (for example: anxiety, panic, worry, grief, disappointment, frustration, joy, love, optimism).
+
+During preprocessing, these labels were semantically consolidated into the model's five prediction classes shown below.
+
+Not every original source label became an independent model output class.
+
 | Dataset          | Samples |
 | ---------------- | ------: |
 | GoEmotions       | 54,263  |
@@ -55,6 +61,8 @@ The model was fine-tuned using a merged English emotion dataset composed of mult
 
 # Emotion Categories
 
+The classifier predicts only these five core emotions.
+
 | Label ID | Emotion  | Sentiment |
 | --------:| -------- | --------- |
 | 0         | Positive | Positive  |
@@ -63,16 +71,23 @@ The model was fine-tuned using a merged English emotion dataset composed of mult
 | 3         | Sadness  | Negative  |
 | 4         | Fear     | Negative  |
 
+### Label Consolidation Examples
+
+- Anxiety, Worry, Panic -> Fear
+- Hopelessness, Grief, Disappointment -> Sadness
+- Joy, Love, Optimism -> Positive
+- Frustration, Annoyance, Disapproval -> Anger
+
 ---
 
 # Performance
 
 | Metric     | Result |
 | ---------- | -----: |
-| Accuracy   | 79.45% |
-| Precision  | 79.52% |
-| Recall     | 79.45% |
-| F1-Score   | 79.48% |
+| Accuracy   | 79.18% |
+| Precision  | 79.21% |
+| Recall     | 79.18% |
+| F1-Score   | 79.16% |
 
 ---
 
@@ -101,6 +116,8 @@ The model should **not** be used for:
 - Replacing licensed guidance counselors
 
 The model serves only as a supporting component within the chatbot's AI pipeline.
+
+Higher-level components (for example Safety Service and conversation analysis) may later infer concepts such as anxiety or hopelessness from the predicted core emotion together with conversation context, but the emotion model itself predicts only the five predefined categories.
 
 ---
 

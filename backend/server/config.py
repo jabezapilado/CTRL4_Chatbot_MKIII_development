@@ -5,6 +5,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from datetime import timedelta
+
 from typing import Final
 
 
@@ -29,6 +31,15 @@ class Config:
         self.DEBUG = os.getenv("CHATBOT_DEBUG", "true").lower() == "true"
         self.SECRET_KEY = os.getenv("CHATBOT_SECRET_KEY", "dev-secret-key-change-me")
         self.PORT = int(os.getenv("CHATBOT_PORT", "5001"))
+
+        # Flask session security
+        self.SESSION_COOKIE_HTTPONLY = True
+        self.SESSION_COOKIE_SECURE = (
+            os.getenv("CHATBOT_SESSION_COOKIE_SECURE", "false").lower() == "true"
+        )
+        self.SESSION_COOKIE_SAMESITE = "Lax"
+        self.SESSION_COOKIE_NAME = "ctrl4_session"
+        self.PERMANENT_SESSION_LIFETIME = timedelta(hours=8)
 
         self.SEED_STUDENT_EMAIL = os.getenv("CHATBOT_SEED_STUDENT_EMAIL", "student@hau.edu.ph")
         self.SEED_STUDENT_NAME = os.getenv("CHATBOT_SEED_STUDENT_NAME", "Maria Santos")

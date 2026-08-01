@@ -99,6 +99,8 @@ DistilBERT was selected because it provides an excellent balance between inferen
 
 The model is fine-tuned using a merged dataset consisting of multiple publicly available emotion classification datasets.
 
+Those source datasets contain many fine-grained emotions, but preprocessing consolidates them into five core classes for model training and inference.
+
 ---
 
 # Model Information
@@ -126,6 +128,10 @@ The classifier predicts one of five standardized emotions.
 | 2         | Anger    |
 | 3         | Sadness  |
 | 4         | Fear     |
+
+The model does not directly output fine-grained classes such as Anxiety or Hopelessness.
+
+Higher-level components may infer such concepts later using the predicted core emotion plus conversation context and safety logic.
 
 Each prediction also produces:
 

@@ -25,6 +25,12 @@ def create_account_service(payload: dict) -> dict:
 
     if not full_name or not email or not password:
         raise ValueError("Missing required fields.")
+
+    if not password.strip():
+        raise ValueError("Password cannot be blank.")
+
+    if len(password) < 8:
+        raise ValueError("Password must be at least 8 characters long.")
     if not EMAIL_PATTERN.fullmatch(email):
         raise ValueError("Invalid email address.")
 
@@ -68,17 +74,16 @@ def login_service(payload: dict) -> dict:
         raise PermissionError("Invalid credentials.")
 
     if account.get("status") != "active":
-        raise RuntimeError("Account is disabled.")
+        raise PermissionError("Invalid credentials.")
 
     role = str(account.get("role", "")).strip().lower()
     if role not in VALID_ROLES:
         raise PermissionError("Invalid account configuration.")
 
     stored_password = str(account.get("password_hash", ""))
-    if stored_password.startswith(("pbkdf2:", "scrypt:")):
-        password_ok = check_password_hash(stored_password, password)
-    else:
-        password_ok = password == stored_password
+    # All accounts are stored using Werkzeug password hashes.
+    # Legacy plaintext password support has been removed.
+    password_ok = check_password_hash(stored_password, password)
 
     if not password_ok:
         raise PermissionError("Invalid credentials.")

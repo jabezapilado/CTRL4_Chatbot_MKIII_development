@@ -143,17 +143,28 @@ Each dataset uses different emotion labels.
 
 All labels are mapped into a standardized taxonomy.
 
+The target taxonomy for model training is intentionally limited to five classes:
+Positive, Neutral, Anger, Sadness, and Fear.
+
+Fine-grained source labels are consolidated into these five classes rather than treated as separate outputs.
+
 | Original Label | Standardized Emotion |
 | -------------- | -------------------- |
 | Joy            | Positive             |
 | Love           | Positive             |
 | Surprise       | Positive             |
+| Frustration    | Anger                |
 | Neutral        | Neutral              |
 | Anger          | Anger                |
 | Sadness        | Sadness              |
+| Grief          | Sadness              |
 | Fear           | Fear                 |
+| Anxiety        | Fear                 |
+| Panic          | Fear                 |
 
 This standardization allows multiple datasets to be merged without conflicts.
+
+Record counts reported after preprocessing/splitting represent dataset size, not the number of label categories.
 
 ---
 

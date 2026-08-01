@@ -190,6 +190,10 @@ Future versions of CTRL4 may integrate this dataset more directly into Retrieval
 
 Since the integrated datasets use different emotion labels, all records were mapped into a common taxonomy before model training.
 
+The original datasets contain many fine-grained labels (for example anxiety, worry, panic, grief, disappointment, frustration, joy, love, optimism).
+
+These labels were not used as independent output classes. Instead, they were consolidated into the five core classes below.
+
 The current emotion categories are:
 
 - Positive
@@ -198,10 +202,19 @@ The current emotion categories are:
 - Fear
 - Anger
 
+Example consolidations:
+
+- Anxiety, Worry, Panic -> Fear
+- Grief, Hopelessness, Disappointment -> Sadness
+- Joy, Love, Optimism -> Positive
+- Frustration, Annoyance, Disapproval -> Anger
+
 Each prediction also includes:
 
 - Overall sentiment
 - Confidence score
+
+Dataset sample counts in this document refer to the number of records available/merged, not to the number of prediction labels.
 
 This standardized taxonomy simplifies training and improves consistency across multiple datasets.
 

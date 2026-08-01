@@ -51,7 +51,7 @@ def predict_test_set(model, tokenizer, test_dataset):
     """
     trainer = Trainer(
         model=model,
-        tokenizer=tokenizer,
+        processing_class=tokenizer,
     )
 
     predictions = trainer.predict(test_dataset)
@@ -266,52 +266,83 @@ def generate_training_history_plots():
             if "train_accuracy" in entry:
                 train_accuracy.append(entry["train_accuracy"])
 
+        # Keep all series aligned and ignore any duplicated final evaluation.
+        num_epochs = min(
+            len(train_loss),
+            len(eval_loss),
+            len(train_accuracy),
+            len(eval_accuracy),
+        )
+
+        train_loss = train_loss[:num_epochs]
+        eval_loss = eval_loss[:num_epochs]
+        train_accuracy = train_accuracy[:num_epochs]
+        eval_accuracy = eval_accuracy[:num_epochs]
+        epochs = list(range(1, num_epochs + 1))
+
         # Plot training and evaluation loss
         plt.figure(figsize=(8, 6))
-        if train_loss:
-            plt.plot(range(1, len(train_loss) + 1), train_loss, label="Training Loss")
-        if eval_loss:
-            plt.plot(range(1, len(eval_loss) + 1), eval_loss, label="Validation Loss")
+        plt.plot(
+            epochs,
+            train_loss,
+            marker="o",
+            linewidth=2,
+            markersize=6,
+            label="Training Loss",
+        )
+        plt.plot(
+            epochs,
+            eval_loss,
+            marker="o",
+            linewidth=2,
+            markersize=6,
+            label="Validation Loss",
+        )
         plt.title("Training and Validation Loss")
         plt.xlabel("Epoch")
         plt.ylabel("Loss")
-        plt.legend()
+        plt.xticks(epochs)
+        plt.grid(True, linestyle="--", alpha=0.3)
+        plt.legend(loc="upper left")
         plt.tight_layout()
         loss_plot_path = os.path.join(EVALUATION_OUTPUT_DIR, "training_validation_loss.png")
         plt.savefig(loss_plot_path, dpi=300, bbox_inches="tight")
         plt.close()
         print(f"Training and validation loss plot saved to {loss_plot_path}")
 
+        # Plot training and evaluation accuracy
         plt.figure(figsize=(8, 6))
-        if train_accuracy:
-            plt.plot(
-                range(1, len(train_accuracy) + 1),
-                train_accuracy,
-                label="Training Accuracy",
-            )
-        if eval_accuracy:
-            plt.plot(
-                range(1, len(eval_accuracy) + 1),
-                eval_accuracy,
-                label="Validation Accuracy",
-            )
-
-        if train_accuracy or eval_accuracy:
-            plt.title("Training and Validation Accuracy")
-            plt.xlabel("Epoch")
-            plt.ylabel("Accuracy")
-            plt.ylim(0, 1.05)
-            plt.legend()
-            plt.tight_layout()
-            acc_plot_path = os.path.join(
-                EVALUATION_OUTPUT_DIR,
-                "training_validation_accuracy.png",
-            )
-            plt.savefig(acc_plot_path, dpi=300, bbox_inches="tight")
-            plt.close()
-            print(f"Training and validation accuracy plot saved to {acc_plot_path}")
-        else:
-            print("No accuracy data found in training history. Skipping accuracy plot generation.")
+        plt.plot(
+            epochs,
+            train_accuracy,
+            marker="o",
+            linewidth=2,
+            markersize=6,
+            label="Training Accuracy",
+        )
+        plt.plot(
+            epochs,
+            eval_accuracy,
+            marker="o",
+            linewidth=2,
+            markersize=6,
+            label="Validation Accuracy",
+        )
+        plt.title("Training and Validation Accuracy")
+        plt.xlabel("Epoch")
+        plt.ylabel("Accuracy")
+        plt.ylim(0, 1.05)
+        plt.xticks(epochs)
+        plt.grid(True, linestyle="--", alpha=0.3)
+        plt.legend(loc="upper left")
+        plt.tight_layout()
+        acc_plot_path = os.path.join(
+            EVALUATION_OUTPUT_DIR,
+            "training_validation_accuracy.png",
+        )
+        plt.savefig(acc_plot_path, dpi=300, bbox_inches="tight")
+        plt.close()
+        print(f"Training and validation accuracy plot saved to {acc_plot_path}")
         return
 
     # Fallback: dictionary-based plotting logic (legacy format)

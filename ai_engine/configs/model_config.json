@@ -25,7 +25,7 @@
 
     "output_dir": "ai_engine/models/emotion_model",
 
-    "best_model_metric": "f1",
+    "best_model_metric": "eval_f1",
 
     "greater_is_better": true
 }

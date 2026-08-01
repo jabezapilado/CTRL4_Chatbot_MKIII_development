@@ -38,6 +38,8 @@ This document records the complete training process of the English Emotion Recog
 
 The model was fine-tuned using a merged English emotion dataset composed of GoEmotions, ISEAR, and DAIR-AI Emotion. Training was performed using the Hugging Face Transformers framework with PyTorch.
 
+Although these datasets contain many fine-grained source emotions, preprocessing consolidates them into five core classes for training: Positive, Neutral, Anger, Sadness, and Fear.
+
 This document serves as a reproducible record of the model development process, including the training environment, dataset preparation, hyperparameters, checkpoints, and final evaluation results.
 
 ---
@@ -80,15 +82,19 @@ The training process was designed to:
 | DAIR-AI Emotion  | 20,000  |
 | **Raw Total**    | **81,365** |
 
-After preprocessing, validation, and removal of invalid records, the final dataset contained **80,975** samples.
+After preprocessing, validation, and removal of invalid records, the final dataset contained **80,811** samples.
+
+Sample counts refer to record volume in the merged datasets, not to the number of prediction classes.
+
+Fine-grained source labels were remapped before training (for example: Anxiety/Worry/Panic -> Fear, Grief/Hopelessness -> Sadness, Joy/Love/Optimism -> Positive).
 
 ### Dataset Split
 
 | Dataset Split | Samples |
 | ------------- | ------: |
-| Training      | 64,551  |
-| Validation    |  8,104  |
-| Testing       |  8,107  |
+| Training      | 64,721  |
+| Validation    |  8,043  |
+| Testing       |  8,047  |
 
 ---
 
