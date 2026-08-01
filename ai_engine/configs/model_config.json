@@ -9,13 +9,15 @@
 
     "learning_rate": 2e-5,
 
-    "epochs": 3,
+    "epochs": 5,
 
     "weight_decay": 0.01,
 
+    "use_class_weights": true,
+
     "warmup_ratio": 0.1,
 
-    "label_smoothing_factor": 0.05,
+    "label_smoothing_factor": 0.0,
 
     "evaluation_strategy": "epoch",
 
@@ -29,9 +31,9 @@
 
     "best_model_metric": "eval_f1",
 
-    "early_stopping_patience": 1,
+    "early_stopping_patience": 2,
 
-    "early_stopping_threshold": 0.0005,
+    "early_stopping_threshold": 0.0,
 
     "greater_is_better": true
 }

@@ -279,13 +279,19 @@ def generate_training_history_plots():
 
         epochs = sorted(epoch_metrics.keys())[:MAX_HISTORY_EPOCHS]
 
-        loss_epochs = [
+        train_loss_epochs = [
             epoch
             for epoch in epochs
-            if "train_loss" in epoch_metrics[epoch] and "eval_loss" in epoch_metrics[epoch]
+            if "train_loss" in epoch_metrics[epoch]
         ]
-        train_loss = [epoch_metrics[epoch]["train_loss"] for epoch in loss_epochs]
-        eval_loss = [epoch_metrics[epoch]["eval_loss"] for epoch in loss_epochs]
+        train_loss = [epoch_metrics[epoch]["train_loss"] for epoch in train_loss_epochs]
+
+        eval_loss_epochs = [
+            epoch
+            for epoch in epochs
+            if "eval_loss" in epoch_metrics[epoch]
+        ]
+        eval_loss = [epoch_metrics[epoch]["eval_loss"] for epoch in eval_loss_epochs]
 
         acc_epochs = [
             epoch
@@ -329,41 +335,50 @@ def generate_training_history_plots():
 
         # Plot training and evaluation loss
         plt.figure(figsize=(8, 6))
-        plt.plot(
-            loss_epochs,
-            train_loss,
-            marker="o",
-            linewidth=2,
-            markersize=6,
-            label="Training Loss",
-        )
-        plt.plot(
-            loss_epochs,
-            eval_loss,
-            marker="o",
-            linewidth=2,
-            markersize=6,
-            label="Validation Loss",
-        )
-        plt.title("Training and Validation Loss")
-        plt.xlabel("Epoch")
-        plt.ylabel("Loss")
-        plt.xticks(loss_epochs)
-        plt.grid(
-            True,
-            which="major",
-            axis="both",
-            linestyle="--",
-            linewidth=0.9,
-            color="#b0b0b0",
-            alpha=0.85,
-        )
-        plt.legend(loc="upper left")
-        plt.tight_layout()
-        loss_plot_path = os.path.join(EVALUATION_OUTPUT_DIR, "training_validation_loss.png")
-        plt.savefig(loss_plot_path, dpi=300, bbox_inches="tight")
-        plt.close()
-        print(f"Training and validation loss plot saved to {loss_plot_path}")
+        if train_loss:
+            plt.plot(
+                train_loss_epochs,
+                train_loss,
+                marker="o",
+                linewidth=2,
+                markersize=6,
+                label="Training Loss",
+            )
+
+        if eval_loss:
+            plt.plot(
+                eval_loss_epochs,
+                eval_loss,
+                marker="o",
+                linewidth=2,
+                markersize=6,
+                label="Validation Loss",
+            )
+
+        if not train_loss and not eval_loss:
+            print("No loss data found in training history. Skipping loss plot generation.")
+            plt.close()
+        else:
+            loss_xticks = sorted(set(train_loss_epochs + eval_loss_epochs))
+            plt.title("Training and Validation Loss")
+            plt.xlabel("Epoch")
+            plt.ylabel("Loss")
+            plt.xticks(loss_xticks)
+            plt.grid(
+                True,
+                which="major",
+                axis="both",
+                linestyle="--",
+                linewidth=0.9,
+                color="#b0b0b0",
+                alpha=0.85,
+            )
+            plt.legend(loc="upper left")
+            plt.tight_layout()
+            loss_plot_path = os.path.join(EVALUATION_OUTPUT_DIR, "training_validation_loss.png")
+            plt.savefig(loss_plot_path, dpi=300, bbox_inches="tight")
+            plt.close()
+            print(f"Training and validation loss plot saved to {loss_plot_path}")
 
         # Plot training and evaluation accuracy
         plt.figure(figsize=(8, 6))

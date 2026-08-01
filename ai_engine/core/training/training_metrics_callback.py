@@ -1,4 +1,6 @@
 import numpy as np
+import torch
+import torch.nn.functional as F
 from sklearn.metrics import precision_recall_fscore_support
 from transformers import TrainerCallback
 
@@ -55,6 +57,10 @@ class TrainingMetricsCallback(TrainerCallback):
 
         predictions = np.argmax(logits, axis=-1)
 
+        logits_tensor = torch.tensor(logits, dtype=torch.float32)
+        labels_tensor = torch.tensor(labels, dtype=torch.long)
+        train_loss = float(F.cross_entropy(logits_tensor, labels_tensor).item())
+
         train_accuracy = float(np.mean(predictions == labels))
         train_precision, train_recall, train_f1, _ = precision_recall_fscore_support(
             labels,
@@ -69,6 +75,7 @@ class TrainingMetricsCallback(TrainerCallback):
                 "train_precision": float(train_precision),
                 "train_recall": float(train_recall),
                 "train_f1": float(train_f1),
+                "train_loss": train_loss,
                 "train_eval_samples": len(eval_dataset),
             }
         )

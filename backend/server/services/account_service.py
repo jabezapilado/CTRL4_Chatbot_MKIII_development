@@ -319,6 +319,7 @@ def create_account_service(payload: dict) -> dict:
 def list_accounts_service(filters: dict) -> list[dict]:
     role = str(filters.get("role", "")).strip().lower() or None
     status = str(filters.get("status", "")).strip().lower() or None
+    query = str(filters.get("q", "")).strip() or None
 
     if role and role not in VALID_ROLES:
         raise ValueError("Invalid account role.")
@@ -326,7 +327,7 @@ def list_accounts_service(filters: dict) -> list[dict]:
     if status and status not in ALLOWED_ACCOUNT_STATUSES:
         raise ValueError("Invalid account status.")
 
-    return list_accounts(role=role, status=status)
+    return list_accounts(role=role, status=status, query=query)
 
 
 def update_student_account_service(account_id: int, payload: dict) -> dict:

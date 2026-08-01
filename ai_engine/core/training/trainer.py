@@ -10,6 +10,8 @@ from transformers import (
     TrainingArguments,
     EarlyStoppingCallback,
 )
+import numpy as np
+import torch
 
 from ai_engine.core.training.training_metrics_callback import TrainingMetricsCallback
 
@@ -20,6 +22,26 @@ from ai_engine.core.utilities.config import load_config
 
 
 config = load_config("model_config.json")
+
+
+def compute_class_weights(train_dataset, num_labels):
+    labels = np.array(train_dataset["labels"], dtype=np.int64)
+
+    if labels.size == 0:
+        return None
+
+    counts = np.bincount(labels, minlength=num_labels)
+    total = counts.sum()
+
+    weights = np.zeros(num_labels, dtype=np.float32)
+    nonzero = counts > 0
+    weights[nonzero] = total / (num_labels * counts[nonzero])
+
+    # Keep average weight near 1.0 for stable optimization.
+    if np.any(nonzero):
+        weights[nonzero] = weights[nonzero] / weights[nonzero].mean()
+
+    return torch.tensor(weights, dtype=torch.float32)
 
 
 def create_trainer(
@@ -69,6 +91,13 @@ def create_trainer(
 
     )
 
+    class_weights = None
+    if config.get("use_class_weights", True):
+        class_weights = compute_class_weights(
+            train_dataset,
+            model.config.num_labels,
+        )
+
     trainer = EmotionTrainer(
 
         model=model,
@@ -82,6 +111,8 @@ def create_trainer(
         processing_class=tokenizer,
 
         compute_metrics=compute_metrics,
+
+        class_weights=class_weights,
 
         callbacks=[
             training_metrics_callback,

@@ -23,6 +23,7 @@ config = load_config("model_config.json")
 
 
 MODELS_DIR = Path("ai_engine/models")
+DOCS_MODELS_DIR = Path("docs/models/english_model")
 LANGUAGE = "english"
 
 
@@ -71,7 +72,16 @@ def publish_model():
 
     copy_directory(version_dir, latest_dir)
 
-    return version_dir, latest_dir
+    docs_version_dir = DOCS_MODELS_DIR / version_dir.name
+    docs_latest_dir = DOCS_MODELS_DIR / "latest"
+
+    print(f"Mirroring model to {docs_version_dir}")
+    copy_directory(version_dir, docs_version_dir)
+
+    print("Updating docs latest model...")
+    copy_directory(docs_version_dir, docs_latest_dir)
+
+    return version_dir, latest_dir, docs_version_dir, docs_latest_dir
 
 def main():
 
@@ -145,7 +155,7 @@ def main():
     print("=" * 60)
     print(config["output_dir"])
 
-    version_dir, latest_dir = publish_model()
+    version_dir, latest_dir, docs_version_dir, docs_latest_dir = publish_model()
 
     print("\nRunning evaluation...\n")
 
@@ -156,6 +166,8 @@ def main():
     print("=" * 60)
     print(f"Published Model : {version_dir}")
     print(f"Latest Model    : {latest_dir}")
+    print(f"Docs Model      : {docs_version_dir}")
+    print(f"Docs Latest     : {docs_latest_dir}")
     print("Evaluation      : docs/models/evaluation")
 
 

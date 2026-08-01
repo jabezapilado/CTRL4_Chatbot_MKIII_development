@@ -782,6 +782,7 @@ def list_accounts(
     *,
     role: str | None = None,
     status: str | None = None,
+    query: str | None = None,
 ) -> list[dict[str, Any]]:
     initialize_database()
 
@@ -801,6 +802,39 @@ def list_accounts(
             raise ValueError("Invalid account status.")
         filters.append("status = %s")
         params.append(status)
+
+    if query:
+        search_value = f"%{query.strip()}%"
+        filters.append(
+            """
+            (
+                (
+                    role = 'student'
+                    AND (
+                        full_name LIKE %s
+                        OR email LIKE %s
+                        OR student_number LIKE %s
+                    )
+                )
+                OR (
+                    role = 'staff'
+                    AND (
+                        full_name LIKE %s
+                        OR email LIKE %s
+                        OR staff_number LIKE %s
+                    )
+                )
+            )
+            """
+        )
+        params.extend([
+            search_value,
+            search_value,
+            search_value,
+            search_value,
+            search_value,
+            search_value,
+        ])
 
     where_clause = ""
     if filters:
