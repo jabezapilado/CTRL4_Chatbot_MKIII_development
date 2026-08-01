@@ -4,6 +4,7 @@ import re
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from ..db import (
+    ALLOWED_ACCOUNT_ROLES,
     ALLOWED_ACCOUNT_STATUSES,
     ALLOWED_GENDERS,
     create_account,
@@ -16,8 +17,7 @@ from ..config import Config
 
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
-# Centralized valid roles
-VALID_ROLES = frozenset({"student", "staff", "admin"})
+VALID_ROLES = ALLOWED_ACCOUNT_ROLES
 ADMIN_ACCOUNT_CREATE_FIELDS = frozenset({
     "full_name",
     "email",
@@ -82,6 +82,29 @@ def _validate_gender(value: object) -> str:
     if gender not in ALLOWED_GENDERS:
         raise ValueError("Invalid gender.")
     return gender
+
+
+def _validate_role(value: object) -> str:
+    role = str(value).strip().lower()
+    if role not in VALID_ROLES:
+        raise ValueError("Invalid account role.")
+    return role
+
+
+def _validate_status(value: object) -> str:
+    status = str(value or "").strip().lower()
+    if status not in ALLOWED_ACCOUNT_STATUSES:
+        raise ValueError("Invalid account status.")
+    return status
+
+
+def _validate_student_program(value: object) -> str:
+    program = str(value or "").strip()
+    if not program:
+        raise ValueError("Program is required.")
+    if program not in config.PROGRAMS:
+        raise ValueError("Invalid program.")
+    return program
 
 
 def _decode_list(value: object) -> list:
@@ -260,11 +283,54 @@ def _validate_common_account_updates(
     return updates
 
 
+def _is_duplicate_email_persistence_error(exc: Exception) -> bool:
+    message = str(exc).lower()
+
+    if (
+        isinstance(exc, ValueError)
+        and "email" in message
+        and "already exists" in message
+    ):
+        return True
+
+    errno = getattr(exc, "errno", None)
+    if errno == 1062 and "email" in message:
+        return True
+
+    return False
+
+
+def _create_account_with_duplicate_email_translation(**account_fields) -> dict:
+    try:
+        return create_account(**account_fields)
+    except Exception as exc:
+        if _is_duplicate_email_persistence_error(exc):
+            raise FileExistsError("Email already exists.") from exc
+        raise
+
+
+def _update_account_fields_with_duplicate_email_translation(
+    account_id: int,
+    updates: dict,
+    *,
+    role: str,
+) -> dict | None:
+    try:
+        return update_account_fields(account_id, updates, role=role)
+    except Exception as exc:
+        if _is_duplicate_email_persistence_error(exc):
+            raise FileExistsError("Email already exists.") from exc
+        raise
+
+
 def create_account_service(payload: dict) -> dict:
+    if not isinstance(payload, dict):
+        raise ValueError("Invalid request payload.")
+
     full_name = str(payload.get("full_name", "")).strip()
     email = str(payload.get("email", "")).strip().lower()
     password = str(payload.get("password", ""))
-    role = str(payload.get("role", "student")).strip().lower()
+    role = str(payload["role"] if "role" in payload else "student").strip().lower()
 
     gender = str(payload.get("gender", "")).strip() or None
     program = str(payload.get("program", "")).strip() or None
@@ -277,22 +343,15 @@ def create_account_service(payload: dict) -> dict:
 
     if len(password) < 8:
         raise ValueError("Password must be at least 8 characters long.")
-    if not EMAIL_PATTERN.fullmatch(email):
-        raise ValueError("Invalid email address.")
 
-    if fetch_account_by_email(email):
-        raise FileExistsError("Email already exists.")
+    full_name = _validate_full_name(full_name)
+    email = _validate_email(email)
+    role = _validate_role(role)
 
     if role == "student":
-        if not program:
-            raise ValueError("Program is required.")
-        if not gender:
-            raise ValueError("Gender is required.")
-    elif role in VALID_ROLES - {"student"}:
-        if not gender:
-            raise ValueError("Gender is required.")
-    elif role not in VALID_ROLES:
-        raise ValueError("Invalid account role.")
+        program = _validate_student_program(program)
+
+    gender = _validate_gender(gender)
 
     if role == "admin":
         unsupported_fields = set(payload) - ADMIN_ACCOUNT_CREATE_FIELDS
@@ -303,7 +362,7 @@ def create_account_service(payload: dict) -> dict:
     if role == "staff":
         staff_profile = _validate_staff_profile_fields(payload)
 
-    return create_account(
+    return _create_account_with_duplicate_email_translation(
         full_name=full_name,
         email=email,
         password_hash=generate_password_hash(password),
@@ -321,11 +380,11 @@ def list_accounts_service(filters: dict) -> list[dict]:
     status = str(filters.get("status", "")).strip().lower() or None
     query = str(filters.get("q", "")).strip() or None
 
-    if role and role not in VALID_ROLES:
-        raise ValueError("Invalid account role.")
+    if role:
+        role = _validate_role(role)
 
-    if status and status not in ALLOWED_ACCOUNT_STATUSES:
-        raise ValueError("Invalid account status.")
+    if status:
+        status = _validate_status(status)
 
     return list_accounts(role=role, status=status, query=query)
 
@@ -345,32 +404,15 @@ def update_student_account_service(account_id: int, payload: dict) -> dict:
     if not existing_account:
         raise LookupError("Student account not found.")
 
-    updates = {}
-
-    if "full_name" in payload:
-        updates["full_name"] = _validate_full_name(payload.get("full_name"))
-
-    if "email" in payload:
-        updates["email"] = _validate_email(
-            payload.get("email"),
-            existing_account_id=existing_account["id"],
-        )
-
-    if "gender" in payload:
-        updates["gender"] = _validate_gender(payload.get("gender"))
+    updates = _validate_common_account_updates(payload, existing_account)
 
     if "program" in payload:
-        program = str(payload.get("program", "")).strip()
-        if not program:
-            raise ValueError("Program is required.")
-        if program not in config.PROGRAMS:
-            raise ValueError("Invalid program.")
-        updates["program"] = program
+        updates["program"] = _validate_student_program(payload.get("program"))
 
     if not updates:
         raise ValueError("No supported account fields were provided.")
 
-    updated_account = update_account_fields(
+    updated_account = _update_account_fields_with_duplicate_email_translation(
         account_id,
         updates,
         role="student",
@@ -396,20 +438,7 @@ def update_staff_account_service(account_id: int, payload: dict) -> dict:
     if not existing_account:
         raise LookupError("Staff account not found.")
 
-    updates = {}
-
-    if "full_name" in payload:
-        updates["full_name"] = _validate_full_name(payload.get("full_name"))
-
-    if "email" in payload:
-        updates["email"] = _validate_email(
-            payload.get("email"),
-            existing_account_id=existing_account["id"],
-        )
-
-    if "gender" in payload:
-        updates["gender"] = _validate_gender(payload.get("gender"))
-
+    updates = _validate_common_account_updates(payload, existing_account)
     updates.update(
         _validate_staff_profile_fields(
             payload,
@@ -420,7 +449,7 @@ def update_staff_account_service(account_id: int, payload: dict) -> dict:
     if not updates:
         raise ValueError("No supported account fields were provided.")
 
-    updated_account = update_account_fields(
+    updated_account = _update_account_fields_with_duplicate_email_translation(
         account_id,
         updates,
         role="staff",
@@ -451,7 +480,7 @@ def update_admin_account_service(account_id: int, payload: dict) -> dict:
     if not updates:
         raise ValueError("No supported account fields were provided.")
 
-    updated_account = update_account_fields(
+    updated_account = _update_account_fields_with_duplicate_email_translation(
         account_id,
         updates,
         role="admin",
