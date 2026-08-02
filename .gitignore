@@ -140,3 +140,9 @@ ollama/
 *.rar
 *.tar
 *.gz
+
+
+# ===========================================
+# Hugging Face Checkpoints
+# ===========================================
+ai_engine/models/**/checkpoint-*/

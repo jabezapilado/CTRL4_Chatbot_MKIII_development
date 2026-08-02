@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import date, datetime, time, timedelta
 from typing import Any
 
@@ -49,6 +50,21 @@ ACCOUNT_JSON_FIELDS: Final[frozenset[str]] = frozenset({
     "consultation_rooms",
     "consultation_schedules",
 })
+APPOINTMENT_STATUSES: Final[tuple[str, ...]] = (
+    "pending",
+    "confirmed",
+    "cancelled",
+    "rejected",
+    "completed",
+)
+_MIGRATION_LEGACY_APPOINTMENT_STATUSES: Final[tuple[str, ...]] = (
+    "approved",
+    "done",
+    "did_not_attend",
+)
+_MIGRATION_KNOWN_APPOINTMENT_STATUSES: Final[frozenset[str]] = frozenset(
+    APPOINTMENT_STATUSES + _MIGRATION_LEGACY_APPOINTMENT_STATUSES
+)
 
 
 def _connection_kwargs(database: str | None = None) -> dict[str, Any]:
@@ -306,6 +322,75 @@ def generate_next_staff_number() -> str:
     return f"STF-{last:04d}"
 
 
+def _appointment_status_enum_definition(statuses: tuple[str, ...]) -> str:
+    return ", ".join(f"'{status}'" for status in statuses)
+
+
+def _migrate_appointment_status_enum(cursor: Any) -> None:
+    cursor.execute(
+        """
+        SELECT COLUMN_TYPE
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = %s
+          AND TABLE_NAME = 'appointments'
+          AND COLUMN_NAME = 'status'
+        """,
+        (config.DB_NAME,),
+    )
+    row = cursor.fetchone()
+    if not row:
+        raise RuntimeError("Unable to inspect the appointments status column.")
+
+    column_type = str(row[0])
+    if not column_type.casefold().startswith("enum("):
+        raise RuntimeError("Appointments status column must be an ENUM.")
+
+    configured_statuses = tuple(re.findall(r"'([^']*)'", column_type))
+    if set(configured_statuses) == set(APPOINTMENT_STATUSES):
+        return
+
+    unexpected_schema_statuses = (
+        set(configured_statuses) - _MIGRATION_KNOWN_APPOINTMENT_STATUSES
+    )
+    if unexpected_schema_statuses:
+        raise RuntimeError("Appointments status column contains unsupported values.")
+
+    cursor.execute("SELECT DISTINCT status FROM appointments")
+    stored_statuses = {str(status_row[0]) for status_row in cursor.fetchall()}
+    unexpected_stored_statuses = (
+        stored_statuses - _MIGRATION_KNOWN_APPOINTMENT_STATUSES
+    )
+    if unexpected_stored_statuses:
+        raise RuntimeError("Appointments contain unsupported status values.")
+
+    transitional_statuses = (
+        _MIGRATION_LEGACY_APPOINTMENT_STATUSES + APPOINTMENT_STATUSES
+    )
+    cursor.execute(
+        f"""
+        ALTER TABLE appointments
+        MODIFY COLUMN status ENUM({_appointment_status_enum_definition(transitional_statuses)})
+        NOT NULL DEFAULT 'pending'
+        """
+    )
+    for legacy_status, target_status in (
+        ("approved", "confirmed"),
+        ("done", "completed"),
+        ("did_not_attend", "cancelled"),
+    ):
+        cursor.execute(
+            "UPDATE appointments SET status = %s WHERE status = %s",
+            (target_status, legacy_status),
+        )
+    cursor.execute(
+        f"""
+        ALTER TABLE appointments
+        MODIFY COLUMN status ENUM({_appointment_status_enum_definition(APPOINTMENT_STATUSES)})
+        NOT NULL DEFAULT 'pending'
+        """
+    )
+
+
 def initialize_database() -> None:
     with _server_connection() as connection:
         with connection.cursor() as cursor:
@@ -420,10 +505,10 @@ def initialize_database() -> None:
                     reason TEXT NOT NULL,
                     status ENUM(
                         'pending',
-                        'approved',
-                        'done',
-                        'did_not_attend',
-                        'cancelled'
+                        'confirmed',
+                        'cancelled',
+                        'rejected',
+                        'completed'
                     ) NOT NULL DEFAULT 'pending',
                     counselor_notes TEXT NULL,
                     appointment_source ENUM(
@@ -452,6 +537,7 @@ def initialize_database() -> None:
                 )
                 """
             )
+            _migrate_appointment_status_enum(cursor)
         connection.commit()
 
 
@@ -555,32 +641,17 @@ def save_appointment(payload: dict[str, Any]) -> int:
         connection.commit()
         return int(appointment_id)
 
-def has_appointment_conflict(
+def list_appointments_by_date(
     preferred_date: str,
-    preferred_time_slot: str,
-) -> bool:
-    initialize_database()
-
-    with _database_connection() as connection:
-        with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                SELECT id
-                FROM appointments
-                WHERE preferred_date = %s
-                AND preferred_time_slot = %s
-                AND status IN ('pending', 'approved')
-                LIMIT 1
-                """,
-                (
-                    preferred_date,
-                    preferred_time_slot,
-                ),
-            )
-
-            row = cursor.fetchone()
-
-    return row is not None
+) -> list[dict[str, Any]]:
+    return fetch_rows(
+        """
+        SELECT preferred_time_slot, status
+        FROM appointments
+        WHERE preferred_date = %s
+        """,
+        (preferred_date,),
+    )
 
 def save_conversation_summary(payload: dict[str, Any]) -> int:
     initialize_database()
@@ -1117,7 +1188,7 @@ def get_dashboard_stats() -> dict[str, Any]:
                 """
                 SELECT COUNT(*)
                 FROM appointments
-                WHERE status = 'done'
+                WHERE status = 'completed'
                   AND preferred_date = CURDATE()
                 """
             )
@@ -1397,15 +1468,7 @@ def get_appointment_by_id(
 def update_appointment_status(appointment_id: int, status: str,) -> None:
     initialize_database()
     
-    allowed_statuses = {
-        "pending",
-        "approved",
-        "done",
-        "did_not_attend",
-        "cancelled",
-    }
-
-    if status not in allowed_statuses:
+    if status not in APPOINTMENT_STATUSES:
         raise ValueError("Invalid appointment status.")
     
     with _database_connection() as connection:

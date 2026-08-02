@@ -266,15 +266,21 @@ def generate_training_history_plots():
 
             metrics = epoch_metrics.setdefault(epoch_num, {})
 
-            if "loss" in entry:
+            # Prefer per-epoch callback loss (train_loss + train_eval_samples).
+            # Fall back to Trainer's epoch "loss" key for older histories.
+            if "train_loss" in entry and "train_eval_samples" in entry:
+                metrics["train_loss"] = entry["train_loss"]
+            elif "loss" in entry:
                 metrics["train_loss"] = entry["loss"]
-            if "eval_loss" in entry:
+            # Keep the first eval metrics observed for an epoch to preserve
+            # the true epoch checkpoint trend and avoid final-summary overwrite.
+            if "eval_loss" in entry and "eval_loss" not in metrics:
                 metrics["eval_loss"] = entry["eval_loss"]
-            if "eval_accuracy" in entry:
+            if "eval_accuracy" in entry and "eval_accuracy" not in metrics:
                 metrics["eval_accuracy"] = entry["eval_accuracy"]
-            if "train_accuracy" in entry:
+            if "train_accuracy" in entry and "train_accuracy" not in metrics:
                 metrics["train_accuracy"] = entry["train_accuracy"]
-            elif "train_test_accuracy" in entry:
+            elif "train_test_accuracy" in entry and "train_accuracy" not in metrics:
                 metrics["train_accuracy"] = entry["train_test_accuracy"]
 
         epochs = sorted(epoch_metrics.keys())[:MAX_HISTORY_EPOCHS]

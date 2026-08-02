@@ -103,10 +103,10 @@ CREATE TABLE IF NOT EXISTS appointments (
     reason TEXT NOT NULL,
     status ENUM(
         'pending',
-        'approved',
-        'done',
-        'did_not_attend',
-        'cancelled'
+        'confirmed',
+        'cancelled',
+        'rejected',
+        'completed'
     ) NOT NULL DEFAULT 'pending',
     counselor_notes TEXT NULL,
     appointment_source ENUM(

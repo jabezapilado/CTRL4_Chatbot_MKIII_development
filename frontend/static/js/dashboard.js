@@ -252,7 +252,7 @@ function renderAppointmentStatistics() {
 
   const completedToday = appointments.filter(
     (appointment) =>
-      appointment.status === "done" &&
+      appointment.status === "completed" &&
       normalizeDate(appointment.date) === today,
   ).length;
 
@@ -314,10 +314,10 @@ function renderTodaysAppointments() {
     return parsed.toISOString().split("T")[0];
   };
 
-  // Manual appointments are created with an "approved" status,
+  // Manual appointments are created with a "confirmed" status,
   // so no special-case filtering is required here.
-  const approvedAppointments = appointments.filter(
-    (appointment) => appointment.status === "approved",
+  const confirmedAppointments = appointments.filter(
+    (appointment) => appointment.status === "confirmed",
   );
 
   const container = document.getElementById("todays-appointments-container");
@@ -326,17 +326,17 @@ function renderTodaysAppointments() {
 
   container.innerHTML = "";
 
-  if (!approvedAppointments.length) {
+  if (!confirmedAppointments.length) {
     container.innerHTML = `
       <p class="sub">
-        No approved appointments.
+        No confirmed appointments.
       </p>
     `;
 
     return;
   }
 
-  approvedAppointments.forEach((appointment) => {
+  confirmedAppointments.forEach((appointment) => {
     const card = createTodaysAppointmentCard(appointment);
     container.appendChild(card);
   });
@@ -346,7 +346,7 @@ function renderAppointmentHistory() {
   const appointments = window.backendAppointments || [];
 
   const historyAppointments = appointments.filter((appointment) =>
-    ["done", "did_not_attend", "cancelled"].includes(appointment.status),
+    ["completed", "cancelled", "rejected"].includes(appointment.status),
   );
 
   const container = document.getElementById("appointment-history-container");
@@ -736,9 +736,9 @@ function createPendingAppointmentCard(appointment) {
         View Details
       </button>
       <button
-          class="btn btn-primary appointment-approve-btn"
+          class="btn btn-primary appointment-confirm-btn"
       >
-          Approve
+          Confirm
       </button>
       <button
           class="btn btn-outline appointment-cancel-btn"
@@ -747,13 +747,13 @@ function createPendingAppointmentCard(appointment) {
       </button>
     </div>
   `;
-  const approveButton = card.querySelector(".appointment-approve-btn");
+  const confirmButton = card.querySelector(".appointment-confirm-btn");
   const cancelButton = card.querySelector(".appointment-cancel-btn");
   const viewButton = card.querySelector(".appointment-view-btn");
   viewButton?.addEventListener("click", () => {
     openAppointmentDetails(appointment);
   });
-  approveButton?.addEventListener("click", () => {
+  confirmButton?.addEventListener("click", () => {
     openAppointmentDetails(appointment);
   });
   cancelButton?.addEventListener("click", () => {
@@ -787,14 +787,9 @@ function createTodaysAppointmentCard(appointment) {
         View Details
       </button>
       <button
-        class="btn btn-primary appointment-done-btn"
+        class="btn btn-primary appointment-complete-btn"
       >
-        Done
-      </button>
-      <button
-        class="btn btn-outline appointment-dna-btn"
-      >
-        Did Not Attend
+        Complete
       </button>
       <button
         class="btn btn-outline appointment-cancel-btn"
@@ -803,17 +798,13 @@ function createTodaysAppointmentCard(appointment) {
       </button>
     </div>
   `;
-  const doneButton = card.querySelector(".appointment-done-btn");
-  const didNotAttendButton = card.querySelector(".appointment-dna-btn");
+  const completeButton = card.querySelector(".appointment-complete-btn");
   const cancelButton = card.querySelector(".appointment-cancel-btn");
   const viewButton = card.querySelector(".appointment-view-btn");
   viewButton?.addEventListener("click", () => {
     openAppointmentDetails(appointment);
   });
-  doneButton?.addEventListener("click", () => {
-    openAppointmentDetails(appointment);
-  });
-  didNotAttendButton?.addEventListener("click", () => {
+  completeButton?.addEventListener("click", () => {
     openAppointmentDetails(appointment);
   });
   cancelButton?.addEventListener("click", () => {
@@ -867,6 +858,18 @@ async function updateAppointment(appointment, updates) {
   Object.assign(appointment, updates);
 
   await loadBackendData();
+}
+
+async function updateCounselorNotes(appointment, counselorNotes) {
+  await fetchJson(`${API_BASE}/api/appointments/${appointment.id}/notes`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ counselor_notes: counselorNotes }),
+  });
+
+  appointment.counselorNotes = counselorNotes;
 }
 
 function createFlaggedAppointmentCaseCard(summary) {
@@ -1233,10 +1236,10 @@ function badgeHTML(status) {
     resolved: ["resolved", "Resolved"],
 
     pending: ["pending", "Pending"],
-    approved: ["approved", "Approved"],
-    done: ["resolved", "Done"],
+    confirmed: ["neutral", "Confirmed"],
+    completed: ["resolved", "Completed"],
     cancelled: ["negative", "Cancelled"],
-    did_not_attend: ["negative", "Did Not Attend"],
+    rejected: ["negative", "Rejected"],
   };
   const [cls, label] = map[status] || ["pending", "Pending"];
   return `<span class="badge ${cls}">${label}</span>`;
@@ -1834,12 +1837,12 @@ function openAppointmentDetails(appointment) {
       badge.textContent = "Pending";
       break;
 
-    case "approved":
-      badge.classList.add("approved");
-      badge.textContent = "Approved";
+    case "confirmed":
+      badge.classList.add("neutral");
+      badge.textContent = "Confirmed";
       break;
 
-    case "done":
+    case "completed":
       badge.classList.add("resolved");
       badge.textContent = "Completed";
       break;
@@ -1849,9 +1852,9 @@ function openAppointmentDetails(appointment) {
       badge.textContent = "Cancelled";
       break;
 
-    case "did_not_attend":
+    case "rejected":
       badge.classList.add("negative");
-      badge.textContent = "Did Not Attend";
+      badge.textContent = "Rejected";
       break;
 
     default:
@@ -1862,25 +1865,24 @@ function openAppointmentDetails(appointment) {
   const notesInput = document.getElementById("appointment-notes-input");
   const saveBtn = document.getElementById("save-appointment-notes-btn");
 
-  const approveBtn = document.getElementById("appointment-approve-btn");
-  const doneBtn = document.getElementById("appointment-done-btn");
-  const didNotAttendBtn = document.getElementById("appointment-dna-btn");
+  const confirmBtn = document.getElementById("appointment-confirm-btn");
+  const completeBtn = document.getElementById("appointment-complete-btn");
+  const rejectBtn = document.getElementById("appointment-reject-btn");
   const cancelBtn = document.getElementById("appointment-cancel-btn");
 
   // Action button visibility logic
-  approveBtn.hidden = appointment.status !== "pending";
+  const isPending = appointment.status === "pending";
+  const isConfirmed = appointment.status === "confirmed";
 
-  const canComplete = appointment.status === "approved";
-
-  doneBtn.hidden = !canComplete;
-  didNotAttendBtn.hidden = !canComplete;
-
-  cancelBtn.hidden = !["pending", "approved"].includes(appointment.status);
+  confirmBtn.hidden = !isPending;
+  rejectBtn.hidden = !isPending;
+  completeBtn.hidden = !isConfirmed;
+  cancelBtn.hidden = !["pending", "confirmed"].includes(appointment.status);
 
   notesInput.value = appointment.counselorNotes || "";
 
   // Disable notes editing and hide save button if appointment is closed
-  const appointmentClosed = ["done", "cancelled", "did_not_attend"].includes(
+  const appointmentClosed = ["completed", "cancelled", "rejected"].includes(
     appointment.status,
   );
 
@@ -1918,12 +1920,7 @@ function openAppointmentDetails(appointment) {
 
     saveBtn.disabled = true;
     try {
-      await updateAppointment(appointment, {
-        status: appointment.status,
-        counselor_notes: notes,
-      });
-
-      appointment.counselorNotes = notes;
+      await updateCounselorNotes(appointment, notes);
       originalNotes = notes;
       openAppointmentDetails(appointment);
       createToast("Counselor notes saved.", "success");
@@ -1933,20 +1930,20 @@ function openAppointmentDetails(appointment) {
       createToast("Unable to save counselor notes.", "info");
     }
   };
-  approveBtn.onclick = async () => {
-    approveBtn.disabled = true;
+  confirmBtn.onclick = async () => {
+    confirmBtn.disabled = true;
     try {
       await updateAppointment(appointment, {
-        status: "approved",
+        status: "confirmed",
       });
 
-      createToast("Appointment approved.", "success");
+      createToast("Appointment confirmed.", "success");
 
       openAppointmentDetails(appointment);
     } catch (error) {
       console.error(error);
-      approveBtn.disabled = false;
-      createToast("Unable to approve appointment.", "info");
+      confirmBtn.disabled = false;
+      createToast("Unable to confirm appointment.", "info");
     }
   };
 
@@ -1967,25 +1964,25 @@ function openAppointmentDetails(appointment) {
     }
   };
 
-  didNotAttendBtn.onclick = async () => {
-    didNotAttendBtn.disabled = true;
+  rejectBtn.onclick = async () => {
+    rejectBtn.disabled = true;
     try {
       await updateAppointment(appointment, {
-        status: "did_not_attend",
+        status: "rejected",
       });
 
-      createToast("Appointment marked as did not attend.", "success");
+      createToast("Appointment rejected.", "success");
 
       openAppointmentDetails(appointment);
     } catch (error) {
       console.error(error);
-      didNotAttendBtn.disabled = false;
+      rejectBtn.disabled = false;
       createToast("Unable to update appointment status.", "info");
     }
   };
 
-  doneBtn.onclick = async () => {
-    doneBtn.disabled = true;
+  completeBtn.onclick = async () => {
+    completeBtn.disabled = true;
     const notes = notesInput.value.trim();
 
     if (!notes) {
@@ -1994,22 +1991,25 @@ function openAppointmentDetails(appointment) {
         "info",
       );
       notesInput.focus();
-      doneBtn.disabled = false;
+      completeBtn.disabled = false;
       return;
     }
     try {
-      await updateAppointment(appointment, {
-        status: "done",
-        counselor_notes: notes,
-      });
-      appointment.counselorNotes = notes;
+      if (notes !== originalNotes) {
+        await updateCounselorNotes(appointment, notes);
+        originalNotes = notes;
+      }
 
-      createToast("Appointment marked as done.", "success");
+      await updateAppointment(appointment, {
+        status: "completed",
+      });
+
+      createToast("Appointment marked as completed.", "success");
 
       openAppointmentDetails(appointment);
     } catch (error) {
       console.error(error);
-      doneBtn.disabled = false;
+      completeBtn.disabled = false;
       createToast("Unable to update appointment status.", "info");
     }
   };
