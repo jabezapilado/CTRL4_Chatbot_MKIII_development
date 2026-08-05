@@ -156,6 +156,11 @@
     root.className = "notifications-widget";
     root.setAttribute("aria-label", "Notifications");
 
+    const headerMount = document.querySelector("[data-notifications-mount]");
+    if (headerMount) {
+      root.classList.add("notifications-widget--header");
+    }
+
     const toggle = document.createElement("button");
     toggle.type = "button";
     toggle.className = "notifications-toggle";
@@ -189,7 +194,7 @@
     });
 
     root.append(toggle, panel);
-    document.body.appendChild(root);
+    (headerMount || document.body).appendChild(root);
     loadNotifications();
   }
 

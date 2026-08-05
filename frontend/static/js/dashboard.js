@@ -500,12 +500,7 @@ function renderAnalyticsRows(
   container.replaceChildren();
 
   if (!rows.length) {
-    const row = document.createElement("tr");
-    const cell = document.createElement("td");
-    cell.colSpan = 2;
-    cell.textContent = emptyMessage;
-    row.appendChild(cell);
-    container.appendChild(row);
+    appendTableEmptyState(container, 2, emptyMessage);
     return;
   }
 
@@ -972,6 +967,14 @@ function renderAppointmentStatistics() {
     completedToday;
 }
 
+function renderCompactEmptyState(container, message) {
+  container.replaceChildren();
+  const empty = document.createElement("p");
+  empty.className = "compact-empty-state";
+  empty.textContent = message;
+  container.appendChild(empty);
+}
+
 function renderAppointmentRequests() {
   const appointments = getSearchedAppointments();
 
@@ -984,14 +987,13 @@ function renderAppointmentRequests() {
 
   if (!container) return;
 
-  container.innerHTML = "";
+  container.replaceChildren();
 
   if (!pendingAppointments.length) {
-    container.innerHTML = `
-      <p class="sub">
-        No pending appointment requests.
-      </p>
-    `;
+    renderCompactEmptyState(
+      container,
+      "No pending appointment requests. New student requests will appear here.",
+    );
     return;
   }
 
@@ -1031,15 +1033,13 @@ function renderTodaysAppointments() {
 
   if (!container) return;
 
-  container.innerHTML = "";
+  container.replaceChildren();
 
   if (!confirmedAppointments.length) {
-    container.innerHTML = `
-      <p class="sub">
-        No confirmed appointments.
-      </p>
-    `;
-
+    renderCompactEmptyState(
+      container,
+      "No confirmed appointments. Confirmed appointments awaiting completion will appear here.",
+    );
     return;
   }
 
@@ -1060,14 +1060,13 @@ function renderAppointmentHistory() {
 
   if (!container) return;
 
-  container.innerHTML = "";
+  container.replaceChildren();
 
   if (!historyAppointments.length) {
-    container.innerHTML = `
-      <p class="sub">
-        No appointment history found.
-      </p>
-    `;
+    renderCompactEmptyState(
+      container,
+      "No appointment history is available for the current selection.",
+    );
 
     return;
   }
@@ -1090,14 +1089,13 @@ function renderFlaggedAppointmentCases() {
 
   if (!container) return;
 
-  container.innerHTML = "";
+  container.replaceChildren();
 
   if (!flaggedCases.length) {
-    container.innerHTML = `
-      <p class="sub">
-        No flagged cases requiring appointments.
-      </p>
-    `;
+    renderCompactEmptyState(
+      container,
+      "No flagged cases currently require an appointment recommendation.",
+    );
 
     return;
   }
@@ -1122,7 +1120,7 @@ function renderManualAppointmentEntry() {
     <div class="manual-appointment-card">
       <div class="field-grid-2">
         <div class="field-group">
-          <label>Student</label>
+          <label for="manual-student-search">Student</label>
           <input
             id="manual-student-search"
             type="text"
@@ -1136,7 +1134,7 @@ function renderManualAppointmentEntry() {
         </div>
 
         <div class="field-group">
-          <label>Appointment Source</label>
+          <label for="manual-appointment-source">Appointment Source</label>
           <select id="manual-appointment-source">
             <option>Walk-in</option>
             <option>Hotline</option>
@@ -1148,17 +1146,17 @@ function renderManualAppointmentEntry() {
 
       <div class="field-grid-2">
         <div class="field-group">
-          <label>Student Number</label>
+          <label for="manual-student-number">Student Number</label>
           <input id="manual-student-number" type="text" disabled />
         </div>
 
         <div class="field-group">
-          <label>Program</label>
+          <label for="manual-student-program">Program</label>
           <input id="manual-student-program" type="text" disabled />
         </div>
 
         <div class="field-group">
-          <label>Email Address</label>
+          <label for="manual-student-email">Email Address</label>
           <input id="manual-student-email" type="email" disabled />
         </div>
       </div>
@@ -1167,24 +1165,24 @@ function renderManualAppointmentEntry() {
         <button
           id="create-manual-appointment-btn"
           class="btn btn-primary"
+          type="button"
         >
           Continue
         </button>
       </div>
 
-      <div id="manual-appointment-details" style="display:none; margin-top:24px;">
-        <hr style="margin:20px 0; border:none; border-top:1px solid var(--gray-200);">
+      <div id="manual-appointment-details" class="manual-appointment-details" hidden>
+        <hr class="manual-entry-divider">
 
-        <h3 style="margin-bottom:16px;">Appointment Details</h3>
+        <h3 class="manual-entry-title">Appointment Details</h3>
 
-        <!-- Date/Time Row replaced with new layout -->
         <div class="field-group">
-          <label>Preferred Date</label>
+          <label for="manual-appointment-date">Preferred Date</label>
           <input id="manual-appointment-date" type="date" />
         </div>
 
-        <div class="field-group" style="margin-top:16px;">
-          <label>Preferred Time</label>
+        <div class="field-group manual-entry-spaced">
+          <label for="manual-appointment-time">Preferred Time</label>
           <select id="manual-appointment-time">
             <option value="">Select a preferred time slot</option>
             <option value="8:00 AM">8:00 AM</option>
@@ -1196,9 +1194,9 @@ function renderManualAppointmentEntry() {
           </select>
         </div>
 
-        <div class="field-grid-2" style="margin-top:12px;">
+        <div class="field-grid-2 manual-entry-spaced">
           <div class="field-group">
-            <label>Mode</label>
+            <label for="manual-appointment-mode">Mode</label>
             <select id="manual-appointment-mode">
               <option value="onsite">Onsite</option>
               <option value="online">Online</option>
@@ -1206,7 +1204,7 @@ function renderManualAppointmentEntry() {
           </div>
 
           <div class="field-group">
-            <label>Category</label>
+            <label for="manual-appointment-category">Category</label>
             <select id="manual-appointment-category">
               <option value="career_schooling">Career / Schooling</option>
               <option value="home_family">Home and Family</option>
@@ -1220,13 +1218,13 @@ function renderManualAppointmentEntry() {
           </div>
         </div>
 
-        <div class="field-group" style="margin-top:12px;">
-          <label>Reason</label>
+        <div class="field-group manual-entry-spaced">
+          <label for="manual-appointment-reason">Reason</label>
           <textarea id="manual-appointment-reason" rows="4"></textarea>
         </div>
 
-        <div class="manual-entry-actions" style="margin-top:16px;">
-          <button id="save-manual-appointment-btn" class="btn btn-primary">
+        <div class="manual-entry-actions">
+          <button id="save-manual-appointment-btn" class="btn btn-primary" type="button">
             Create Appointment
           </button>
         </div>
@@ -1356,7 +1354,7 @@ function renderManualAppointmentEntry() {
         "#manual-appointment-details",
       );
       if (detailsSection) {
-        detailsSection.style.display = "block";
+        detailsSection.hidden = false;
         studentSearchInput.disabled = true;
         appointmentSourceSelect.disabled = true;
         detailsSection.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1849,9 +1847,12 @@ const headerSub = document.getElementById("header-sub");
 const headerActions = document.getElementById("header-actions");
 const sidebar = document.getElementById("sidebar");
 const sidebarToggle = document.getElementById("sidebar-toggle");
+const sidebarClose = document.getElementById("sidebar-close");
 const sidebarOverlay = document.getElementById("sidebar-overlay");
+const dashboardLogout = document.getElementById("dashboard-logout");
 const filterTabs = document.querySelectorAll(".filter-tab");
 const currentLocation = window.location.pathname || "";
+const compactNavigation = window.matchMedia("(max-width: 900px)");
 
 const viewMeta = {
   inbox: {
@@ -1919,6 +1920,10 @@ const viewMeta = {
 let currentView = "inbox";
 let prevView = "inbox";
 let currentInboxFilter = "all";
+const dashboardSections = {
+  appointments: "overview",
+  reports: "overview",
+};
 
 function initials(name) {
   return name
@@ -1984,6 +1989,9 @@ function switchView(viewId) {
   });
 
   updateHeader(viewId);
+  if (dashboardSections[viewId]) {
+    showDashboardSection(viewId, dashboardSections[viewId]);
+  }
   window.scrollTo(0, 0);
 }
 
@@ -1995,19 +2003,88 @@ async function saveSettings() {
   return saveSettingsToStorage(getSettingsSnapshot());
 }
 
+function showDashboardSection(viewId, sectionId) {
+  const view = document.getElementById(`view-${viewId}`);
+  if (!view || !sectionId) return;
+
+  dashboardSections[viewId] = sectionId;
+  view.querySelectorAll("[data-dashboard-section]").forEach((section) => {
+    section.hidden = section.dataset.dashboardSection !== sectionId;
+  });
+
+  const navigation = document.querySelector(
+    `[data-dashboard-section-nav="${viewId}"]`,
+  );
+  navigation?.querySelectorAll("[data-dashboard-section-target]").forEach(
+    (button) => {
+      const isActive = button.dataset.dashboardSectionTarget === sectionId;
+      button.classList.toggle("active", isActive);
+      button.setAttribute("aria-pressed", String(isActive));
+    },
+  );
+}
+
+function bindDashboardSectionNavigation() {
+  document
+    .querySelectorAll("[data-dashboard-section-nav]")
+    .forEach((navigation) => {
+      const viewId = navigation.dataset.dashboardSectionNav;
+      navigation
+        .querySelectorAll("[data-dashboard-section-target]")
+        .forEach((button) => {
+          button.addEventListener("click", () => {
+            showDashboardSection(viewId, button.dataset.dashboardSectionTarget);
+          });
+        });
+      showDashboardSection(viewId, dashboardSections[viewId]);
+    });
+}
+
+function setSidebarOpen(open, restoreFocus = false) {
+  sidebar.classList.toggle("open", open);
+  sidebarOverlay.classList.toggle("open", open);
+  sidebarToggle.setAttribute("aria-expanded", String(open));
+  document.body.classList.toggle("sidebar-drawer-open", open);
+
+  if (open) {
+    sidebarClose?.focus();
+  } else if (restoreFocus) {
+    sidebarToggle.focus();
+  }
+}
+
 navItems.forEach((item) => {
-  item.addEventListener("click", () => switchView(item.dataset.view));
+  item.addEventListener("click", () => {
+    switchView(item.dataset.view);
+    if (compactNavigation.matches) {
+      setSidebarOpen(false);
+    }
+  });
 });
 
 sidebarToggle.addEventListener("click", () => {
-  sidebar.classList.toggle("open");
-  sidebarOverlay.classList.toggle("open");
+  setSidebarOpen(!sidebar.classList.contains("open"));
 });
 
 sidebarOverlay.addEventListener("click", () => {
-  sidebar.classList.remove("open");
-  sidebarOverlay.classList.remove("open");
+  setSidebarOpen(false, true);
 });
+
+sidebarClose?.addEventListener("click", () => setSidebarOpen(false, true));
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && sidebar.classList.contains("open")) {
+    setSidebarOpen(false, true);
+  }
+});
+
+compactNavigation.addEventListener("change", (event) => {
+  if (!event.matches) {
+    setSidebarOpen(false);
+  }
+});
+
+dashboardLogout?.addEventListener("click", logout);
 
 function makeRow(inquiry) {
   const tr = document.createElement("tr");
@@ -2043,6 +2120,16 @@ function makeRow(inquiry) {
   return tr;
 }
 
+function appendTableEmptyState(tbody, columnCount, message) {
+  const row = document.createElement("tr");
+  const cell = document.createElement("td");
+  cell.colSpan = columnCount;
+  cell.className = "table-empty-state";
+  cell.textContent = message;
+  row.appendChild(cell);
+  tbody.appendChild(row);
+}
+
 function renderTable(tbodyId, filter) {
   const tbody = document.getElementById(tbodyId);
   if (!tbody) return;
@@ -2054,8 +2141,11 @@ function renderTable(tbodyId, filter) {
       : sampleInquiries.filter((inquiry) => inquiry.status === filter);
 
   if (!list.length) {
-    tbody.innerHTML =
-      '<tr><td colspan="6" style="text-align:center;color:var(--gray-400);padding:30px">No inquiries found.</td></tr>';
+    appendTableEmptyState(
+      tbody,
+      6,
+      "No inquiries found. New completed conversations will appear here.",
+    );
     return;
   }
 
@@ -2080,8 +2170,11 @@ function renderConversationTable(tbodyId, filter) {
   }
 
   if (!list.length) {
-    tbody.innerHTML =
-      '<tr><td colspan="6" style="text-align:center;color:var(--gray-400);padding:30px">No conversations found.</td></tr>';
+    appendTableEmptyState(
+      tbody,
+      6,
+      "No conversations found for this section.",
+    );
     return;
   }
 
@@ -2109,13 +2202,11 @@ function renderFlaggedConversations() {
   tbody.replaceChildren();
 
   if (!flaggedConversations.length) {
-    const row = document.createElement("tr");
-    const cell = document.createElement("td");
-    cell.colSpan = 6;
-    cell.style.cssText = "text-align:center;color:var(--gray-400);padding:30px";
-    cell.textContent = "No flagged conversations found.";
-    row.appendChild(cell);
-    tbody.appendChild(row);
+    appendTableEmptyState(
+      tbody,
+      6,
+      "No flagged conversations require review right now.",
+    );
     return;
   }
 
@@ -2157,8 +2248,11 @@ function renderConversationSummaries() {
   tbody.innerHTML = "";
 
   if (!conversationSummaries.length) {
-    tbody.innerHTML =
-      '<tr><td colspan="6" style="text-align:center;color:var(--gray-400);padding:30px">No conversation summaries found.</td></tr>';
+    appendTableEmptyState(
+      tbody,
+      6,
+      "No finalized conversation summaries are available yet.",
+    );
     return;
   }
 
@@ -2292,19 +2386,16 @@ function renderDashboardOverview() {
 
 function navigateOverview(target) {
   const destinations = {
-    appointment: { view: "appointments", panelId: "appointment-analytics-panel" },
-    chatbot: { view: "reports", panelId: "chatbot-analytics-panel" },
-    workload: { view: "reports", panelId: "counselor-workload-panel" },
-    "flagged-cases": { view: "reports", panelId: "flagged-case-analytics-panel" },
+    appointment: { view: "appointments", section: "overview" },
+    chatbot: { view: "reports", section: "chatbot" },
+    workload: { view: "reports", section: "workload" },
+    "flagged-cases": { view: "reports", section: "flagged-cases" },
   };
   const destination = destinations[target];
   if (!destination) return;
 
   switchView(destination.view);
-  document.getElementById(destination.panelId)?.scrollIntoView({
-    behavior: "smooth",
-    block: "start",
-  });
+  showDashboardSection(destination.view, destination.section);
 }
 
 function bindDashboardOverviewNavigation() {
@@ -2322,12 +2413,11 @@ function appendReportRows(containerId, rows) {
   container.replaceChildren();
 
   if (!rows.length) {
-    const row = document.createElement("tr");
-    const cell = document.createElement("td");
-    cell.colSpan = 2;
-    cell.textContent = "No aggregate data for this period.";
-    row.appendChild(cell);
-    container.appendChild(row);
+    appendTableEmptyState(
+      container,
+      2,
+      "No aggregate data is available for the selected period.",
+    );
     return;
   }
 
@@ -3850,6 +3940,7 @@ bindCounselorWorkloadAnalyticsFilters();
 bindFlaggedCaseAnalyticsFilters();
 bindReportsControls();
 bindDashboardOverviewNavigation();
+bindDashboardSectionNavigation();
 loadBackendData();
 
 async function addFaqFromButton() {

@@ -5,6 +5,14 @@
   z-index: 80;
 }
 
+.notifications-widget--header {
+  position: relative;
+  top: auto;
+  right: auto;
+  z-index: auto;
+  flex: 0 0 auto;
+}
+
 .notifications-toggle {
   position: relative;
   border: 1px solid var(--gray-200, #e5e7eb);
@@ -50,6 +58,14 @@
   background: var(--white, #fff);
   color: var(--text-primary, #1a1a1a);
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.16);
+}
+
+.notifications-widget--header .notifications-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  margin-top: 0;
+  z-index: 20;
 }
 
 .notifications-panel > h2 {
@@ -130,8 +146,12 @@
 }
 
 @media (max-width: 700px) {
-  .notifications-widget {
+  .notifications-widget:not(.notifications-widget--header) {
     top: 12px;
     right: 12px;
+  }
+
+  .notifications-widget--header .notifications-panel {
+    right: 0;
   }
 }

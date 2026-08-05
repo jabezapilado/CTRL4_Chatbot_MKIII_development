@@ -60,11 +60,16 @@
   gap: 2px;
 }
 .nav-item {
+  width: 100%;
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 10px 13px;
+  border: 0;
   border-radius: var(--radius-md);
+  background: transparent;
+  font: inherit;
+  text-align: left;
   font-size: 13px;
   font-weight: 500;
   color: rgba(255, 255, 255, 0.75);
@@ -82,6 +87,12 @@
   background: rgba(201, 168, 76, 0.2);
   color: var(--gold-light);
   font-weight: 600;
+}
+.nav-item:focus-visible,
+.sidebar-toggle:focus-visible,
+.sidebar-close:focus-visible {
+  outline: 3px solid var(--gold-light);
+  outline-offset: 2px;
 }
 .nav-badge {
   margin-left: auto;
@@ -101,6 +112,10 @@
   color: rgba(255, 255, 255, 0.5);
 }
 
+.sidebar-footer-actions {
+  margin-top: 10px;
+}
+
 .sidebar-toggle {
   display: none;
   position: fixed;
@@ -117,6 +132,19 @@
   box-shadow: var(--shadow-sm);
 }
 
+.sidebar-close {
+  display: none;
+  width: 34px;
+  height: 34px;
+  margin-left: auto;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--white);
+  font-size: 24px;
+  line-height: 1;
+}
+
 .sidebar-overlay {
   display: none;
   position: fixed;
@@ -131,6 +159,7 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  overflow-x: clip;
 }
 
 .dash-header {
@@ -158,8 +187,71 @@
   margin-top: 2px;
 }
 
+.dash-header-copy {
+  min-width: 0;
+}
+
+.dash-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 0;
+}
+
+#header-actions:empty {
+  display: none;
+}
+
 .dash-body {
   padding: 26px 28px 48px;
+}
+
+.dashboard-section-nav {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 18px;
+  padding: 6px;
+  overflow-x: auto;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  background: var(--white);
+  box-shadow: var(--shadow-sm);
+  scrollbar-width: thin;
+}
+
+.dashboard-section-tab {
+  flex: 0 0 auto;
+  min-height: 38px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--gray-600);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.dashboard-section-tab:hover {
+  background: var(--gray-50);
+  color: var(--orange);
+}
+
+.dashboard-section-tab.active {
+  border-color: rgba(211, 84, 0, 0.2);
+  background: var(--gold-pale);
+  color: var(--dark-orange);
+}
+
+.dashboard-section-tab:focus-visible {
+  outline: 3px solid rgba(211, 84, 0, 0.35);
+  outline-offset: 2px;
+}
+
+[data-dashboard-section][hidden] {
+  display: none;
 }
 .view {
   display: none;
@@ -332,6 +424,7 @@
 .appointment-calendar-scroll {
   overflow-x: auto;
   border-top: 1px solid var(--gray-200);
+  -webkit-overflow-scrolling: touch;
 }
 
 .appointment-calendar-weekdays,
@@ -466,6 +559,7 @@
 
 .table-wrap {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 table.inquiry-table {
   width: 100%;
@@ -502,6 +596,24 @@ table.inquiry-table {
 .inquiry-table tbody tr:hover {
   background: var(--gray-50);
   transform: translateX(4px);
+}
+
+table.inquiry-table .table-empty-state {
+  padding: 18px;
+  color: var(--gray-500);
+  font-size: 12px;
+  text-align: center;
+}
+
+.compact-empty-state {
+  margin: 0;
+  padding: 16px;
+  border: 1px dashed var(--gray-200);
+  border-radius: var(--radius-md);
+  background: var(--gray-50);
+  color: var(--gray-500);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .student-cell {
@@ -1785,6 +1897,7 @@ table.inquiry-table {
 @media (max-width: 900px) {
   .sidebar {
     transform: translateX(-100%);
+    box-shadow: var(--shadow-md);
   }
   .sidebar.open {
     transform: translateX(0);
@@ -1797,11 +1910,22 @@ table.inquiry-table {
     align-items: center;
     justify-content: center;
   }
+  .sidebar-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  body.sidebar-drawer-open {
+    overflow: hidden;
+  }
   .dash-main {
     margin-left: 0;
   }
   .dash-header {
     padding-left: 62px;
+  }
+  .dash-header-actions {
+    margin-left: auto;
   }
   .report-grid,
   .settings-grid,
@@ -1821,12 +1945,60 @@ table.inquiry-table {
   }
 }
 
+@media (max-width: 700px) {
+  .dash-header {
+    align-items: flex-start;
+  }
+  .dash-header-copy {
+    flex: 1 1 180px;
+  }
+  .dash-header-actions {
+    flex: 0 0 auto;
+  }
+  .dashboard-section-nav {
+    margin-left: -2px;
+    margin-right: -2px;
+  }
+  .panel-header {
+    align-items: flex-start;
+  }
+  .panel-header .search-box {
+    width: 100%;
+  }
+  .panel-header .search-box input {
+    width: 100%;
+  }
+  .appointment-calendar-weekdays,
+  .appointment-calendar-grid {
+    min-width: 700px;
+    grid-template-columns: repeat(7, minmax(100px, 1fr));
+  }
+  .appointment-calendar-day {
+    min-height: 132px;
+    padding: 8px;
+  }
+  .appointment-calendar-event {
+    padding: 6px;
+  }
+}
+
 @media (max-width: 480px) {
   .dash-body {
     padding: 16px 14px 32px;
   }
   .dash-header {
     padding: 14px 16px 14px 58px;
+  }
+  .dash-header h1 {
+    font-size: 18px;
+  }
+  .dash-header-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .dashboard-section-tab {
+    min-height: 42px;
+    padding: 9px 12px;
   }
   .form-row,
   .field-grid-2 {
@@ -1841,6 +2013,23 @@ table.inquiry-table {
   }
   .appointment-calendar-controls strong {
     min-width: 0;
+  }
+  .appointment-calendar-weekdays,
+  .appointment-calendar-grid {
+    min-width: 630px;
+    grid-template-columns: repeat(7, minmax(90px, 1fr));
+  }
+  .appointment-calendar-day {
+    min-height: 120px;
+  }
+  .appointment-card-header,
+  .appointment-card-footer,
+  .manual-entry-actions {
+    align-items: stretch;
+  }
+  .appointment-card-footer .btn,
+  .manual-entry-actions .btn {
+    flex: 1 1 100%;
   }
 }
 
@@ -1877,6 +2066,37 @@ table.inquiry-table {
 
 .manual-appointment-card {
   position: relative;
+}
+
+.manual-appointment-details {
+  margin-top: 24px;
+}
+
+.manual-appointment-details[hidden] {
+  display: none;
+}
+
+.manual-entry-divider {
+  margin: 20px 0;
+  border: 0;
+  border-top: 1px solid var(--gray-200);
+}
+
+.manual-entry-title {
+  margin-bottom: 16px;
+  font-size: 15px;
+}
+
+.manual-entry-spaced {
+  margin-top: 12px;
+}
+
+.manual-entry-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 16px;
 }
 
 .search-results {

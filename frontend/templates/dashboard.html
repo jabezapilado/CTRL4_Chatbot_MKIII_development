@@ -18,13 +18,20 @@
     />
   </head>
   <body>
-    <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle menu">
+    <button
+      class="sidebar-toggle"
+      id="sidebar-toggle"
+      type="button"
+      aria-label="Open navigation menu"
+      aria-controls="sidebar"
+      aria-expanded="false"
+    >
       ☰
     </button>
     <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
     <div class="dash-shell">
-      <aside class="sidebar" id="sidebar">
+      <aside class="sidebar" id="sidebar" aria-label="Staff navigation">
         <div class="sidebar-brand">
           <img
             src="{{ url_for('static', filename='img/soc-logo.png') }}"
@@ -35,34 +42,42 @@
             <div class="sidebar-brand-text">SOC Guidance</div>
             <div class="sidebar-brand-sub">Staff Portal</div>
           </div>
+          <button
+            class="sidebar-close"
+            id="sidebar-close"
+            type="button"
+            aria-label="Close navigation menu"
+          >
+            ×
+          </button>
         </div>
 
         <nav class="sidebar-nav">
-          <div class="nav-item active" data-view="inbox">
+          <button class="nav-item active" type="button" data-view="inbox">
             <span>Inbox</span>
-          </div>
-          <div class="nav-item" data-view="flagged">
+          </button>
+          <button class="nav-item" type="button" data-view="flagged">
             <span>Flagged Cases</span>
             <span class="nav-badge" id="flagged-count">3</span>
-          </div>
-          <div class="nav-item" data-view="appointments">
+          </button>
+          <button class="nav-item" type="button" data-view="appointments">
             <span>Appointments</span>
-          </div>
-          <div class="nav-item" data-view="resolved">
+          </button>
+          <button class="nav-item" type="button" data-view="resolved">
             <span>Resolved</span>
-          </div>
-          <div class="nav-item" data-view="reports">
+          </button>
+          <button class="nav-item" type="button" data-view="reports">
             <span>Reports</span>
-          </div>
-          <div class="nav-item" data-view="settings">
+          </button>
+          <button class="nav-item" type="button" data-view="settings">
             <span>Settings</span>
-          </div>
+          </button>
         </nav>
 
         <div class="sidebar-footer">
           Logged in as<br /><strong>Guidance Counselor</strong>
-          <div style="margin-top: 10px">
-            <button class="btn btn-outline btn-sm" onclick="logout()">
+          <div class="sidebar-footer-actions">
+            <button class="btn btn-outline btn-sm" id="dashboard-logout" type="button">
               Logout
             </button>
           </div>
@@ -71,13 +86,16 @@
 
       <main class="dash-main">
         <header class="dash-header" id="dash-header">
-          <div>
+          <div class="dash-header-copy">
             <h1 id="header-title">Inquiry Dashboard</h1>
             <p id="header-sub">
               Screen, organize, and prioritize student concerns
             </p>
           </div>
-          <div id="header-actions"></div>
+          <div class="dash-header-actions">
+            <div id="header-actions"></div>
+            <div id="notifications-header-slot" data-notifications-mount></div>
+          </div>
         </header>
 
         <div class="dash-body">
@@ -206,7 +224,58 @@
               </div>
             </section>
 
-            <section class="panel" id="appointment-analytics-panel">
+            <nav
+              class="dashboard-section-nav"
+              aria-label="Appointment sections"
+              data-dashboard-section-nav="appointments"
+            >
+              <button
+                class="dashboard-section-tab active"
+                type="button"
+                data-dashboard-section-target="overview"
+                aria-pressed="true"
+              >
+                Overview
+              </button>
+              <button
+                class="dashboard-section-tab"
+                type="button"
+                data-dashboard-section-target="calendar"
+                aria-pressed="false"
+              >
+                Calendar
+              </button>
+              <button
+                class="dashboard-section-tab"
+                type="button"
+                data-dashboard-section-target="requests"
+                aria-pressed="false"
+              >
+                Requests
+              </button>
+              <button
+                class="dashboard-section-tab"
+                type="button"
+                data-dashboard-section-target="history"
+                aria-pressed="false"
+              >
+                History
+              </button>
+              <button
+                class="dashboard-section-tab"
+                type="button"
+                data-dashboard-section-target="manual"
+                aria-pressed="false"
+              >
+                Manual Appointment
+              </button>
+            </nav>
+
+            <section
+              class="panel"
+              id="appointment-analytics-panel"
+              data-dashboard-section="overview"
+            >
               <div class="panel-header">
                 <h2>Appointment Analytics</h2>
               </div>
@@ -290,7 +359,11 @@
               </div>
             </section>
 
-            <section class="panel" id="appointment-calendar-panel">
+            <section
+              class="panel"
+              id="appointment-calendar-panel"
+              data-dashboard-section="calendar"
+            >
               <div class="panel-header">
                 <h2>Appointment Calendar</h2>
                 <div class="appointment-calendar-controls">
@@ -317,7 +390,12 @@
                 View appointments currently authorized for your assigned
                 programs.
               </p>
-              <div class="appointment-calendar-scroll">
+              <div
+                class="appointment-calendar-scroll"
+                role="region"
+                tabindex="0"
+                aria-label="Scrollable appointment calendar"
+              >
                 <div class="appointment-calendar-weekdays" aria-hidden="true">
                   <span>Sunday</span>
                   <span>Monday</span>
@@ -335,7 +413,11 @@
               </div>
             </section>
 
-            <section class="panel" id="appointment-requests-panel">
+            <section
+              class="panel"
+              id="appointment-requests-panel"
+              data-dashboard-section="requests"
+            >
               <div class="panel-header">
                 <h2>Appointment Requests</h2>
                 <div class="search-box">
@@ -355,7 +437,11 @@
               <div id="appointment-requests-container"></div>
             </section>
 
-            <section class="panel" id="todays-appointments-panel">
+            <section
+              class="panel"
+              id="todays-appointments-panel"
+              data-dashboard-section="requests"
+            >
               <div class="panel-header">
                 <h2>Confirmed Appointments</h2>
               </div>
@@ -365,7 +451,11 @@
               <div id="todays-appointments-container"></div>
             </section>
 
-            <section class="panel" id="appointment-history-panel">
+            <section
+              class="panel"
+              id="appointment-history-panel"
+              data-dashboard-section="history"
+            >
               <div class="panel-header">
                 <h2>Appointment History</h2>
               </div>
@@ -375,7 +465,11 @@
               <div id="appointment-history-container"></div>
             </section>
 
-            <section class="panel" id="flagged-appointment-panel">
+            <section
+              class="panel"
+              id="flagged-appointment-panel"
+              data-dashboard-section="history"
+            >
               <div class="panel-header">
                 <h2>Flagged Cases Requiring Appointment</h2>
               </div>
@@ -387,7 +481,11 @@
               <div id="flagged-appointment-cases-container"></div>
             </section>
 
-            <section class="panel" id="manual-appointment-panel">
+            <section
+              class="panel"
+              id="manual-appointment-panel"
+              data-dashboard-section="manual"
+            >
               <div class="panel-header">
                 <h2>Manual Appointment Entry</h2>
               </div>
@@ -462,7 +560,58 @@
               </div>
             </section>
 
-            <section class="panel" id="reports-overview-panel">
+            <nav
+              class="dashboard-section-nav"
+              aria-label="Report sections"
+              data-dashboard-section-nav="reports"
+            >
+              <button
+                class="dashboard-section-tab active"
+                type="button"
+                data-dashboard-section-target="overview"
+                aria-pressed="true"
+              >
+                Overview
+              </button>
+              <button
+                class="dashboard-section-tab"
+                type="button"
+                data-dashboard-section-target="export"
+                aria-pressed="false"
+              >
+                Export
+              </button>
+              <button
+                class="dashboard-section-tab"
+                type="button"
+                data-dashboard-section-target="chatbot"
+                aria-pressed="false"
+              >
+                Chatbot
+              </button>
+              <button
+                class="dashboard-section-tab"
+                type="button"
+                data-dashboard-section-target="workload"
+                aria-pressed="false"
+              >
+                Workload
+              </button>
+              <button
+                class="dashboard-section-tab"
+                type="button"
+                data-dashboard-section-target="flagged-cases"
+                aria-pressed="false"
+              >
+                Flagged Cases
+              </button>
+            </nav>
+
+            <section
+              class="panel"
+              id="reports-overview-panel"
+              data-dashboard-section="overview"
+            >
               <div class="panel-header">
                 <h2>Reports &amp; Analytics Overview</h2>
               </div>
@@ -531,7 +680,11 @@
               </div>
             </section>
 
-            <section class="panel" id="reports-export-panel">
+            <section
+              class="panel"
+              id="reports-export-panel"
+              data-dashboard-section="export"
+            >
               <div class="panel-header">
                 <h2>Reports &amp; Export</h2>
               </div>
@@ -601,7 +754,11 @@
               </div>
             </section>
 
-            <section class="panel" id="chatbot-analytics-panel">
+            <section
+              class="panel"
+              id="chatbot-analytics-panel"
+              data-dashboard-section="chatbot"
+            >
               <div class="panel-header">
                 <h2>Chatbot Analytics</h2>
               </div>
@@ -689,7 +846,11 @@
               </div>
             </section>
 
-            <section class="panel" id="counselor-workload-panel">
+            <section
+              class="panel"
+              id="counselor-workload-panel"
+              data-dashboard-section="workload"
+            >
               <div class="panel-header">
                 <h2>Counselor Workload Analytics</h2>
               </div>
@@ -798,7 +959,11 @@
               </div>
             </section>
 
-            <section class="panel" id="flagged-case-analytics-panel">
+            <section
+              class="panel"
+              id="flagged-case-analytics-panel"
+              data-dashboard-section="flagged-cases"
+            >
               <div class="panel-header">
                 <h2>Flagged Case Analytics</h2>
               </div>
@@ -888,7 +1053,7 @@
               </div>
             </section>
 
-            <div class="report-grid">
+            <div class="report-grid" data-dashboard-section="overview">
               <div class="panel">
                 <div class="bar-chart-area">
                   <div class="bar-chart-title">Inquiry Categories</div>
@@ -960,7 +1125,7 @@
               </div>
             </div>
 
-            <section class="panel">
+            <section class="panel" data-dashboard-section="overview">
               <div class="flagged-table-header">
                 <div>
                   <h3>Recent Flagged Concerns</h3>
@@ -1052,7 +1217,7 @@ Your concern may need further attention from Guidance Office personnel. Please w
                 <button
                   class="btn btn-primary btn-sm"
                   id="add-faq-btn"
-                  onclick="addFaqFromButton()"
+                  type="button"
                 >
                   Add FAQ
                 </button>
