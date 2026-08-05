@@ -28,6 +28,7 @@ from typing import Final
 from .emotion_service import EmotionPrediction
 from .language_service import LanguagePrediction
 from .rag_service import RetrievedDocument
+from .conversation_history import normalize_conversation_history
 
 @dataclass
 class PromptInput:
@@ -479,35 +480,37 @@ class PromptBuilder:
         data: PromptInput,
     ) -> str:
 
+        conversation = normalize_conversation_history(data.conversation)
+
         history = "\n".join(
             f"{message.get('role', 'user').title()}: {message.get('content', '')}"
-            for message in data.conversation
+            for message in conversation
         )
 
         # -----------------------------------------------------
         # Conversation Analysis
         # -----------------------------------------------------
 
-        conversation_turn = len(data.conversation)
+        conversation_turn = len(conversation)
 
         is_first_message = conversation_turn <= 1
 
         last_user_message = ""
         last_assistant_message = ""
 
-        if data.conversation:
-            if data.conversation[-1].get("role") == "assistant":
-                last_assistant_message = data.conversation[-1]["content"]
+        if conversation:
+            if conversation[-1].get("role") == "assistant":
+                last_assistant_message = conversation[-1]["content"]
 
-            elif data.conversation[-1].get("role") == "user":
-                last_user_message = data.conversation[-1]["content"]
+            elif conversation[-1].get("role") == "user":
+                last_user_message = conversation[-1]["content"]
 
-        for message in reversed(data.conversation):
+        for message in reversed(conversation):
             if message.get("role") == "assistant":
                 last_assistant_message = message.get("content", "")
                 break
 
-        for message in reversed(data.conversation):
+        for message in reversed(conversation):
             if message.get("role") == "user":
                 last_user_message = message.get("content", "")
                 break

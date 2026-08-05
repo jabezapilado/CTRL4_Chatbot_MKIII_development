@@ -33,6 +33,9 @@ class TopicService:
         r"study\w*|assignment\w*|project\w*|research|thesis|deadline\w*|"
         r"subject|professor|teacher|learning)\b"
     )
+    _COURSE_CODE: Final[re.Pattern[str]] = re.compile(
+        r"\b(?:[A-Z]{5,}|[A-Z]{2,}[ -]?\d{2,4})\b"
+    )
     _SCHOOL_SERVICES: Final[re.Pattern[str]] = re.compile(
         r"\b(?:guidance office|office hours?|opening hours?|document\w*|"
         r"clearance|certificat\w*|record\w*|form\w*|referral\w*|contact|"
@@ -46,13 +49,17 @@ class TopicService:
     def classify(self, message: str) -> str:
         """Return one normalized primary topic for *message*."""
 
-        text = " ".join(str(message).casefold().split())
+        raw_text = str(message)
+        text = " ".join(raw_text.casefold().split())
 
         if self._APPOINTMENTS.search(text):
             return Topic.APPOINTMENTS.value
 
         if self._MENTAL_HEALTH.search(text):
             return Topic.MENTAL_HEALTH.value
+
+        if self._COURSE_CODE.search(raw_text):
+            return Topic.ACADEMICS.value
 
         if self._ACADEMICS.search(text):
             return Topic.ACADEMICS.value

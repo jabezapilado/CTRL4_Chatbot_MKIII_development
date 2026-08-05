@@ -85,13 +85,15 @@ def _rag_config(
     index_dir: Path,
     *,
     auto_build: bool,
+    chunk_size: int = 120,
+    chunk_overlap: int = 20,
 ) -> SimpleNamespace:
     return SimpleNamespace(
         RAG_DOCS_DIR=str(docs_dir),
         RAG_INDEX_DIR=str(index_dir),
         RAG_EMBEDDING_MODEL="release-test-embedding",
-        RAG_CHUNK_SIZE=120,
-        RAG_CHUNK_OVERLAP=20,
+        RAG_CHUNK_SIZE=chunk_size,
+        RAG_CHUNK_OVERLAP=chunk_overlap,
         RAG_TOP_K=5,
         RAG_MIN_SCORE=0.3,
         RAG_AUTO_BUILD_ON_START=auto_build,
@@ -117,6 +119,36 @@ def _bare_rag(module: types.ModuleType, config: SimpleNamespace) -> object:
 
 
 class RAGReleaseReadinessTests(unittest.TestCase):
+    def test_current_knowledge_base_builds_the_approved_source_set(self) -> None:
+        module = _load_rag_module()
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            index = Path(temporary_directory) / "index"
+            service = _bare_rag(
+                module,
+                _rag_config(
+                    ROOT / "ai_engine/knowledge_base",
+                    index,
+                    auto_build=False,
+                    chunk_size=700,
+                    chunk_overlap=120,
+                ),
+            )
+
+            count = service.build_index()
+            report = service.last_build_report
+
+            self.assertIsNotNone(report)
+            assert report is not None
+            self.assertEqual(len(report.discovered_sources), 28)
+            self.assertEqual(len(report.indexed_sources), 28)
+            self.assertEqual(report.skipped_sources, ())
+            self.assertEqual(count, 339)
+            self.assertNotIn(
+                "hau_guidance_counseling_official.md",
+                report.discovered_sources,
+            )
+            self.assertTrue(service._index_is_current()[0])
+
     def test_manifest_detects_stale_sources_and_preserves_legacy_index(self) -> None:
         module = _load_rag_module()
         with tempfile.TemporaryDirectory() as temporary_directory:

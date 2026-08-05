@@ -107,12 +107,24 @@ class SafetyService:
         r"\bpapatayin ko ang sarili ko\b",
         r"\bsaktan ang sarili\b",
         r"\bhindi ko na kaya\b",
-        r"\bsuko na ako\b",
         r"\bgusto ko nang mawala\b",
         r"\bwala nang saysay\b",
+        r"\bdi ko na kaya\b",
+    )
+
+    # These phrases are common expressions of academic frustration in
+    # Filipino.  They become crisis evidence only with an additional explicit
+    # self-harm, death, or loss-of-life signal; they are not safe to treat as
+    # crisis evidence in isolation.
+    AMBIGUOUS_FILIPINO_DISTRESS_PATTERNS: Final[tuple[str, ...]] = (
+        r"\bsuko na ako\b",
         r"\bpagod na pagod na ako\b",
         r"\bayoko na\b",
-        r"\bdi ko na kaya\b",
+    )
+    HIGH_RISK_FILIPINO_CONTEXT_PATTERNS: Final[tuple[str, ...]] = (
+        r"\b(?:magpapakamatay|magpakamatay|mamatay|papatayin|"
+        r"saktan)\b",
+        r"\b(?:sarili|mabuhay|mawala)\b",
     )
 
     DIAGNOSIS_PATTERNS: Final[tuple[str, ...]] = (
@@ -242,9 +254,21 @@ class SafetyService:
         text: str,
     ) -> bool:
 
-        return any(
+        if any(
             re.search(pattern, text)
             for pattern in self.CRISIS_PATTERNS
+        ):
+            return True
+
+        return (
+            any(
+                re.search(pattern, text)
+                for pattern in self.AMBIGUOUS_FILIPINO_DISTRESS_PATTERNS
+            )
+            and any(
+                re.search(pattern, text)
+                for pattern in self.HIGH_RISK_FILIPINO_CONTEXT_PATTERNS
+            )
         )
 
     def _asks_for_diagnosis(

@@ -23,7 +23,9 @@ Authors:
 
 from __future__ import annotations
 import logging
+import re
 import time
+from typing import Final
 
 from dataclasses import dataclass
 
@@ -40,8 +42,13 @@ from .conversation_state import ConversationState
 from .conversation_topic import ConversationTopic
 from .response_validator import ResponseValidator
 from .response_safety_service import ResponseSafetyService
+from .conversation_history import normalize_conversation_history
 
 logger = logging.getLogger(__name__)
+
+_COURSE_CODE_PATTERN: Final[re.Pattern[str]] = re.compile(
+    r"\b(?:[A-Z]{5,}|[A-Z]{2,}[ -]?\d{2,4})\b"
+)
 
 
 
@@ -314,6 +321,7 @@ class AIService:
         EXPLORING_KEYWORDS = (
             "because",
             "it's because",
+            "it's just",
             "i feel",
             "i've been",
             "i have been",
@@ -343,6 +351,7 @@ class AIService:
         message: str,
     ) -> ConversationTopic:
 
+        raw_message = message
         message = message.lower()
 
         ACADEMICS = (
@@ -426,6 +435,9 @@ class AIService:
         if any(word in message for word in GUIDANCE):
             return ConversationTopic.GUIDANCE_OFFICE
 
+        if _COURSE_CODE_PATTERN.search(raw_message):
+            return ConversationTopic.ACADEMICS
+
         if any(word in message for word in ACADEMICS):
             return ConversationTopic.ACADEMICS
 
@@ -451,6 +463,7 @@ class AIService:
 
         if conversation is None:
             conversation = []
+        conversation = normalize_conversation_history(conversation)
         
         # -----------------------------------------
         # Performance Tracking
@@ -625,27 +638,7 @@ class AIService:
                     "Response validation failed: %s",
                     reason,
                 )
-                if reason == "Repeated greeting detected.":
-                    llm_text = (
-                        "Let's continue from where we left off. "
-                        "What would you like to talk about next?"
-                    )
-                elif reason == "Repeated empathy detected.":
-                    llm_text = (
-                        "I want to better understand what you're experiencing. "
-                        "Could you tell me a little more about what's been happening?"
-                    )
-                elif reason == "Repeated introduction detected.":
-                    llm_text = (
-                        "Let's continue our conversation. "
-                        "What would you like to share or ask next?"
-                    )
-                elif reason == "Repeated closing detected.":
-                    llm_text = (
-                        "Before we end our conversation, "
-                        "is there anything else you'd like to talk about?"
-                    )
-                elif reason == "The response is too short.":
+                if reason == "The response is too short.":
                     llm_text = (
                         "I'd like to give you a more helpful response. "
                         "Could you tell me a little more about your situation?"
@@ -654,6 +647,11 @@ class AIService:
                     llm_text = (
                         "I want to make sure I understand you correctly. "
                         "Could you tell me a little more about what's on your mind?"
+                    )
+                elif reason == "Repeated response detected.":
+                    llm_text = (
+                        "I want to avoid repeating the same response. "
+                        "Please tell me which part would be most helpful to explore."
                     )
                 else:
                     llm_text = (
@@ -691,7 +689,7 @@ class AIService:
                 state=conversation_state.value,
                 escalated=(
                     safety.should_escalate
-                    or emotion.is_negative
+                    or emotion.normalized_emotion in {"crisis", "distressed"}
                 ),
 
                 confidence=emotion.confidence,
