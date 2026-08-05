@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Final
 
 from ..db import get_staff_by_program, get_student_by_id, load_persisted_settings
+from .settings_service import normalize_appointment_availability, settings_service
 
 
 _OPERATIONAL_SETTING_KEYS: Final[tuple[str, ...]] = (
@@ -88,6 +89,8 @@ class OperationalGuidanceService:
         return None
 
     def _settings(self) -> dict[str, Any]:
+        if self._load_settings is load_persisted_settings:
+            return settings_service.get_settings()
         return self._load_settings(_OPERATIONAL_SETTING_KEYS)
 
     @staticmethod
@@ -215,11 +218,15 @@ class OperationalGuidanceService:
         )
         if availability is None:
             return self._unavailable("Current appointment availability")
+        if not availability["bookingEnabled"]:
+            return self._answer(
+                "Appointment booking is currently unavailable. Please confirm availability with the SOC Guidance Office."
+            )
 
         _student, counselor = self._student_and_counselor(student_account)
         windows = "; ".join(
-            f"{window['days']}: {window['time']}"
-            for window in availability
+            f"{window['days']}: {self._display_time_range(window['time'])}"
+            for window in availability["officeAvailability"]
         )
         response = (
             "The currently configured appointment availability is: "
@@ -244,32 +251,15 @@ class OperationalGuidanceService:
         )
 
     @classmethod
-    def _parse_availability(cls, value: object) -> list[dict[str, str]] | None:
-        if isinstance(value, bytes):
-            try:
-                value = value.decode("utf-8")
-            except UnicodeDecodeError:
-                return None
-        if isinstance(value, str):
-            try:
-                value = json.loads(value)
-            except json.JSONDecodeError:
-                return None
-        if not isinstance(value, dict) or set(value) != _AVAILABILITY_FIELDS:
+    def _parse_availability(cls, value: object) -> dict[str, Any] | None:
+        try:
+            return normalize_appointment_availability(value, allow_legacy=True)
+        except ValueError:
             return None
-        windows = value.get("officeAvailability")
-        if not isinstance(windows, list) or not windows:
-            return None
-        projected: list[dict[str, str]] = []
-        for window in windows:
-            if not isinstance(window, dict) or set(window) != _AVAILABILITY_WINDOW_FIELDS:
-                return None
-            days = cls._safe_text(window.get("days"))
-            time = cls._safe_text(window.get("time"))
-            if not days or not time:
-                return None
-            projected.append({"days": days, "time": time})
-        return projected
+
+    @staticmethod
+    def _display_time_range(value: object) -> str:
+        return re.sub(r"\b0([1-9]:\d{2}\s[AP]M)", r"\1", str(value))
 
     @classmethod
     def _format_consultation_schedule(cls, value: object) -> str | None:

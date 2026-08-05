@@ -5,6 +5,7 @@ import logging
 from flask import Blueprint, jsonify, request
 
 from ..request_validation import (
+    require_any_role,
     require_login,
     require_role,
 )
@@ -20,6 +21,7 @@ from ..services.appointment_service import (
     list_staff_appointments_service,
     list_student_appointments_service,
 )
+from ..services.settings_service import settings_service
 
 
 appointment_bp = Blueprint(
@@ -29,6 +31,21 @@ appointment_bp = Blueprint(
 )
 
 logger = logging.getLogger(__name__)
+
+
+@appointment_bp.get("/booking-options")
+def booking_options_route():
+    _, error = require_any_role("student", "staff")
+    if error:
+        return error
+
+    return jsonify(
+        {
+            "success": True,
+            "message": "Appointment booking options retrieved successfully.",
+            "data": settings_service.get_student_booking_options(),
+        }
+    ), 200
 
 
 @appointment_bp.get("")

@@ -14,7 +14,6 @@ from ..db import (
     get_staff_by_program,
     get_student_by_id,
     list_appointments_by_date,
-    load_settings,
     save_appointment_if_available,
     get_appointment_by_id,
     list_staff_appointments,
@@ -23,6 +22,7 @@ from ..db import (
     update_appointment_status,
     update_counselor_notes,
 )
+from .settings_service import settings_service
 
 
 logger = logging.getLogger(__name__)
@@ -37,15 +37,6 @@ CONSULTATION_SCHEDULE_FIELDS: Final[frozenset[str]] = frozenset(
 )
 CONSULTATION_SCHEDULE_ERROR_MESSAGE: Final[str] = (
     "The selected date and time are outside the counselor's consultation schedule."
-)
-APPOINTMENT_AVAILABILITY_SETTING_KEY: Final[str] = "appointmentAvailability"
-APPOINTMENT_AVAILABILITY_FIELDS: Final[frozenset[str]] = frozenset(
-    {
-        "officeAvailability",
-        "holidays",
-        "academicCalendarExclusions",
-        "unavailableDates",
-    }
 )
 OFFICE_AVAILABILITY_FIELDS: Final[frozenset[str]] = frozenset(
     {"days", "time"}
@@ -530,24 +521,6 @@ def _validate_consultation_schedule(
         )
 
 
-def _load_appointment_availability() -> dict | None:
-    availability = load_settings().get(APPOINTMENT_AVAILABILITY_SETTING_KEY)
-
-    if isinstance(availability, bytes):
-        try:
-            availability = availability.decode("utf-8")
-        except UnicodeDecodeError:
-            return None
-
-    if isinstance(availability, str):
-        try:
-            availability = json.loads(availability)
-        except json.JSONDecodeError:
-            return None
-
-    return availability if isinstance(availability, dict) else None
-
-
 def _parse_availability_date(value: object) -> datetime | None:
     if not isinstance(value, str):
         return None
@@ -593,12 +566,10 @@ def _parse_unavailable_dates(value: object) -> set[str] | None:
 def _has_valid_appointment_availability(
     preferred_date: object,
     preferred_time_slot: object,
+    configuration: dict | None = None,
 ) -> bool:
-    availability = _load_appointment_availability()
-    if (
-        availability is None
-        or set(availability) != APPOINTMENT_AVAILABILITY_FIELDS
-    ):
+    availability = configuration or settings_service.get_appointment_configuration()
+    if availability is None or not availability.get("bookingEnabled", False):
         return False
 
     requested_date = _parse_availability_date(preferred_date)
@@ -652,10 +623,12 @@ def _has_valid_appointment_availability(
 def _validate_appointment_availability(
     preferred_date: object,
     preferred_time_slot: object,
+    configuration: dict | None = None,
 ) -> None:
     if not _has_valid_appointment_availability(
         preferred_date,
         preferred_time_slot,
+        configuration,
     ):
         raise ValueError(
             (
@@ -702,7 +675,10 @@ def _validate_booking_constraints(
     counselor: dict,
     preferred_date: object,
     preferred_time_slot: object,
+    appointment_category: object = None,
+    appointment_mode: object = None,
 ) -> None:
+    configuration = settings_service.get_appointment_configuration()
     _validate_consultation_schedule(
         counselor,
         preferred_date,
@@ -711,7 +687,27 @@ def _validate_booking_constraints(
     _validate_appointment_availability(
         preferred_date,
         preferred_time_slot,
+        configuration,
     )
+    if configuration is None:
+        return
+
+    categories = configuration.get("appointmentCategories")
+    modes = configuration.get("consultationModes")
+    if categories is not None and appointment_category not in categories:
+        raise ValueError(
+            (
+                "The selected appointment category is unavailable.",
+                ["appointment_category"],
+            )
+        )
+    if modes is not None and appointment_mode not in modes:
+        raise ValueError(
+            (
+                "The selected consultation mode is unavailable.",
+                ["appointment_mode"],
+            )
+        )
 
 
 def _save_appointment_notification_safely(
@@ -842,6 +838,8 @@ def create_student_appointment(student_account: dict, payload: dict) -> int:
         counselor,
         payload["preferred_date"],
         payload["preferred_time_slot"],
+        payload["appointment_category"],
+        payload["appointment_mode"],
     )
 
     appointment_id = _save_appointment_with_atomic_conflict_check(
@@ -938,6 +936,8 @@ def reschedule_student_appointment(
         counselor,
         payload["preferred_date"],
         payload["preferred_time_slot"],
+        appointment["appointment_category"],
+        appointment["appointment_mode"],
     )
 
     new_id = _save_appointment_with_atomic_conflict_check(
@@ -1005,6 +1005,8 @@ def create_manual_appointment(staff_account: dict, payload: dict) -> int:
         counselor,
         payload["preferred_date"],
         payload["preferred_time_slot"],
+        payload["appointment_category"],
+        payload["appointment_mode"],
     )
 
     return _save_appointment_with_atomic_conflict_check(
