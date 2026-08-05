@@ -9,6 +9,8 @@ const API_BASE = window.location.origin;
 let sampleInquiries = [];
 let conversationSummaries = [];
 let flaggedConversations = [];
+let flaggedConversationsLoaded = false;
+let appointmentsLoaded = false;
 let appointmentAnalytics = null;
 let chatbotAnalytics = null;
 let counselorWorkloadAnalytics = null;
@@ -75,19 +77,12 @@ async function fetchJson(url, options) {
 }
 
 function mapInquiry(row) {
-  const createdAt = row.created_at ? new Date(row.created_at) : new Date();
+  const createdAt = row.created_at ? new Date(row.created_at) : null;
   return {
-    student: row.user_name || row.student_name || "Unknown",
-    studentId: row.student_id || (row.id ? `#${row.id}` : "—"),
-    email: row.user_email || row.student_email || "",
-    message: row.message || "",
-    category: row.category || "General Inquiry",
-    status: row.escalate ? "negative" : row.status || row.emotion || "neutral",
-    time: createdAt.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-    }),
-    staffNotes: row.staff_notes || "",
+    inquiryType: row.inquiry_type || "Unavailable",
+    emotionResult: row.emotion_result || "Unavailable",
+    escalated: Boolean(row.escalated),
+    createdAt,
   };
 }
 
@@ -106,19 +101,17 @@ function mapConversationSummary(row) {
         });
   return {
     id: row.id,
-    student: row.student_name || row.full_name || "Unknown",
-    studentId: row.student_id || "—",
-    email: row.student_email || "",
-    category: row.topic || "General Inquiry",
+    student: "Confidential conversation",
+    studentId: "",
+    email: "",
+    category: row.primary_concern || "General inquiry",
     message: "AI Summary Available",
-    emotion: row.emotion || "Unknown",
-    language: row.language || "English",
-    flagged: Boolean(row.flagged),
-    status: row.status || (row.flagged ? "negative" : "pending"),
+    emotion: row.emotion_results || "Unavailable",
+    language: row.language_used || "Unavailable",
+    flagged: Boolean(row.flagged_status),
+    status: row.flagged_status ? "pending" : "recorded",
     summary: row.summary || "",
-    recommendation: row.recommendation || "",
-    counselorNotes: row.counselor_notes || "",
-    conversation: row.conversation_json || [],
+    recommendation: row.recommendations || "",
     createdAt,
     time: displayTime,
   };
@@ -134,7 +127,9 @@ function mapFlaggedConversation(row) {
     recommendation: row.recommendations || "No recommendation available.",
     escalationReason: row.escalation_reason || "AI safety escalation.",
     status: row.escalation_status || "pending",
-    totalMessages: Number(row.total_messages) || 0,
+    totalMessages: Number.isFinite(Number(row.total_messages))
+      ? Number(row.total_messages)
+      : null,
     createdAt,
   };
 }
@@ -515,13 +510,17 @@ function renderAnalyticsRows(
   });
 }
 
+function displayAggregateValue(value) {
+  return value === null || value === undefined ? "—" : String(value);
+}
+
 function renderAppointmentAnalytics() {
   const analytics = appointmentAnalytics;
   if (!analytics) return;
 
   const total = document.getElementById("appointment-analytics-total");
   const range = document.getElementById("appointment-analytics-range");
-  if (total) total.textContent = String(analytics.total_appointments || 0);
+  if (total) total.textContent = displayAggregateValue(analytics.total_appointments);
 
   if (range) {
     const { start_date: startDate, end_date: endDate } = analytics.filters || {};
@@ -555,29 +554,26 @@ function renderChatbotAnalytics() {
   const analytics = chatbotAnalytics;
   if (!analytics) return;
 
-  const valueFor = (elementId, value, fallback = "0") => {
+  const valueFor = (elementId, value) => {
     const element = document.getElementById(elementId);
-    if (element) element.textContent = value ?? fallback;
+    if (element) element.textContent = displayAggregateValue(value);
   };
 
   valueFor(
     "chatbot-analytics-total-messages",
-    String(analytics.total_chatbot_messages || 0),
+    analytics.total_chatbot_messages,
   );
   valueFor(
     "chatbot-analytics-finalizations",
-    String(analytics.conversation_finalization_count || 0),
+    analytics.conversation_finalization_count,
   );
   valueFor(
     "chatbot-analytics-escalations",
-    String(analytics.escalation_count || 0),
+    analytics.escalation_count,
   );
   valueFor(
     "chatbot-analytics-average-length",
-    analytics.average_finalized_conversation_length === null
-      ? "—"
-      : String(analytics.average_finalized_conversation_length),
-    "—",
+    analytics.average_finalized_conversation_length,
   );
 
   const volume = analytics.message_volume || {};
@@ -685,7 +681,7 @@ function renderCounselorWorkloadAnalytics() {
 
   values.forEach(([elementId, value]) => {
     const element = document.getElementById(elementId);
-    if (element) element.textContent = String(value || 0);
+    if (element) element.textContent = displayAggregateValue(value);
   });
 
   renderAnalyticsRows(
@@ -767,7 +763,7 @@ function renderFlaggedCaseAnalytics() {
 
   values.forEach(([elementId, value]) => {
     const element = document.getElementById(elementId);
-    if (element) element.textContent = String(value || 0);
+    if (element) element.textContent = displayAggregateValue(value);
   });
 
   const trends = analytics.escalation_trends || {};
@@ -928,6 +924,18 @@ function bindAppointmentSearch() {
 
 function renderAppointmentStatistics() {
   const appointments = window.backendAppointments || [];
+  const statisticElements = [
+    document.getElementById("appointments-today-count"),
+    document.getElementById("pending-appointments-count"),
+    document.getElementById("completed-appointments-count"),
+  ];
+
+  if (!appointmentsLoaded) {
+    statisticElements.forEach((element) => {
+      if (element) element.textContent = "—";
+    });
+    return;
+  }
 
   const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
     .toISOString()
@@ -958,13 +966,9 @@ function renderAppointmentStatistics() {
       normalizeDate(appointment.date) === today,
   ).length;
 
-  document.getElementById("appointments-today-count").textContent = totalToday;
-
-  document.getElementById("pending-appointments-count").textContent =
-    pendingCount;
-
-  document.getElementById("completed-appointments-count").textContent =
-    completedToday;
+  statisticElements[0].textContent = String(totalToday);
+  statisticElements[1].textContent = String(pendingCount);
+  statisticElements[2].textContent = String(completedToday);
 }
 
 function renderCompactEmptyState(container, message) {
@@ -1850,7 +1854,6 @@ const sidebarToggle = document.getElementById("sidebar-toggle");
 const sidebarClose = document.getElementById("sidebar-close");
 const sidebarOverlay = document.getElementById("sidebar-overlay");
 const dashboardLogout = document.getElementById("dashboard-logout");
-const filterTabs = document.querySelectorAll(".filter-tab");
 const currentLocation = window.location.pathname || "";
 const compactNavigation = window.matchMedia("(max-width: 900px)");
 
@@ -1870,12 +1873,6 @@ const viewMeta = {
   appointments: {
     title: "Appointments",
     sub: "Monitor appointment requests, appointment history, and counselor interventions.",
-    actions: "",
-  },
-
-  resolved: {
-    title: "Resolved Inquiries",
-    sub: "Cases that have been closed or marked resolved",
     actions: "",
   },
 
@@ -1919,7 +1916,6 @@ const viewMeta = {
 
 let currentView = "inbox";
 let prevView = "inbox";
-let currentInboxFilter = "all";
 const dashboardSections = {
   appointments: "overview",
   reports: "overview",
@@ -2086,40 +2082,6 @@ compactNavigation.addEventListener("change", (event) => {
 
 dashboardLogout?.addEventListener("click", logout);
 
-function makeRow(inquiry) {
-  const tr = document.createElement("tr");
-  const actionsCell = "<td></td>";
-
-  const preview = inquiry.summary
-    ? inquiry.summary.length > 80
-      ? inquiry.summary.slice(0, 80) + "..."
-      : inquiry.summary
-    : inquiry.message || "No preview available";
-
-  tr.innerHTML = `
-    <td>
-      <div class="student-cell">
-        <div class="student-avatar">${escapeHtml(initials(inquiry.student))}</div>
-        <div>
-          <div class="student-name">${escapeHtml(inquiry.student)}</div>
-          <div class="student-id">${escapeHtml(inquiry.studentId)}</div>
-        </div>
-      </div>
-    </td>
-    <td>
-      <div class="msg-preview">
-        ${escapeHtml(preview)}
-      </div>
-    </td>
-    <td>${escapeHtml(inquiry.category)}</td>
-    <td>${badgeHTML(inquiry.status)}</td>
-    <td class="time-cell">${escapeHtml(inquiry.time)}</td>
-    ${actionsCell}
-  `;
-
-  return tr;
-}
-
 function appendTableEmptyState(tbody, columnCount, message) {
   const row = document.createElement("tr");
   const cell = document.createElement("td");
@@ -2130,63 +2092,47 @@ function appendTableEmptyState(tbody, columnCount, message) {
   tbody.appendChild(row);
 }
 
-function renderTable(tbodyId, filter) {
-  const tbody = document.getElementById(tbodyId);
-  if (!tbody) return;
-  tbody.innerHTML = "";
-
-  const list =
-    filter === "all"
-      ? sampleInquiries
-      : sampleInquiries.filter((inquiry) => inquiry.status === filter);
-
-  if (!list.length) {
-    appendTableEmptyState(
-      tbody,
-      6,
-      "No inquiries found. New completed conversations will appear here.",
-    );
-    return;
-  }
-
-  list.forEach((inquiry) => tbody.appendChild(makeRow(inquiry)));
+function formatInquiryType(value) {
+  return String(value || "Unavailable")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
-function renderConversationTable(tbodyId, filter) {
-  const tbody = document.getElementById(tbodyId);
+function formatInquiryTimestamp(value) {
+  if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
+    return "Unavailable";
+  }
+  return value.toLocaleString();
+}
 
+function renderInquiryTable() {
+  const tbody = document.getElementById("inquiry-tbody");
   if (!tbody) return;
 
-  tbody.innerHTML = "";
-
-  let list = conversationSummaries;
-
-  if (filter === "negative") {
-    list = list.filter((item) => item.flagged);
-  } else if (filter === "resolved") {
-    list = list.filter((item) => item.status === "resolved");
-  } else if (filter === "pending") {
-    list = list.filter((item) => item.status === "pending");
-  }
-
-  if (!list.length) {
+  tbody.replaceChildren();
+  if (!sampleInquiries.length) {
     appendTableEmptyState(
       tbody,
-      6,
-      "No conversations found for this section.",
+      5,
+      "No staff-permitted inquiry records are available yet.",
     );
     return;
   }
 
-  list.forEach((summary) => {
-    tbody.appendChild(makeRow(summary));
+  sampleInquiries.forEach((inquiry) => {
+    const row = document.createElement("tr");
+    appendTableCell(row, "Confidential inquiry");
+    appendTableCell(row, formatInquiryType(inquiry.inquiryType));
+    appendTableCell(row, inquiry.emotionResult);
+    appendTableCell(row, inquiry.escalated ? "Escalated" : "Not escalated");
+    appendTableCell(row, formatInquiryTimestamp(inquiry.createdAt));
+    tbody.appendChild(row);
   });
 }
 
 function renderAllTables() {
-  renderConversationTable("inquiry-tbody", currentInboxFilter);
+  renderInquiryTable();
   renderFlaggedConversations();
-  renderConversationTable("resolved-tbody", "resolved");
 }
 
 function appendTableCell(row, value) {
@@ -2303,7 +2249,7 @@ function renderReports() {
 
 function overviewValue(elementId, value) {
   const element = document.getElementById(elementId);
-  if (element) element.textContent = String(value || 0);
+  if (element) element.textContent = displayAggregateValue(value);
 }
 
 function latestTrendRow(trends) {
@@ -2338,34 +2284,34 @@ function renderDashboardOverview() {
   );
 
   appendReportRows("reports-overview-appointment-summary", [
-    ["Total appointments", appointment.total_appointments || 0],
+    ["Total appointments", displayAggregateValue(appointment.total_appointments)],
     ...(appointment.status_distribution || []).map((item) => [
       `Persisted appointment status: ${item.status}`,
       item.count,
     ]),
   ]);
   appendReportRows("reports-overview-chatbot-summary", [
-    ["Total chatbot messages", chatbot.total_chatbot_messages || 0],
-    ["Conversation finalizations", chatbot.conversation_finalization_count || 0],
-    ["Escalations", chatbot.escalation_count || 0],
+    ["Total chatbot messages", displayAggregateValue(chatbot.total_chatbot_messages)],
+    ["Conversation finalizations", displayAggregateValue(chatbot.conversation_finalization_count)],
+    ["Escalations", displayAggregateValue(chatbot.escalation_count)],
   ]);
   appendReportRows("reports-overview-workload-summary", [
-    ["Authorized appointments", workload.authorized_appointment_count || 0],
-    ["Pending appointments", workload.pending_appointment_count || 0],
-    ["Confirmed appointments", workload.confirmed_appointment_count || 0],
-    ["Completed appointments", workload.completed_appointment_count || 0],
-    ["Active referrals", workload.active_referral_count || 0],
-    ["Active interventions", workload.active_intervention_count || 0],
-    ["Completed interventions", workload.completed_intervention_count || 0],
+    ["Authorized appointments", displayAggregateValue(workload.authorized_appointment_count)],
+    ["Pending appointments", displayAggregateValue(workload.pending_appointment_count)],
+    ["Confirmed appointments", displayAggregateValue(workload.confirmed_appointment_count)],
+    ["Completed appointments", displayAggregateValue(workload.completed_appointment_count)],
+    ["Active referrals", displayAggregateValue(workload.active_referral_count)],
+    ["Active interventions", displayAggregateValue(workload.active_intervention_count)],
+    ["Completed interventions", displayAggregateValue(workload.completed_intervention_count)],
   ]);
   appendReportRows("reports-overview-flagged-case-summary", [
-    ["Total flagged cases", flaggedCases.total_flagged_cases || 0],
+    ["Total flagged cases", displayAggregateValue(flaggedCases.total_flagged_cases)],
     [
       "Pending flagged-case reviews",
-      flaggedCases.pending_flagged_case_reviews || 0,
+      displayAggregateValue(flaggedCases.pending_flagged_case_reviews),
     ],
-    ["Reviewed flagged cases", flaggedCases.reviewed_flagged_cases || 0],
-    ["Current confidential cases", flaggedCases.current_confidential_case_count || 0],
+    ["Reviewed flagged cases", displayAggregateValue(flaggedCases.reviewed_flagged_cases)],
+    ["Current confidential cases", displayAggregateValue(flaggedCases.current_confidential_case_count)],
   ]);
 
   const recentActivity = [
@@ -2449,7 +2395,7 @@ function renderCombinedReports() {
   const flaggedCases = reports.flaggedCases || {};
 
   appendReportRows("reports-appointment-rows", [
-    ["Total appointments", appointment.total_appointments || 0],
+    ["Total appointments", displayAggregateValue(appointment.total_appointments)],
     ...(appointment.status_distribution || []).map((item) => [
       `Status: ${item.status}`,
       item.count,
@@ -2465,12 +2411,15 @@ function renderCombinedReports() {
 
   const chatbotVolume = chatbot.message_volume || {};
   appendReportRows("reports-chatbot-rows", [
-    ["Total chatbot messages", chatbot.total_chatbot_messages || 0],
-    ["Conversation finalizations", chatbot.conversation_finalization_count || 0],
-    ["Escalations", chatbot.escalation_count || 0],
+    ["Total chatbot messages", displayAggregateValue(chatbot.total_chatbot_messages)],
+    [
+      "Conversation finalizations",
+      displayAggregateValue(chatbot.conversation_finalization_count),
+    ],
+    ["Escalations", displayAggregateValue(chatbot.escalation_count)],
     [
       "Average finalized conversation length",
-      chatbot.average_finalized_conversation_length ?? "—",
+      displayAggregateValue(chatbot.average_finalized_conversation_length),
     ],
     ...(chatbot.persisted_emotion_result_distribution || []).map((item) => [
       `Persisted emotion result: ${item.emotion_result}`,
@@ -2482,13 +2431,28 @@ function renderCombinedReports() {
   ]);
 
   appendReportRows("reports-workload-rows", [
-    ["Authorized appointments", workload.authorized_appointment_count || 0],
-    ["Pending appointments", workload.pending_appointment_count || 0],
-    ["Confirmed appointments", workload.confirmed_appointment_count || 0],
-    ["Completed appointments", workload.completed_appointment_count || 0],
-    ["Active referrals", workload.active_referral_count || 0],
-    ["Active interventions", workload.active_intervention_count || 0],
-    ["Completed interventions", workload.completed_intervention_count || 0],
+    [
+      "Authorized appointments",
+      displayAggregateValue(workload.authorized_appointment_count),
+    ],
+    ["Pending appointments", displayAggregateValue(workload.pending_appointment_count)],
+    [
+      "Confirmed appointments",
+      displayAggregateValue(workload.confirmed_appointment_count),
+    ],
+    [
+      "Completed appointments",
+      displayAggregateValue(workload.completed_appointment_count),
+    ],
+    ["Active referrals", displayAggregateValue(workload.active_referral_count)],
+    [
+      "Active interventions",
+      displayAggregateValue(workload.active_intervention_count),
+    ],
+    [
+      "Completed interventions",
+      displayAggregateValue(workload.completed_intervention_count),
+    ],
     ...(workload.workload_by_program || []).map((item) => [
       `Authorized program: ${item.program}`,
       item.count,
@@ -2497,17 +2461,20 @@ function renderCombinedReports() {
 
   const escalationTrends = flaggedCases.escalation_trends || {};
   appendReportRows("reports-flagged-case-rows", [
-    ["Total flagged cases", flaggedCases.total_flagged_cases || 0],
+    ["Total flagged cases", displayAggregateValue(flaggedCases.total_flagged_cases)],
     [
       "Pending flagged-case reviews",
-      flaggedCases.pending_flagged_case_reviews || 0,
+      displayAggregateValue(flaggedCases.pending_flagged_case_reviews),
     ],
-    ["Reviewed flagged cases", flaggedCases.reviewed_flagged_cases || 0],
-    ["Referrals", flaggedCases.referral_count || 0],
-    ["Interventions", flaggedCases.intervention_count || 0],
+    [
+      "Reviewed flagged cases",
+      displayAggregateValue(flaggedCases.reviewed_flagged_cases),
+    ],
+    ["Referrals", displayAggregateValue(flaggedCases.referral_count)],
+    ["Interventions", displayAggregateValue(flaggedCases.intervention_count)],
     [
       "Current confidential cases",
-      flaggedCases.current_confidential_case_count || 0,
+      displayAggregateValue(flaggedCases.current_confidential_case_count),
     ],
     ...(flaggedCases.persisted_case_status_distribution || []).map((item) => [
       `Persisted case status: ${item.status}`,
@@ -2580,7 +2547,7 @@ function reportCsvRows() {
   };
 
   const appointment = reports.appointment || {};
-  add("Appointment", "Total appointments", appointment.total_appointments || 0);
+  add("Appointment", "Total appointments", appointment.total_appointments ?? "");
   (appointment.status_distribution || []).forEach((item) =>
     add("Appointment", "Persisted appointment status", item.count, item.status),
   );
@@ -2592,9 +2559,13 @@ function reportCsvRows() {
   );
 
   const chatbot = reports.chatbot || {};
-  add("Chatbot", "Total chatbot messages", chatbot.total_chatbot_messages || 0);
-  add("Chatbot", "Conversation finalizations", chatbot.conversation_finalization_count || 0);
-  add("Chatbot", "Escalations", chatbot.escalation_count || 0);
+  add("Chatbot", "Total chatbot messages", chatbot.total_chatbot_messages ?? "");
+  add(
+    "Chatbot",
+    "Conversation finalizations",
+    chatbot.conversation_finalization_count ?? "",
+  );
+  add("Chatbot", "Escalations", chatbot.escalation_count ?? "");
   add(
     "Chatbot",
     "Average finalized conversation length",
@@ -2617,7 +2588,7 @@ function reportCsvRows() {
     ["Active referrals", workload.active_referral_count],
     ["Active interventions", workload.active_intervention_count],
     ["Completed interventions", workload.completed_intervention_count],
-  ].forEach(([metric, value]) => add("Counselor Workload", metric, value || 0));
+  ].forEach(([metric, value]) => add("Counselor Workload", metric, value ?? ""));
   (workload.workload_by_program || []).forEach((item) =>
     add("Counselor Workload", "Authorized program appointments", item.count, item.program),
   );
@@ -2630,7 +2601,7 @@ function reportCsvRows() {
     ["Referrals", flaggedCases.referral_count],
     ["Interventions", flaggedCases.intervention_count],
     ["Current confidential cases", flaggedCases.current_confidential_case_count],
-  ].forEach(([metric, value]) => add("Flagged Case", metric, value || 0));
+  ].forEach(([metric, value]) => add("Flagged Case", metric, value ?? ""));
   (flaggedCases.persisted_case_status_distribution || []).forEach((item) =>
     add("Flagged Case", "Persisted case status", item.count, item.status),
   );
@@ -2693,13 +2664,9 @@ function bindReportsControls() {
 }
 
 function updateFlaggedCount() {
-  const count = flaggedConversations.length;
+  const count = flaggedConversationsLoaded ? flaggedConversations.length : "—";
   const flaggedCount = document.getElementById("flagged-count");
-  const statFlagged = document.getElementById("stat-flagged");
-  const statFlagged2 = document.getElementById("stat-flagged-2");
   if (flaggedCount) flaggedCount.textContent = count;
-  if (statFlagged) statFlagged.textContent = count;
-  if (statFlagged2) statFlagged2.textContent = count;
 }
 
 function formatCaseNoteTimestamp(timestamp) {
@@ -3152,9 +3119,9 @@ async function openFlaggedConversationDetails(conversation) {
       : "Unavailable";
     document.getElementById("case-recommendation").textContent =
       detail.recommendations || "No recommendation available.";
-    document.getElementById("case-total-messages").textContent = String(
-      detail.total_messages || 0,
-    );
+    const totalMessages = Number(detail.total_messages);
+    document.getElementById("case-total-messages").textContent =
+      Number.isFinite(totalMessages) ? String(totalMessages) : "—";
     document.getElementById("case-student-messages").textContent =
       "Not retained";
     document.getElementById("case-ai-messages").textContent = "Not retained";
@@ -3509,15 +3476,6 @@ async function openFlaggedConversationDetails(conversation) {
   }
 }
 
-filterTabs.forEach((tab) => {
-  tab.addEventListener("click", () => {
-    filterTabs.forEach((item) => item.classList.remove("active"));
-    tab.classList.add("active");
-    currentInboxFilter = tab.dataset.filter;
-    renderConversationTable("inquiry-tbody", currentInboxFilter);
-  });
-});
-
 function openConversationSummary(summary) {
   if (!summary) {
     createToast("Unable to open conversation summary.", "info");
@@ -3830,7 +3788,7 @@ function openAppointmentDetails(appointment) {
 async function loadBackendData() {
   try {
     const inquiries = await fetchJson(`${API_BASE}/api/inquiries`);
-    sampleInquiries = (inquiries.items || []).map(mapInquiry);
+    sampleInquiries = (inquiries.data?.items || []).map(mapInquiry);
   } catch (error) {
     console.error(error);
     sampleInquiries = [];
@@ -3839,7 +3797,9 @@ async function loadBackendData() {
   try {
     const summaries = await fetchJson(`${API_BASE}/api/conversation-summaries`);
 
-    conversationSummaries = (summaries.items || []).map(mapConversationSummary);
+    conversationSummaries = (summaries.data?.items || []).map(
+      mapConversationSummary,
+    );
   } catch (error) {
     console.error(error);
     conversationSummaries = [];
@@ -3850,9 +3810,11 @@ async function loadBackendData() {
     flaggedConversations = (flagged.data?.items || []).map(
       mapFlaggedConversation,
     );
+    flaggedConversationsLoaded = true;
   } catch (error) {
     console.error(error);
     flaggedConversations = [];
+    flaggedConversationsLoaded = false;
   }
 
   try {
@@ -3860,9 +3822,11 @@ async function loadBackendData() {
     window.backendAppointments = (appointments.data?.items || []).map(
       mapAppointment,
     );
+    appointmentsLoaded = true;
   } catch (error) {
     console.error(error);
     window.backendAppointments = [];
+    appointmentsLoaded = false;
   }
 
   try {

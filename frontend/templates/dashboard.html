@@ -58,13 +58,10 @@
           </button>
           <button class="nav-item" type="button" data-view="flagged">
             <span>Flagged Cases</span>
-            <span class="nav-badge" id="flagged-count">3</span>
+            <span class="nav-badge" id="flagged-count" aria-label="Flagged case count">—</span>
           </button>
           <button class="nav-item" type="button" data-view="appointments">
             <span>Appointments</span>
-          </button>
-          <button class="nav-item" type="button" data-view="resolved">
-            <span>Resolved</span>
           </button>
           <button class="nav-item" type="button" data-view="reports">
             <span>Reports</span>
@@ -100,57 +97,24 @@
 
         <div class="dash-body">
           <div class="view active" id="view-inbox">
-            <section class="stat-grid">
-              <div class="stat-card">
-                <div class="stat-label">Total Inquiries Today</div>
-                <div class="stat-value">18</div>
-                <div class="stat-sub">+4 since yesterday</div>
-              </div>
-              <div class="stat-card alert">
-                <div class="stat-label">Flagged — Negative Emotion</div>
-                <div class="stat-value" id="stat-flagged">3</div>
-                <div class="stat-sub">Needs review</div>
-              </div>
-              <div class="stat-card">
-                <div class="stat-label">Auto-Resolved</div>
-                <div class="stat-value">14</div>
-                <div class="stat-sub">Routine inquiries</div>
-              </div>
-              <div class="stat-card">
-                <div class="stat-label">Avg. Response Time</div>
-                <div class="stat-value">&lt;1s</div>
-                <div class="stat-sub">Chatbot response</div>
-              </div>
-            </section>
-
             <section class="panel">
               <div class="panel-header">
                 <h2>Inbox</h2>
-                <div class="filter-tabs">
-                  <button class="filter-tab active" data-filter="all">
-                    All
-                  </button>
-                  <button class="filter-tab" data-filter="negative">
-                    Flagged
-                  </button>
-                  <button class="filter-tab" data-filter="neutral">
-                    Routine
-                  </button>
-                  <button class="filter-tab" data-filter="resolved">
-                    Resolved
-                  </button>
-                </div>
               </div>
+              <p class="sub">
+                Staff-permitted persisted inquiry records. Completed
+                conversation summaries and flagged-case work remain available
+                through their authorized staff views.
+              </p>
               <div class="table-wrap">
                 <table class="inquiry-table">
                   <thead>
                     <tr>
-                      <th>Student</th>
-                      <th>Message</th>
-                      <th>Category</th>
-                      <th>Status</th>
-                      <th>Time</th>
-                      <th></th>
+                      <th>Record</th>
+                      <th>Type</th>
+                      <th>Persisted Emotion Result</th>
+                      <th>Escalation</th>
+                      <th>Received</th>
                     </tr>
                   </thead>
                   <tbody id="inquiry-tbody"></tbody>
@@ -160,23 +124,15 @@
           </div>
 
           <div class="view" id="view-flagged">
-            <section class="stat-grid">
-              <div class="stat-card alert">
-                <div class="stat-label">Flagged Cases</div>
-                <div class="stat-value" id="stat-flagged-2">3</div>
-                <div class="stat-sub">Needs counselor review</div>
-              </div>
-              <div class="stat-card">
-                <div class="stat-label">Pending Review</div>
-                <div class="stat-value">11</div>
-                <div class="stat-sub">Awaiting action</div>
-              </div>
-            </section>
-
             <section class="panel">
               <div class="panel-header">
-                <h2>Flagged — Negative Emotion</h2>
+                <h2>Flagged Cases</h2>
               </div>
+              <p class="sub">
+                Staff-visible flagged cases. Aggregate counts and persisted
+                case-status distribution are available in Flagged Case
+                Analytics.
+              </p>
               <div class="table-wrap">
                 <table class="inquiry-table">
                   <thead>
@@ -200,7 +156,7 @@
               <div class="stat-card">
                 <div class="stat-label">Total Appointments Today</div>
 
-                <div class="stat-value" id="appointments-today-count">0</div>
+                <div class="stat-value" id="appointments-today-count">—</div>
 
                 <div class="stat-sub">Appointment records today</div>
               </div>
@@ -208,7 +164,7 @@
               <div class="stat-card alert">
                 <div class="stat-label">Pending Requests</div>
 
-                <div class="stat-value" id="pending-appointments-count">0</div>
+                <div class="stat-value" id="pending-appointments-count">—</div>
 
                 <div class="stat-sub">Awaiting staff review</div>
               </div>
@@ -216,9 +172,7 @@
               <div class="stat-card">
                 <div class="stat-label">Completed Today</div>
 
-                <div class="stat-value" id="completed-appointments-count">
-                  0
-                </div>
+                <div class="stat-value" id="completed-appointments-count">—</div>
 
                 <div class="stat-sub">Completed appointments</div>
               </div>
@@ -315,7 +269,7 @@
               <section class="stat-grid">
                 <div class="stat-card">
                   <div class="stat-label">Total appointments</div>
-                  <div class="stat-value" id="appointment-analytics-total">0</div>
+                  <div class="stat-value" id="appointment-analytics-total">—</div>
                   <div class="stat-sub" id="appointment-analytics-range">
                     All authorized appointment records
                   </div>
@@ -498,64 +452,26 @@
             </section>
           </div>
 
-          <div class="view" id="view-resolved">
-            <section class="stat-grid">
-              <div class="stat-card">
-                <div class="stat-label">Total Resolved</div>
-                <div class="stat-value">86</div>
-                <div class="stat-sub">72.8% resolution rate</div>
-              </div>
-              <div class="stat-card">
-                <div class="stat-label">Auto-Resolved</div>
-                <div class="stat-value">14</div>
-                <div class="stat-sub">Routine inquiries</div>
-              </div>
-              <div class="stat-card">
-                <div class="stat-label">Staff Resolved</div>
-                <div class="stat-value">72</div>
-                <div class="stat-sub">Manual closure</div>
-              </div>
-            </section>
-
-            <section class="panel">
-              <div class="panel-header"><h2>Resolved Inquiries</h2></div>
-              <div class="table-wrap">
-                <table class="inquiry-table">
-                  <thead>
-                    <tr>
-                      <th>Student</th>
-                      <th>Message</th>
-                      <th>Category</th>
-                      <th>Status</th>
-                      <th>Time</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody id="resolved-tbody"></tbody>
-                </table>
-              </div>
-            </section>
-          </div>
           <div class="view" id="view-reports">
             <section class="stat-grid" id="reports-overview-kpis">
               <div class="stat-card">
                 <div class="stat-label">Authorized Appointments</div>
-                <div class="stat-value" id="reports-overview-appointments">0</div>
+                <div class="stat-value" id="reports-overview-appointments">—</div>
                 <div class="stat-sub">Appointment Analytics</div>
               </div>
               <div class="stat-card alert">
                 <div class="stat-label">Pending Flagged-Case Reviews</div>
-                <div class="stat-value" id="reports-overview-pending-cases">0</div>
+                <div class="stat-value" id="reports-overview-pending-cases">—</div>
                 <div class="stat-sub">Flagged Case Analytics</div>
               </div>
               <div class="stat-card">
                 <div class="stat-label">Chatbot Messages</div>
-                <div class="stat-value" id="reports-overview-chatbot-messages">0</div>
+                <div class="stat-value" id="reports-overview-chatbot-messages">—</div>
                 <div class="stat-sub">Chatbot Analytics</div>
               </div>
               <div class="stat-card">
                 <div class="stat-label">Active Referrals</div>
-                <div class="stat-value" id="reports-overview-active-referrals">0</div>
+                <div class="stat-value" id="reports-overview-active-referrals">—</div>
                 <div class="stat-sub">Counselor Workload Analytics</div>
               </div>
             </section>
@@ -799,15 +715,15 @@
               <section class="stat-grid">
                 <div class="stat-card">
                   <div class="stat-label">Total chatbot messages</div>
-                  <div class="stat-value" id="chatbot-analytics-total-messages">0</div>
+                  <div class="stat-value" id="chatbot-analytics-total-messages">—</div>
                 </div>
                 <div class="stat-card">
                   <div class="stat-label">Conversation finalizations</div>
-                  <div class="stat-value" id="chatbot-analytics-finalizations">0</div>
+                  <div class="stat-value" id="chatbot-analytics-finalizations">—</div>
                 </div>
                 <div class="stat-card alert">
                   <div class="stat-label">Escalations</div>
-                  <div class="stat-value" id="chatbot-analytics-escalations">0</div>
+                  <div class="stat-value" id="chatbot-analytics-escalations">—</div>
                 </div>
                 <div class="stat-card">
                   <div class="stat-label">Average finalized length</div>
@@ -894,7 +810,7 @@
                     class="stat-value"
                     id="counselor-workload-authorized-appointments"
                   >
-                    0
+                    —
                   </div>
                 </div>
                 <div class="stat-card">
@@ -903,7 +819,7 @@
                     class="stat-value"
                     id="counselor-workload-pending-appointments"
                   >
-                    0
+                    —
                   </div>
                 </div>
                 <div class="stat-card">
@@ -912,7 +828,7 @@
                     class="stat-value"
                     id="counselor-workload-confirmed-appointments"
                   >
-                    0
+                    —
                   </div>
                 </div>
                 <div class="stat-card">
@@ -921,13 +837,13 @@
                     class="stat-value"
                     id="counselor-workload-completed-appointments"
                   >
-                    0
+                    —
                   </div>
                 </div>
                 <div class="stat-card">
                   <div class="stat-label">Active referrals</div>
                   <div class="stat-value" id="counselor-workload-active-referrals">
-                    0
+                    —
                   </div>
                 </div>
                 <div class="stat-card">
@@ -936,7 +852,7 @@
                     class="stat-value"
                     id="counselor-workload-active-interventions"
                   >
-                    0
+                    —
                   </div>
                 </div>
                 <div class="stat-card">
@@ -945,7 +861,7 @@
                     class="stat-value"
                     id="counselor-workload-completed-interventions"
                   >
-                    0
+                    —
                   </div>
                 </div>
               </section>
@@ -1002,27 +918,27 @@
               <section class="stat-grid">
                 <div class="stat-card">
                   <div class="stat-label">Total flagged cases</div>
-                  <div class="stat-value" id="flagged-case-analytics-total">0</div>
+                  <div class="stat-value" id="flagged-case-analytics-total">—</div>
                 </div>
                 <div class="stat-card">
                   <div class="stat-label">Pending reviews</div>
-                  <div class="stat-value" id="flagged-case-analytics-pending">0</div>
+                  <div class="stat-value" id="flagged-case-analytics-pending">—</div>
                 </div>
                 <div class="stat-card">
                   <div class="stat-label">Reviewed cases</div>
-                  <div class="stat-value" id="flagged-case-analytics-reviewed">0</div>
+                  <div class="stat-value" id="flagged-case-analytics-reviewed">—</div>
                 </div>
                 <div class="stat-card">
                   <div class="stat-label">Referrals</div>
-                  <div class="stat-value" id="flagged-case-analytics-referrals">0</div>
+                  <div class="stat-value" id="flagged-case-analytics-referrals">—</div>
                 </div>
                 <div class="stat-card">
                   <div class="stat-label">Interventions</div>
-                  <div class="stat-value" id="flagged-case-analytics-interventions">0</div>
+                  <div class="stat-value" id="flagged-case-analytics-interventions">—</div>
                 </div>
                 <div class="stat-card">
                   <div class="stat-label">Current confidential cases</div>
-                  <div class="stat-value" id="flagged-case-analytics-confidential">0</div>
+                  <div class="stat-value" id="flagged-case-analytics-confidential">—</div>
                 </div>
               </section>
               <div class="table-wrap">
@@ -1053,100 +969,6 @@
               </div>
             </section>
 
-            <div class="report-grid" data-dashboard-section="overview">
-              <div class="panel">
-                <div class="bar-chart-area">
-                  <div class="bar-chart-title">Inquiry Categories</div>
-                  <div class="bar-chart-sub">Top student inquiry topics</div>
-                  <div class="bar-row">
-                    <span class="bar-label">Office Schedule</span>
-                    <div class="bar-track">
-                      <div class="bar-fill" style="width: 85%"></div>
-                    </div>
-                    <span class="bar-num">39</span>
-                  </div>
-                  <div class="bar-row">
-                    <span class="bar-label">Appointment</span>
-                    <div class="bar-track">
-                      <div class="bar-fill" style="width: 70%"></div>
-                    </div>
-                    <span class="bar-num">32</span>
-                  </div>
-                  <div class="bar-row">
-                    <span class="bar-label">Counseling</span>
-                    <div class="bar-track">
-                      <div class="bar-fill" style="width: 50%"></div>
-                    </div>
-                    <span class="bar-num">23</span>
-                  </div>
-                  <div class="bar-row">
-                    <span class="bar-label">Document Request</span>
-                    <div class="bar-track">
-                      <div class="bar-fill" style="width: 37%"></div>
-                    </div>
-                    <span class="bar-num">17</span>
-                  </div>
-                  <div class="bar-row">
-                    <span class="bar-label">General Inquiry</span>
-                    <div class="bar-track">
-                      <div class="bar-fill" style="width: 15%"></div>
-                    </div>
-                    <span class="bar-num">7</span>
-                  </div>
-                </div>
-              </div>
-
-              <div class="panel">
-                <div class="case-summary-area">
-                  <div class="case-summary-title">Case Status Summary</div>
-                  <div class="case-summary-sub">Current inquiry queue</div>
-                  <div class="case-status-row">
-                    <span
-                      ><span class="dot" style="background: #f59e0b"></span
-                      >Pending Review</span
-                    >
-                    <span class="count">11</span>
-                  </div>
-                  <div class="case-status-row">
-                    <span
-                      ><span class="dot" style="background: #1e7d46"></span
-                      >Resolved</span
-                    >
-                    <span class="count">86</span>
-                  </div>
-                  <div class="case-status-row">
-                    <span
-                      ><span class="dot" style="background: #9a9490"></span
-                      >Auto-resolved Routine</span
-                    >
-                    <span class="count">14</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <section class="panel" data-dashboard-section="overview">
-              <div class="flagged-table-header">
-                <div>
-                  <h3>Recent Flagged Concerns</h3>
-                  <p>Students requiring review or possible staff assistance</p>
-                </div>
-              </div>
-              <div class="table-wrap">
-                <table class="inquiry-table">
-                  <thead>
-                    <tr>
-                      <th>Student</th>
-                      <th>Category</th>
-                      <th>Status</th>
-                      <th>Time</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody id="reports-flagged-tbody"></tbody>
-                </table>
-              </div>
-            </section>
           </div>
 
           <div class="view" id="view-settings">
@@ -1313,7 +1135,7 @@ Yes, you may request counseling assistance through the chatbot or visit the SOC 
               <div class="case-main-panel">
                 <div class="case-profile-card">
                   <div class="case-profile-top">
-                    <div class="case-avatar" id="case-avatar">MS</div>
+                    <div class="case-avatar" id="case-avatar">—</div>
                     <div style="flex: 1">
                       <div
                         style="
@@ -1324,11 +1146,9 @@ Yes, you may request counseling assistance through the chatbot or visit the SOC 
                         "
                       >
                         <span class="case-profile-name" id="case-name"
-                          >Maria Santos</span
+                          >Select a flagged case</span
                         >
-                        <span class="badge negative" id="case-badge"
-                          >Negative</span
-                        >
+                        <span class="badge" id="case-badge">—</span>
                       </div>
                       <div class="case-profile-meta" id="case-meta">
                         Student Number: — · Student Email: —
@@ -1337,30 +1157,24 @@ Yes, you may request counseling assistance through the chatbot or visit the SOC 
                   </div>
                   <h3>AI Summary</h3>
                   <div class="case-message-box" id="case-message">
-                    AI-generated case summary will appear here.
+                    Select a flagged case to view its authorized summary.
                   </div>
                   <div class="case-meta-grid">
                     <div class="case-meta-cell">
                       <div class="case-meta-label">Category</div>
-                      <div class="case-meta-value" id="case-category">
-                        Counseling
-                      </div>
+                      <div class="case-meta-value" id="case-category">—</div>
                     </div>
                     <div class="case-meta-cell">
                       <div class="case-meta-label">Detected Emotion</div>
-                      <div class="case-meta-value" id="case-emotion">
-                        Negative Emotion
-                      </div>
+                      <div class="case-meta-value" id="case-emotion">—</div>
                     </div>
                     <div class="case-meta-cell">
                       <div class="case-meta-label">Time Received</div>
-                      <div class="case-meta-value" id="case-time">7:42 AM</div>
+                      <div class="case-meta-value" id="case-time">—</div>
                     </div>
                     <div class="case-meta-cell">
                       <div class="case-meta-label">Case Status</div>
-                      <div class="case-meta-value" id="case-status-label">
-                        Pending Review
-                      </div>
+                      <div class="case-meta-value" id="case-status-label">—</div>
                     </div>
                   </div>
                 </div>
@@ -1373,22 +1187,22 @@ Yes, you may request counseling assistance through the chatbot or visit the SOC 
                   <div class="conversation-insights">
                     <div class="insight-row">
                       <span>Total Messages</span>
-                      <strong id="case-total-messages">0</strong>
+                      <strong id="case-total-messages">—</strong>
                     </div>
 
                     <div class="insight-row">
                       <span>Student Messages</span>
-                      <strong id="case-student-messages">0</strong>
+                      <strong id="case-student-messages">—</strong>
                     </div>
 
                     <div class="insight-row">
                       <span>AI Responses</span>
-                      <strong id="case-ai-messages">0</strong>
+                      <strong id="case-ai-messages">—</strong>
                     </div>
 
                     <div class="insight-row">
                       <span>Escalation Status</span>
-                      <strong id="case-escalation-status">No Escalation</strong>
+                      <strong id="case-escalation-status">—</strong>
                     </div>
 
                     <div class="insight-row">
@@ -1590,7 +1404,7 @@ Yes, you may request counseling assistance through the chatbot or visit the SOC 
               <div class="case-main-panel">
                 <div class="case-profile-card">
                   <div class="case-profile-top">
-                    <div class="case-avatar" id="appointment-avatar">MS</div>
+                    <div class="case-avatar" id="appointment-avatar">—</div>
                     <div style="flex: 1">
                       <div
                         style="
@@ -1604,20 +1418,20 @@ Yes, you may request counseling assistance through the chatbot or visit the SOC 
                           class="case-profile-name"
                           id="appointment-student-name"
                         >
-                          Maria Santos
+                          Select an appointment
                         </span>
                         <span
                           class="badge pending"
                           id="appointment-status-badge"
                         >
-                          Pending
+                          —
                         </span>
                       </div>
                       <div class="case-profile-meta">
                         Student Number:
                         <span id="appointment-student-number">—</span>
                         &nbsp;·&nbsp; Email:
-                        <span id="appointment-email">student@hau.edu.ph</span>
+                        <span id="appointment-email">—</span>
                         &nbsp;·&nbsp; Contact:
                         <span id="appointment-contact-number">—</span>
                       </div>
@@ -1625,20 +1439,16 @@ Yes, you may request counseling assistance through the chatbot or visit the SOC 
                   </div>
                   <h3>Reason for Appointment</h3>
                   <div class="case-message-box" id="appointment-reason">
-                    Student appointment reason will appear here.
+                    Select an appointment to view its authorized details.
                   </div>
                   <div class="case-meta-grid">
                     <div class="case-meta-cell">
                       <div class="case-meta-label">Category</div>
-                      <div class="case-meta-value" id="appointment-category">
-                        Personal Counseling
-                      </div>
+                      <div class="case-meta-value" id="appointment-category">—</div>
                     </div>
                     <div class="case-meta-cell">
                       <div class="case-meta-label">Mode</div>
-                      <div class="case-meta-value" id="appointment-mode">
-                        Face-to-Face
-                      </div>
+                      <div class="case-meta-value" id="appointment-mode">—</div>
                     </div>
                     <div class="case-meta-cell">
                       <div class="case-meta-label">Preferred Date</div>
@@ -1646,7 +1456,7 @@ Yes, you may request counseling assistance through the chatbot or visit the SOC 
                         class="case-meta-value"
                         id="appointment-preferred-date"
                       >
-                        July 30, 2026
+                        —
                       </div>
                     </div>
                     <div class="case-meta-cell">
@@ -1655,20 +1465,16 @@ Yes, you may request counseling assistance through the chatbot or visit the SOC 
                         class="case-meta-value"
                         id="appointment-preferred-time"
                       >
-                        9:00 AM
+                        —
                       </div>
                     </div>
                     <div class="case-meta-cell">
                       <div class="case-meta-label">Status</div>
-                      <div class="case-meta-value" id="appointment-status">
-                        Pending
-                      </div>
+                      <div class="case-meta-value" id="appointment-status">—</div>
                     </div>
                     <div class="case-meta-cell">
                       <div class="case-meta-label">Source</div>
-                      <div class="case-meta-value" id="appointment-source">
-                        Student Portal
-                      </div>
+                      <div class="case-meta-value" id="appointment-source">—</div>
                     </div>
                   </div>
                 </div>
@@ -1677,9 +1483,7 @@ Yes, you may request counseling assistance through the chatbot or visit the SOC 
                   <div class="conversation-insights">
                     <div class="insight-row">
                       <span>Program</span>
-                      <strong id="appointment-program"
-                        >BS Computer Science</strong
-                      >
+                      <strong id="appointment-program">—</strong>
                     </div>
                     <div class="insight-row">
                       <span>Assigned To</span>
@@ -1687,9 +1491,7 @@ Yes, you may request counseling assistance through the chatbot or visit the SOC 
                     </div>
                     <div class="insight-row">
                       <span>Created At</span>
-                      <strong id="appointment-created-at"
-                        >July 28, 2026 • 8:13 AM</strong
-                      >
+                      <strong id="appointment-created-at">—</strong>
                     </div>
                   </div>
                 </div>

@@ -73,7 +73,7 @@ class SecurityPrivacyContractTests(unittest.TestCase):
         self.assertIn("hau_escalations", auth)
         self.assertIn("hau_takeover_case", auth)
 
-    def test_dashboard_protects_persisted_values_rendered_with_inner_html(self) -> None:
+    def test_dashboard_protects_persisted_values_in_html_and_dom_renderers(self) -> None:
         dashboard = _source("frontend/static/js/dashboard.js")
 
         self.assertIn("function escapeHtml(value)", dashboard)
@@ -87,17 +87,16 @@ class SecurityPrivacyContractTests(unittest.TestCase):
             "${escapeHtml(title)}",
             "${escapeHtml(question)}",
             "${escapeHtml(answer || \"\")}",
-            "${escapeHtml(inquiry.student)}",
-            "${escapeHtml(inquiry.studentId)}",
-            "${escapeHtml(preview)}",
-            "${escapeHtml(inquiry.category)}",
-            "${escapeHtml(inquiry.time)}",
             "${escapeHtml(summary.category)}",
             "${escapeHtml(summary.id)}",
         )
         for escaped_value in expected_escaped_values:
             with self.subTest(escaped_value=escaped_value):
                 self.assertIn(escaped_value, dashboard)
+
+        self.assertIn("function renderInquiryTable()", dashboard)
+        self.assertIn('appendTableCell(row, "Confidential inquiry")', dashboard)
+        self.assertIn("cell.textContent = value", dashboard)
 
         # Persisted case-management values use textContent / DOM construction.
         for renderer in (

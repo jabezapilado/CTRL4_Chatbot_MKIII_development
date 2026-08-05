@@ -536,27 +536,6 @@
   height: 5px;
 }
 
-.filter-tabs {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-.filter-tab {
-  font-size: 12px;
-  font-weight: 600;
-  padding: 6px 14px;
-  border-radius: 99px;
-  border: 1px solid var(--gray-200);
-  background: var(--white);
-  color: var(--gray-700);
-  transition: all 0.15s;
-}
-.filter-tab.active {
-  background: var(--orange);
-  border-color: var(--orange);
-  color: var(--white);
-}
-
 .table-wrap {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -687,94 +666,6 @@ table.inquiry-table .table-empty-state {
   color: #1e7d46;
 }
 
-.report-grid {
-  display: grid;
-  grid-template-columns: 1fr 340px;
-  gap: 18px;
-  margin-bottom: 18px;
-}
-.bar-chart-area {
-  padding: 20px 22px;
-}
-.bar-chart-title {
-  font-size: 15px;
-  font-weight: 700;
-  margin-bottom: 4px;
-}
-.bar-chart-sub {
-  font-size: 12px;
-  color: var(--gray-400);
-  margin-bottom: 18px;
-}
-.bar-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-.bar-label {
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--orange);
-  width: 140px;
-  flex-shrink: 0;
-}
-.bar-track {
-  flex: 1;
-  height: 10px;
-  background: var(--gray-100);
-  border-radius: 99px;
-  overflow: hidden;
-}
-.bar-fill {
-  height: 100%;
-  border-radius: 99px;
-  background: linear-gradient(90deg, var(--orange) 0%, var(--gold) 100%);
-}
-.bar-num {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--gray-700);
-  width: 28px;
-  text-align: right;
-}
-
-.case-summary-area {
-  padding: 20px 22px;
-}
-.case-summary-title {
-  font-size: 15px;
-  font-weight: 700;
-  margin-bottom: 4px;
-}
-.case-summary-sub {
-  font-size: 12px;
-  color: var(--gray-400);
-  margin-bottom: 18px;
-}
-.case-status-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 11px 14px;
-  border: 1px solid var(--gray-200);
-  border-radius: var(--radius-md);
-  margin-bottom: 8px;
-  font-size: 13px;
-  font-weight: 500;
-}
-.case-status-row .dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  display: inline-block;
-  margin-right: 8px;
-}
-.case-status-row .count {
-  font-weight: 800;
-  font-size: 14px;
-}
-
 .report-period-badge {
   display: inline-flex;
   align-items: center;
@@ -786,28 +677,6 @@ table.inquiry-table .table-empty-state {
   font-size: 12px;
   font-weight: 600;
   color: var(--gray-700);
-}
-
-.flagged-table-section {
-  padding: 0;
-}
-.flagged-table-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--gray-200);
-  flex-wrap: wrap;
-  gap: 10px;
-}
-.flagged-table-header h3 {
-  font-size: 15px;
-  font-weight: 700;
-}
-.flagged-table-header p {
-  font-size: 12px;
-  color: var(--gray-400);
-  margin-top: 2px;
 }
 
 .settings-grid {
@@ -1927,7 +1796,6 @@ table.inquiry-table .table-empty-state {
   .dash-header-actions {
     margin-left: auto;
   }
-  .report-grid,
   .settings-grid,
   .entry-layout,
   .case-layout {
