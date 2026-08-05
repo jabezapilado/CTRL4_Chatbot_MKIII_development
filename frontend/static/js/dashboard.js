@@ -495,10 +495,12 @@ function renderAppointmentAnalytics() {
 
   const total = document.getElementById("appointment-analytics-total");
   const range = document.getElementById("appointment-analytics-range");
-  if (total) total.textContent = displayAggregateValue(analytics.total_appointments);
+  if (total)
+    total.textContent = displayAggregateValue(analytics.total_appointments);
 
   if (range) {
-    const { start_date: startDate, end_date: endDate } = analytics.filters || {};
+    const { start_date: startDate, end_date: endDate } =
+      analytics.filters || {};
     range.textContent =
       startDate || endDate
         ? `${startDate || "Beginning"} to ${endDate || "Present"}`
@@ -510,9 +512,21 @@ function renderAppointmentAnalytics() {
     analytics.status_distribution || [],
     "status",
   );
-  renderAnalyticsRows("appointment-analytics-daily", analytics.daily_trends || [], "date");
-  renderAnalyticsRows("appointment-analytics-weekly", analytics.weekly_trends || [], "week");
-  renderAnalyticsRows("appointment-analytics-monthly", analytics.monthly_trends || [], "month");
+  renderAnalyticsRows(
+    "appointment-analytics-daily",
+    analytics.daily_trends || [],
+    "date",
+  );
+  renderAnalyticsRows(
+    "appointment-analytics-weekly",
+    analytics.weekly_trends || [],
+    "week",
+  );
+  renderAnalyticsRows(
+    "appointment-analytics-monthly",
+    analytics.monthly_trends || [],
+    "month",
+  );
   renderAnalyticsRows(
     "appointment-analytics-counselors",
     analytics.counselor_counts || [],
@@ -542,10 +556,7 @@ function renderChatbotAnalytics() {
     "chatbot-analytics-finalizations",
     analytics.conversation_finalization_count,
   );
-  valueFor(
-    "chatbot-analytics-escalations",
-    analytics.escalation_count,
-  );
+  valueFor("chatbot-analytics-escalations", analytics.escalation_count);
   valueFor(
     "chatbot-analytics-average-length",
     analytics.average_finalized_conversation_length,
@@ -579,7 +590,9 @@ function renderChatbotAnalytics() {
 }
 
 async function loadChatbotAnalytics() {
-  const startDate = document.getElementById("chatbot-analytics-start-date")?.value;
+  const startDate = document.getElementById(
+    "chatbot-analytics-start-date",
+  )?.value;
   const endDate = document.getElementById("chatbot-analytics-end-date")?.value;
   const query = new URLSearchParams();
   if (startDate) query.set("start_date", startDate);
@@ -671,9 +684,7 @@ async function loadCounselorWorkloadAnalytics() {
   const startDate = document.getElementById(
     "counselor-workload-start-date",
   )?.value;
-  const endDate = document.getElementById(
-    "counselor-workload-end-date",
-  )?.value;
+  const endDate = document.getElementById("counselor-workload-end-date")?.value;
   const query = new URLSearchParams();
   if (startDate) query.set("start_date", startDate);
   if (endDate) query.set("end_date", endDate);
@@ -723,10 +734,7 @@ function renderFlaggedCaseAnalytics() {
 
   const values = [
     ["flagged-case-analytics-total", analytics.total_flagged_cases],
-    [
-      "flagged-case-analytics-pending",
-      analytics.pending_flagged_case_reviews,
-    ],
+    ["flagged-case-analytics-pending", analytics.pending_flagged_case_reviews],
     ["flagged-case-analytics-reviewed", analytics.reviewed_flagged_cases],
     ["flagged-case-analytics-referrals", analytics.referral_count],
     ["flagged-case-analytics-interventions", analytics.intervention_count],
@@ -821,8 +829,12 @@ function bindFlaggedCaseAnalyticsFilters() {
 }
 
 async function loadAppointmentAnalytics() {
-  const startDate = document.getElementById("appointment-analytics-start-date")?.value;
-  const endDate = document.getElementById("appointment-analytics-end-date")?.value;
+  const startDate = document.getElementById(
+    "appointment-analytics-start-date",
+  )?.value;
+  const endDate = document.getElementById(
+    "appointment-analytics-end-date",
+  )?.value;
   const query = new URLSearchParams();
   if (startDate) query.set("start_date", startDate);
   if (endDate) query.set("end_date", endDate);
@@ -850,7 +862,9 @@ function bindAppointmentAnalyticsFilters() {
   document
     .getElementById("appointment-analytics-reset")
     ?.addEventListener("click", async () => {
-      const startDate = document.getElementById("appointment-analytics-start-date");
+      const startDate = document.getElementById(
+        "appointment-analytics-start-date",
+      );
       const endDate = document.getElementById("appointment-analytics-end-date");
       if (startDate) startDate.value = "";
       if (endDate) endDate.value = "";
@@ -862,7 +876,6 @@ function bindAppointmentAnalyticsFilters() {
         createToast("Unable to load appointment analytics.", "info");
       }
     });
-
 }
 
 function getSearchedAppointments() {
@@ -1121,13 +1134,23 @@ function parseBookingTime(value) {
   const hour = Number(match[1]);
   const minute = Number(match[2]);
   if (hour < 1 || hour > 12 || minute > 59) return null;
-  return (hour % 12 + (match[3].toUpperCase() === "PM" ? 12 : 0)) * 60 + minute;
+  return (
+    ((hour % 12) + (match[3].toUpperCase() === "PM" ? 12 : 0)) * 60 + minute
+  );
 }
 
 function dateMatchesBookingWindow(dateValue, window) {
   const selectedDate = new Date(`${dateValue}T00:00:00`);
   if (Number.isNaN(selectedDate.getTime())) return false;
-  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const days = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ];
   const selectedDay = days[selectedDate.getDay()];
   const range = String(window.days || "").split(" to ");
   if (range.length === 1) return range[0] === selectedDay;
@@ -1161,7 +1184,9 @@ function isManualBookingSelectionAvailable(dateValue, timeValue, options) {
 }
 
 async function refreshAppointmentBookingOptions() {
-  const response = await fetchJson(`${API_BASE}/api/appointments/booking-options`);
+  const response = await fetchJson(
+    `${API_BASE}/api/appointments/booking-options`,
+  );
   appointmentBookingOptions = response.data || {
     state: "unconfigured",
     bookingEnabled: false,
@@ -1181,12 +1206,16 @@ function renderManualAppointmentOptions(container) {
   addChoiceOptions(
     mode,
     available ? appointmentBookingOptions.consultationModes || [] : [],
-    available ? "Select a consultation mode" : "Appointment configuration unavailable",
+    available
+      ? "Select a consultation mode"
+      : "Appointment configuration unavailable",
   );
   addChoiceOptions(
     category,
     available ? appointmentBookingOptions.appointmentCategories || [] : [],
-    available ? "Select an appointment category" : "Appointment configuration unavailable",
+    available
+      ? "Select an appointment category"
+      : "Appointment configuration unavailable",
   );
   [date, time, mode, category].forEach((input) => {
     if (input) input.disabled = !available;
@@ -1493,7 +1522,10 @@ function renderManualAppointmentEntry() {
         !currentOptions.consultationModes.includes(appointmentModeSelect.value)
       ) {
         renderManualAppointmentOptions(container);
-        createToast("Appointment options changed. Select the current options.", "info");
+        createToast(
+          "Appointment options changed. Select the current options.",
+          "info",
+        );
         return;
       }
 
@@ -1771,32 +1803,97 @@ function setSettingsStatus(message, type = "") {
   if (type) status.classList.add(type);
 }
 
+function canonicalTimeToInputValue(value) {
+  const match = String(value || "")
+    .trim()
+    .match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return "";
+
+  const inputHour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (inputHour < 1 || inputHour > 12 || minute > 59) return "";
+
+  const hour =
+    inputHour % 12 + (match[3].toUpperCase() === "PM" ? 12 : 0);
+  return `${String(hour).padStart(2, "0")}:${match[2]}`;
+}
+
+function inputTimeToCanonical(value) {
+  const match = String(value || "").trim().match(/^(\d{2}):(\d{2})$/);
+  if (!match) return "";
+
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (hour > 23 || minute > 59) return "";
+
+  const meridiem = hour >= 12 ? "PM" : "AM";
+  const twelveHour = hour % 12 || 12;
+  return `${String(twelveHour).padStart(2, "0")}:${match[2]} ${meridiem}`;
+}
+
+function availabilityWindowTimeValues(value) {
+  const [start = "", end = ""] = String(value || "").split(" - ");
+  return {
+    startTime: canonicalTimeToInputValue(start),
+    endTime: canonicalTimeToInputValue(end),
+  };
+}
+
+function createAvailabilityField(labelText, control) {
+  const field = document.createElement("div");
+  const label = document.createElement("label");
+
+  field.className = "availability-field";
+  label.textContent = labelText;
+  field.append(label, control);
+  return field;
+}
+
 function createAvailabilityWindow(window = {}) {
   const row = document.createElement("div");
-  const days = document.createElement("select");
-  const time = document.createElement("input");
+  const weekday = document.createElement("select");
+  const startTime = document.createElement("input");
+  const endTime = document.createElement("input");
   const remove = document.createElement("button");
+  const error = document.createElement("p");
+  const { startTime: savedStartTime, endTime: savedEndTime } =
+    availabilityWindowTimeValues(window.time);
 
   row.className = "appointment-availability-window";
-  days.className = "form-control";
-  days.setAttribute("aria-label", "Available weekdays");
+  weekday.className = "form-control";
+  weekday.dataset.availabilityWeekday = "true";
+  weekday.setAttribute("aria-label", "Available weekday");
   AVAILABILITY_DAY_OPTIONS.forEach((day) => {
     const option = document.createElement("option");
     option.value = day;
     option.textContent = day;
-    days.appendChild(option);
+    weekday.appendChild(option);
   });
-  days.value = window.days || "Monday to Friday";
-  time.type = "text";
-  time.className = "form-control";
-  time.placeholder = "9:00 AM - 5:00 PM";
-  time.value = window.time || "";
-  time.setAttribute("aria-label", "Available time range");
+  weekday.value = window.days || "Monday";
+  startTime.type = "time";
+  startTime.className = "form-control";
+  startTime.dataset.availabilityStartTime = "true";
+  startTime.value = savedStartTime;
+  startTime.setAttribute("aria-label", "Availability start time");
+  endTime.type = "time";
+  endTime.className = "form-control";
+  endTime.dataset.availabilityEndTime = "true";
+  endTime.value = savedEndTime;
+  endTime.setAttribute("aria-label", "Availability end time");
   remove.type = "button";
   remove.className = "btn btn-outline btn-sm";
   remove.dataset.removeAvailabilityWindow = "true";
   remove.textContent = "Remove";
-  row.append(days, time, remove);
+  error.className = "availability-row-error";
+  error.hidden = true;
+  error.setAttribute("aria-live", "polite");
+  row.append(
+    createAvailabilityField("Weekday", weekday),
+    createAvailabilityField("Start time", startTime),
+    createAvailabilityField("End time", endTime),
+    remove,
+    error,
+  );
   return row;
 }
 
@@ -1820,7 +1917,9 @@ function createUnavailableDate(value = "") {
 
 function renderAvailabilityConfiguration(availability) {
   const windows = document.getElementById("appointment-availability-windows");
-  const unavailableDates = document.getElementById("appointment-unavailable-dates");
+  const unavailableDates = document.getElementById(
+    "appointment-unavailable-dates",
+  );
   if (!windows || !unavailableDates) return;
 
   windows.replaceChildren();
@@ -1845,14 +1944,58 @@ function settingsChoices(id) {
     .filter(Boolean);
 }
 
-function getSettingsSnapshot() {
-  const availabilityWindows = Array.from(
+function setAvailabilityRowError(row, message) {
+  const error = row.querySelector(".availability-row-error");
+  if (!error) return;
+  error.textContent = message || "";
+  error.hidden = !message;
+}
+
+function collectAvailabilityWindows() {
+  const rows = Array.from(
     document.querySelectorAll(".appointment-availability-window"),
-    (row) => ({
-      days: row.querySelector("select")?.value || "",
-      time: row.querySelector("input")?.value || "",
-    }),
   );
+  const windows = [];
+  let hasInvalidRow = false;
+
+  rows.forEach((row) => {
+    const weekday = row.querySelector("[data-availability-weekday]")?.value || "";
+    const startTime = row.querySelector("[data-availability-start-time]")?.value || "";
+    const endTime = row.querySelector("[data-availability-end-time]")?.value || "";
+    const canonicalStartTime = inputTimeToCanonical(startTime);
+    const canonicalEndTime = inputTimeToCanonical(endTime);
+
+    setAvailabilityRowError(row, "");
+    if (!weekday || !startTime || !endTime) {
+      setAvailabilityRowError(
+        row,
+        "Choose a weekday, start time, and end time for this availability row.",
+      );
+      hasInvalidRow = true;
+      return;
+    }
+    if (!canonicalStartTime || !canonicalEndTime || startTime >= endTime) {
+      setAvailabilityRowError(
+        row,
+        "End time must be later than start time.",
+      );
+      hasInvalidRow = true;
+      return;
+    }
+    windows.push({
+      days: weekday,
+      time: `${canonicalStartTime} - ${canonicalEndTime}`,
+    });
+  });
+
+  if (hasInvalidRow) {
+    throw new Error("Correct the highlighted availability rows before saving.");
+  }
+  return windows;
+}
+
+function getSettingsSnapshot() {
+  const availabilityWindows = collectAvailabilityWindows();
   const unavailableDates = Array.from(
     document.querySelectorAll(".appointment-unavailable-date input"),
     (input) => input.value,
@@ -1861,8 +2004,10 @@ function getSettingsSnapshot() {
   return {
     officeHours: document.getElementById("settings-office-hours")?.value || "",
     officeEmail: document.getElementById("settings-office-email")?.value || "",
-    contactNumber: document.getElementById("settings-contact-number")?.value || "",
-    officeLocation: document.getElementById("settings-office-location")?.value || "",
+    contactNumber:
+      document.getElementById("settings-contact-number")?.value || "",
+    officeLocation:
+      document.getElementById("settings-office-location")?.value || "",
     appointmentAvailability: {
       bookingEnabled: Boolean(
         document.getElementById("settings-booking-enabled")?.checked,
@@ -1885,21 +2030,31 @@ function renderPersistedSettings(settings) {
     "settings-office-email": settings?.officeEmail || "",
     "settings-contact-number": settings?.contactNumber || "",
     "settings-office-location": settings?.officeLocation || "",
-    "settings-appointment-categories": (availability?.appointmentCategories || []).join("\n"),
-    "settings-consultation-modes": (availability?.consultationModes || []).join("\n"),
+    "settings-appointment-categories": (
+      availability?.appointmentCategories || []
+    ).join("\n"),
+    "settings-consultation-modes": (availability?.consultationModes || []).join(
+      "\n",
+    ),
   };
   Object.entries(fields).forEach(([id, value]) => {
     const input = document.getElementById(id);
     if (input) input.value = value;
   });
   const bookingEnabled = document.getElementById("settings-booking-enabled");
-  if (bookingEnabled) bookingEnabled.checked = Boolean(availability?.bookingEnabled);
+  if (bookingEnabled)
+    bookingEnabled.checked = Boolean(availability?.bookingEnabled);
   renderAvailabilityConfiguration(availability);
+  const configurationState = settings?.appointmentConfigurationState;
   setSettingsStatus(
-    settings?.appointmentConfigurationState === "configured"
+    configurationState === "configured"
       ? "Persisted settings loaded."
-      : "Appointment configuration is unconfigured. Booking is unavailable until it is saved with availability, categories, and modes.",
-    settings?.appointmentConfigurationState === "configured" ? "success" : "error",
+      : configurationState === "booking_disabled"
+        ? "Appointment booking is disabled. Incomplete booking configuration is preserved but unavailable to students and manual entry."
+        : "Appointment configuration is unconfigured. Booking is unavailable until it is saved with availability, categories, and modes.",
+    configurationState === "configured" || configurationState === "booking_disabled"
+      ? "success"
+      : "error",
   );
 }
 
@@ -1941,8 +2096,12 @@ function bindSettingsInteractions() {
         .getElementById("appointment-unavailable-dates")
         ?.appendChild(createUnavailableDate());
     }
-    event.target.closest("[data-remove-availability-window]")?.parentElement?.remove();
-    event.target.closest("[data-remove-unavailable-date]")?.parentElement?.remove();
+    event.target
+      .closest("[data-remove-availability-window]")
+      ?.parentElement?.remove();
+    event.target
+      .closest("[data-remove-unavailable-date]")
+      ?.parentElement?.remove();
   });
 }
 
@@ -2061,8 +2220,8 @@ const viewMeta = {
     actions: '<div class="report-period-badge">This Month</div>',
   },
   settings: {
-    title: "Settings & FAQ Management",
-    sub: "Update chatbot responses, office details, categories, and escalation messages.",
+    title: "Guidance Office Settings",
+    sub: "Manage live office information and appointment booking availability.",
     actions:
       '<button class="btn btn-primary" data-dashboard-action="save-settings">Save Changes</button>',
   },
@@ -2177,13 +2336,13 @@ function showDashboardSection(viewId, sectionId) {
   const navigation = document.querySelector(
     `[data-dashboard-section-nav="${viewId}"]`,
   );
-  navigation?.querySelectorAll("[data-dashboard-section-target]").forEach(
-    (button) => {
+  navigation
+    ?.querySelectorAll("[data-dashboard-section-target]")
+    .forEach((button) => {
       const isActive = button.dataset.dashboardSectionTarget === sectionId;
       button.classList.toggle("active", isActive);
       button.setAttribute("aria-pressed", String(isActive));
-    },
-  );
+    });
 }
 
 function bindDashboardSectionNavigation() {
@@ -2450,34 +2609,70 @@ function renderDashboardOverview() {
   );
 
   appendReportRows("reports-overview-appointment-summary", [
-    ["Total appointments", displayAggregateValue(appointment.total_appointments)],
+    [
+      "Total appointments",
+      displayAggregateValue(appointment.total_appointments),
+    ],
     ...(appointment.status_distribution || []).map((item) => [
       `Persisted appointment status: ${item.status}`,
       item.count,
     ]),
   ]);
   appendReportRows("reports-overview-chatbot-summary", [
-    ["Total chatbot messages", displayAggregateValue(chatbot.total_chatbot_messages)],
-    ["Conversation finalizations", displayAggregateValue(chatbot.conversation_finalization_count)],
+    [
+      "Total chatbot messages",
+      displayAggregateValue(chatbot.total_chatbot_messages),
+    ],
+    [
+      "Conversation finalizations",
+      displayAggregateValue(chatbot.conversation_finalization_count),
+    ],
     ["Escalations", displayAggregateValue(chatbot.escalation_count)],
   ]);
   appendReportRows("reports-overview-workload-summary", [
-    ["Authorized appointments", displayAggregateValue(workload.authorized_appointment_count)],
-    ["Pending appointments", displayAggregateValue(workload.pending_appointment_count)],
-    ["Confirmed appointments", displayAggregateValue(workload.confirmed_appointment_count)],
-    ["Completed appointments", displayAggregateValue(workload.completed_appointment_count)],
+    [
+      "Authorized appointments",
+      displayAggregateValue(workload.authorized_appointment_count),
+    ],
+    [
+      "Pending appointments",
+      displayAggregateValue(workload.pending_appointment_count),
+    ],
+    [
+      "Confirmed appointments",
+      displayAggregateValue(workload.confirmed_appointment_count),
+    ],
+    [
+      "Completed appointments",
+      displayAggregateValue(workload.completed_appointment_count),
+    ],
     ["Active referrals", displayAggregateValue(workload.active_referral_count)],
-    ["Active interventions", displayAggregateValue(workload.active_intervention_count)],
-    ["Completed interventions", displayAggregateValue(workload.completed_intervention_count)],
+    [
+      "Active interventions",
+      displayAggregateValue(workload.active_intervention_count),
+    ],
+    [
+      "Completed interventions",
+      displayAggregateValue(workload.completed_intervention_count),
+    ],
   ]);
   appendReportRows("reports-overview-flagged-case-summary", [
-    ["Total flagged cases", displayAggregateValue(flaggedCases.total_flagged_cases)],
+    [
+      "Total flagged cases",
+      displayAggregateValue(flaggedCases.total_flagged_cases),
+    ],
     [
       "Pending flagged-case reviews",
       displayAggregateValue(flaggedCases.pending_flagged_case_reviews),
     ],
-    ["Reviewed flagged cases", displayAggregateValue(flaggedCases.reviewed_flagged_cases)],
-    ["Current confidential cases", displayAggregateValue(flaggedCases.current_confidential_case_count)],
+    [
+      "Reviewed flagged cases",
+      displayAggregateValue(flaggedCases.reviewed_flagged_cases),
+    ],
+    [
+      "Current confidential cases",
+      displayAggregateValue(flaggedCases.current_confidential_case_count),
+    ],
   ]);
 
   const recentActivity = [
@@ -2561,7 +2756,10 @@ function renderCombinedReports() {
   const flaggedCases = reports.flaggedCases || {};
 
   appendReportRows("reports-appointment-rows", [
-    ["Total appointments", displayAggregateValue(appointment.total_appointments)],
+    [
+      "Total appointments",
+      displayAggregateValue(appointment.total_appointments),
+    ],
     ...(appointment.status_distribution || []).map((item) => [
       `Status: ${item.status}`,
       item.count,
@@ -2577,7 +2775,10 @@ function renderCombinedReports() {
 
   const chatbotVolume = chatbot.message_volume || {};
   appendReportRows("reports-chatbot-rows", [
-    ["Total chatbot messages", displayAggregateValue(chatbot.total_chatbot_messages)],
+    [
+      "Total chatbot messages",
+      displayAggregateValue(chatbot.total_chatbot_messages),
+    ],
     [
       "Conversation finalizations",
       displayAggregateValue(chatbot.conversation_finalization_count),
@@ -2601,7 +2802,10 @@ function renderCombinedReports() {
       "Authorized appointments",
       displayAggregateValue(workload.authorized_appointment_count),
     ],
-    ["Pending appointments", displayAggregateValue(workload.pending_appointment_count)],
+    [
+      "Pending appointments",
+      displayAggregateValue(workload.pending_appointment_count),
+    ],
     [
       "Confirmed appointments",
       displayAggregateValue(workload.confirmed_appointment_count),
@@ -2627,7 +2831,10 @@ function renderCombinedReports() {
 
   const escalationTrends = flaggedCases.escalation_trends || {};
   appendReportRows("reports-flagged-case-rows", [
-    ["Total flagged cases", displayAggregateValue(flaggedCases.total_flagged_cases)],
+    [
+      "Total flagged cases",
+      displayAggregateValue(flaggedCases.total_flagged_cases),
+    ],
     [
       "Pending flagged-case reviews",
       displayAggregateValue(flaggedCases.pending_flagged_case_reviews),
@@ -2713,7 +2920,11 @@ function reportCsvRows() {
   };
 
   const appointment = reports.appointment || {};
-  add("Appointment", "Total appointments", appointment.total_appointments ?? "");
+  add(
+    "Appointment",
+    "Total appointments",
+    appointment.total_appointments ?? "",
+  );
   (appointment.status_distribution || []).forEach((item) =>
     add("Appointment", "Persisted appointment status", item.count, item.status),
   );
@@ -2725,7 +2936,11 @@ function reportCsvRows() {
   );
 
   const chatbot = reports.chatbot || {};
-  add("Chatbot", "Total chatbot messages", chatbot.total_chatbot_messages ?? "");
+  add(
+    "Chatbot",
+    "Total chatbot messages",
+    chatbot.total_chatbot_messages ?? "",
+  );
   add(
     "Chatbot",
     "Conversation finalizations",
@@ -2754,9 +2969,16 @@ function reportCsvRows() {
     ["Active referrals", workload.active_referral_count],
     ["Active interventions", workload.active_intervention_count],
     ["Completed interventions", workload.completed_intervention_count],
-  ].forEach(([metric, value]) => add("Counselor Workload", metric, value ?? ""));
+  ].forEach(([metric, value]) =>
+    add("Counselor Workload", metric, value ?? ""),
+  );
   (workload.workload_by_program || []).forEach((item) =>
-    add("Counselor Workload", "Authorized program appointments", item.count, item.program),
+    add(
+      "Counselor Workload",
+      "Authorized program appointments",
+      item.count,
+      item.program,
+    ),
   );
 
   const flaggedCases = reports.flaggedCases || {};
@@ -2766,7 +2988,10 @@ function reportCsvRows() {
     ["Reviewed flagged cases", flaggedCases.reviewed_flagged_cases],
     ["Referrals", flaggedCases.referral_count],
     ["Interventions", flaggedCases.intervention_count],
-    ["Current confidential cases", flaggedCases.current_confidential_case_count],
+    [
+      "Current confidential cases",
+      flaggedCases.current_confidential_case_count,
+    ],
   ].forEach(([metric, value]) => add("Flagged Case", metric, value ?? ""));
   (flaggedCases.persisted_case_status_distribution || []).forEach((item) =>
     add("Flagged Case", "Persisted case status", item.count, item.status),
@@ -2774,7 +2999,11 @@ function reportCsvRows() {
   const escalationTrends = flaggedCases.escalation_trends || {};
   addTrends("Flagged Case", "Daily escalation trend", escalationTrends.daily);
   addTrends("Flagged Case", "Weekly escalation trend", escalationTrends.weekly);
-  addTrends("Flagged Case", "Monthly escalation trend", escalationTrends.monthly);
+  addTrends(
+    "Flagged Case",
+    "Monthly escalation trend",
+    escalationTrends.monthly,
+  );
 
   return rows;
 }
@@ -4048,7 +4277,10 @@ async function loadBackendData() {
     };
   } catch (error) {
     console.error(error);
-    appointmentBookingOptions = { state: "unconfigured", bookingEnabled: false };
+    appointmentBookingOptions = {
+      state: "unconfigured",
+      bookingEnabled: false,
+    };
   }
 
   renderAllTables();

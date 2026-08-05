@@ -155,8 +155,14 @@ def _normalize_time_range(value: object) -> str:
     return f"{start_time} - {end_time}"
 
 
-def _normalize_windows(value: object) -> list[dict[str, str]]:
-    if not isinstance(value, list) or not value:
+def _normalize_windows(
+    value: object,
+    *,
+    required: bool,
+) -> list[dict[str, str]]:
+    if not isinstance(value, list):
+        raise ValueError("Office availability must be a list of windows.")
+    if required and not value:
         raise ValueError("Office availability must contain at least one window.")
     normalized: list[dict[str, str]] = []
     for window in value:
@@ -173,8 +179,15 @@ def _normalize_windows(value: object) -> list[dict[str, str]]:
     return normalized
 
 
-def _normalize_choices(value: object, field_name: str) -> list[str]:
-    if not isinstance(value, list) or not value:
+def _normalize_choices(
+    value: object,
+    field_name: str,
+    *,
+    required: bool,
+) -> list[str]:
+    if not isinstance(value, list):
+        raise ValueError(f"{field_name} must be a list of choices.")
+    if required and not value:
         raise ValueError(f"{field_name} must contain at least one choice.")
     normalized: list[str] = []
     for item in value:
@@ -204,8 +217,15 @@ def normalize_appointment_availability(
     if fields != APPOINTMENT_AVAILABILITY_FIELDS and not (allow_legacy and is_legacy):
         raise ValueError("Appointment availability contains unsupported fields.")
 
+    booking_enabled = availability.get("bookingEnabled", True)
+    if not isinstance(booking_enabled, bool):
+        raise ValueError("Booking enabled must be true or false.")
+
     normalized: dict[str, Any] = {
-        "officeAvailability": _normalize_windows(availability.get("officeAvailability")),
+        "officeAvailability": _normalize_windows(
+            availability.get("officeAvailability"),
+            required=booking_enabled,
+        ),
         "holidays": _normalize_date_list(availability.get("holidays"), "Holidays"),
         "academicCalendarExclusions": _normalize_date_list(
             availability.get("academicCalendarExclusions"),
@@ -217,21 +237,21 @@ def normalize_appointment_availability(
         ),
     }
     if is_legacy:
-        normalized["bookingEnabled"] = True
+        normalized["bookingEnabled"] = booking_enabled
         normalized["appointmentCategories"] = None
         normalized["consultationModes"] = None
         return normalized
 
-    if not isinstance(availability.get("bookingEnabled"), bool):
-        raise ValueError("Booking enabled must be true or false.")
-    normalized["bookingEnabled"] = availability["bookingEnabled"]
+    normalized["bookingEnabled"] = booking_enabled
     normalized["appointmentCategories"] = _normalize_choices(
         availability.get("appointmentCategories"),
         "Appointment categories",
+        required=booking_enabled,
     )
     normalized["consultationModes"] = _normalize_choices(
         availability.get("consultationModes"),
         "Consultation modes",
+        required=booking_enabled,
     )
     return normalized
 
@@ -262,13 +282,16 @@ class SettingsService:
         except ValueError:
             availability = None
         settings[APPOINTMENT_AVAILABILITY_KEY] = availability
-        settings["appointmentConfigurationState"] = (
-            "configured"
-            if availability
+        if availability and not availability["bookingEnabled"]:
+            settings["appointmentConfigurationState"] = "booking_disabled"
+        elif (
+            availability
             and availability["appointmentCategories"] is not None
             and availability["consultationModes"] is not None
-            else "unconfigured"
-        )
+        ):
+            settings["appointmentConfigurationState"] = "configured"
+        else:
+            settings["appointmentConfigurationState"] = "unconfigured"
         return settings
 
     def update_settings(self, payload: object) -> None:

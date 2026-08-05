@@ -39,8 +39,32 @@ class SettingsFrontendContractTests(unittest.TestCase):
         self.assertNotIn("addFaqFromButton", dashboard)
         self.assertNotIn("autoFlag", dashboard)
         self.assertNotIn("showSupport", dashboard)
-        self.assertIn("not staff-configurable", template)
+        self.assertIn('title: "Guidance Office Settings"', dashboard)
+        self.assertNotIn("Chatbot / FAQ Settings", template)
+        self.assertNotIn("Escalation Settings", template)
+        self.assertIn("Office Information", template)
+        self.assertIn("Appointment Availability", template)
+        self.assertIn("Account Security", template)
         self.assertNotIn("onclick=", template)
+
+    def test_availability_rows_have_distinct_controls_and_canonical_payloads(self) -> None:
+        dashboard = _read("frontend/static/js/dashboard.js")
+
+        self.assertIn('weekday.dataset.availabilityWeekday = "true"', dashboard)
+        self.assertIn('startTime.type = "time"', dashboard)
+        self.assertIn('endTime.type = "time"', dashboard)
+        self.assertIn("inputTimeToCanonical", dashboard)
+        self.assertIn('time: `${canonicalStartTime} - ${canonicalEndTime}`', dashboard)
+        self.assertIn("Correct the highlighted availability rows before saving.", dashboard)
+
+    def test_availability_panel_is_full_width_and_responsive(self) -> None:
+        template = _read("frontend/templates/dashboard.html")
+        stylesheet = _read("frontend/static/css/dashboard.css")
+
+        self.assertIn('class="settings-panel appointment-settings-panel"', template)
+        self.assertIn("grid-template-columns: 1fr;", stylesheet)
+        self.assertIn(".appointment-availability-window {", stylesheet)
+        self.assertIn("grid-template-columns: 1fr;", stylesheet)
 
 
 if __name__ == "__main__":

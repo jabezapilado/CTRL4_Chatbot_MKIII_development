@@ -5,7 +5,10 @@ from flask import Flask
 from pathlib import Path
 from unittest.mock import patch
 
-from backend.server.services.settings_service import SettingsService
+from backend.server.services.settings_service import (
+    SettingsService,
+    normalize_appointment_availability,
+)
 
 
 def configured_availability() -> dict:
@@ -82,6 +85,100 @@ class SettingsServiceTests(unittest.TestCase):
         self.assertEqual(options["state"], "unavailable")
         self.assertFalse(options["bookingEnabled"])
         self.assertIn("officeAvailability", options)
+
+    def test_booking_disabled_allows_incomplete_configuration_but_blocks_booking(self) -> None:
+        saved: list[dict] = []
+        availability = configured_availability()
+        availability.update(
+            {
+                "bookingEnabled": False,
+                "officeAvailability": [],
+                "appointmentCategories": [],
+                "consultationModes": [],
+            }
+        )
+        service = SettingsService(load=lambda _keys: {}, save=saved.append)
+
+        service.update_settings({"appointmentAvailability": availability})
+
+        self.assertEqual(saved[0]["appointmentAvailability"]["officeAvailability"], [])
+        options = SettingsService(
+            load=lambda _keys: saved[0]
+        ).get_student_booking_options()
+        self.assertEqual(options["state"], "unavailable")
+        self.assertFalse(options["bookingEnabled"])
+        self.assertEqual(
+            SettingsService(
+                load=lambda _keys: saved[0]
+            ).get_settings()["appointmentConfigurationState"],
+            "booking_disabled",
+        )
+
+    def test_booking_enabled_requires_windows_categories_and_modes(self) -> None:
+        service = SettingsService(load=lambda _keys: {}, save=lambda _settings: None)
+
+        for field_name, message in (
+            ("officeAvailability", "Office availability must contain"),
+            ("appointmentCategories", "Appointment categories must contain"),
+            ("consultationModes", "Consultation modes must contain"),
+        ):
+            with self.subTest(field_name=field_name):
+                availability = configured_availability()
+                availability[field_name] = []
+                with self.assertRaisesRegex(ValueError, message):
+                    service.update_settings({"appointmentAvailability": availability})
+
+    def test_complete_browser_window_payload_normalizes_and_round_trips(self) -> None:
+        saved: list[dict] = []
+        availability = configured_availability()
+        availability["officeAvailability"] = [
+            {"days": "Monday", "time": "07:00 AM - 09:00 AM"},
+            {"days": "Sunday", "time": "09:00 AM - 05:00 PM"},
+        ]
+        service = SettingsService(load=lambda _keys: {}, save=saved.append)
+
+        service.update_settings({"appointmentAvailability": availability})
+
+        persisted = saved[0]["appointmentAvailability"]
+        self.assertEqual(
+            persisted["officeAvailability"],
+            [
+                {"days": "Monday", "time": "07:00 AM - 09:00 AM"},
+                {"days": "Sunday", "time": "09:00 AM - 05:00 PM"},
+            ],
+        )
+
+    def test_legacy_availability_values_normalize_for_current_controls(self) -> None:
+        legacy = {
+            "officeAvailability": [
+                {"days": "monday-friday", "time": "7:00 am - 5:00 pm"}
+            ],
+            "holidays": [],
+            "academicCalendarExclusions": [],
+            "unavailableDates": [],
+        }
+
+        normalized = normalize_appointment_availability(legacy, allow_legacy=True)
+
+        self.assertEqual(
+            normalized["officeAvailability"],
+            [{"days": "Monday to Friday", "time": "07:00 AM - 05:00 PM"}],
+        )
+        self.assertTrue(normalized["bookingEnabled"])
+
+    def test_incomplete_or_reversed_window_is_rejected(self) -> None:
+        service = SettingsService(load=lambda _keys: {}, save=lambda _settings: None)
+        incomplete = configured_availability()
+        incomplete["officeAvailability"] = [{"days": "Monday", "time": ""}]
+        reversed_window = configured_availability()
+        reversed_window["officeAvailability"] = [
+            {"days": "Monday", "time": "09:00 AM - 07:00 AM"}
+        ]
+
+        with self.assertRaisesRegex(ValueError, "Availability time"):
+            service.update_settings({"appointmentAvailability": incomplete})
+        with self.assertRaisesRegex(ValueError, "end time must be after"):
+            service.update_settings({"appointmentAvailability": reversed_window})
 
 
 class SettingsRouteTests(unittest.TestCase):
@@ -198,6 +295,34 @@ class AppointmentSettingsIntegrationTests(unittest.TestCase):
                     "2026-08-10",
                     "09:00 AM",
                     "Removed category",
+                    "onsite",
+                )
+
+    def test_general_availability_and_counselor_schedule_are_separate_gates(self) -> None:
+        from backend.server.services import appointment_service
+
+        counselor = {
+            "consultation_rooms": '["Room 1"]',
+            "consultation_schedules": (
+                '[{"room":"Room 1","days":"Monday",'
+                '"time":"09:00 AM - 05:00 PM"}]'
+            ),
+        }
+        configuration = configured_availability()
+        configuration["officeAvailability"] = [
+            {"days": "Sunday", "time": "09:00 AM - 05:00 PM"}
+        ]
+        with patch.object(
+            appointment_service.settings_service,
+            "get_appointment_configuration",
+            return_value=configuration,
+        ):
+            with self.assertRaisesRegex(ValueError, "counselor's consultation schedule"):
+                appointment_service._validate_booking_constraints(
+                    counselor,
+                    "2026-08-09",
+                    "09:00 AM",
+                    "Academic",
                     "onsite",
                 )
 
