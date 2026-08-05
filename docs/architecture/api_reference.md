@@ -112,10 +112,16 @@ details are not API inputs or historical analytics fields.
 | PATCH | `/api/notifications/<notification_id>/read` | Student or staff recipient | None | 200; 404 for inaccessible/missing item |
 | GET | `/api/settings` | Staff | None | 200 current settings |
 | POST | `/api/settings` | Staff | settings payload | 200 saved status |
+| GET | `/api/settings/faqs` | Staff | None | 200 `data.items` persisted FAQ entries |
+| POST | `/api/settings/faqs` | Staff | title, question, answer; optional active/order | 201 created FAQ; 400 validation |
+| PATCH | `/api/settings/faqs/<faq_id>` | Staff | title, question, answer, active, or order | 200 updated FAQ; 400 validation; 404 |
+| DELETE | `/api/settings/faqs/<faq_id>` | Staff | None | 200 removed status; 404 |
 
 Settings include staff-maintained operational configuration. The descriptive
 `officeHours` value is informational; booking availability uses the validated
-`appointmentAvailability` configuration in the appointment service.
+`appointmentAvailability` configuration in the appointment service. Active FAQ
+entries are persisted Guidance Office knowledge and are evaluated after live
+operational settings but before RAG or provider output.
 
 ## Conversation, escalation, and case management — staff only
 

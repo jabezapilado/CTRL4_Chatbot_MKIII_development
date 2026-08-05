@@ -66,6 +66,27 @@ class SettingsFrontendContractTests(unittest.TestCase):
         self.assertIn(".appointment-availability-window {", stylesheet)
         self.assertIn("grid-template-columns: 1fr;", stylesheet)
 
+    def test_faq_management_is_persisted_safe_and_responsive(self) -> None:
+        dashboard = _read("frontend/static/js/dashboard.js")
+        template = _read("frontend/templates/dashboard.html")
+        stylesheet = _read("frontend/static/css/dashboard.css")
+
+        self.assertIn("FAQ Management", template)
+        self.assertIn('id="faq-list"', template)
+        self.assertIn('id="add-faq-form"', template)
+        self.assertIn("/api/settings/faqs", dashboard)
+        self.assertIn("function loadFaqs()", dashboard)
+        self.assertIn("function createFaqEditorCard", dashboard)
+        managed_renderer = dashboard[
+            dashboard.index("function createFaqEditorCard") : dashboard.index(
+                "function renderFaqs",
+            )
+        ]
+        self.assertNotIn("innerHTML", managed_renderer)
+        self.assertNotIn("localStorage", dashboard)
+        self.assertIn(".faq-management-panel", stylesheet)
+        self.assertIn(".faq-editor-card-actions", stylesheet)
+
 
 if __name__ == "__main__":
     unittest.main()

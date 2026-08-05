@@ -140,6 +140,7 @@ def _service(
     rag: object | None = None,
     response_safety: object | None = None,
     operational_guidance: object | None = None,
+    faq_settings: object | None = None,
 ) -> AIService:
     return AIService(
         safety=safety or _Safety(),
@@ -153,6 +154,7 @@ def _service(
         metadata_extractor=_Metadata(),
         response_safety=response_safety or _AllowResponses(),
         operational_guidance=operational_guidance,
+        faq_settings=faq_settings,
     )
 
 
@@ -204,6 +206,49 @@ class ResponseValidationRegressionTests(unittest.TestCase):
 
 
 class ConversationHistoryRegressionTests(unittest.TestCase):
+    def test_active_persisted_faq_precedes_stale_rag_and_provider_output(self) -> None:
+        class FAQSettings:
+            def answer_faq(self, _message, _user):  # type: ignore[no-untyped-def]
+                return SimpleNamespace(
+                    response="Persisted FAQ answer.",
+                    source_context="Persisted FAQ answer.",
+                )
+
+        llm = _CapturingLlm(["Stale provider answer."])
+        rag = _RetrievedRag([SimpleNamespace(source="legacy.md", text="Stale RAG answer.")])
+
+        result = _service(
+            llm,
+            rag=rag,
+            faq_settings=FAQSettings(),
+            response_safety=_AllowResponses(),
+        ).respond("What is the custom office policy?", user={"id": 7, "role": "student"})
+
+        self.assertEqual(result.response, "Persisted FAQ answer.")
+        self.assertEqual(llm.prompts, [])
+        self.assertEqual(rag.queries, [])
+
+    def test_safety_response_precedes_persisted_faq(self) -> None:
+        class FAQSettings:
+            def answer_faq(self, _message, _user):  # type: ignore[no-untyped-def]
+                raise AssertionError("FAQ lookup must not run after a safety response.")
+
+        class BlockingSafety:
+            def check(self, _message, language="english"):  # type: ignore[no-untyped-def]
+                return SafetyResult(
+                    safe=False,
+                    should_escalate=True,
+                    response="Safety response.",
+                )
+
+        result = _service(
+            _CapturingLlm(["Provider answer."]),
+            safety=BlockingSafety(),
+            faq_settings=FAQSettings(),
+        ).respond("What is the custom office policy?", user={"id": 7, "role": "student"})
+
+        self.assertEqual(result.response, "Safety response.")
+        self.assertTrue(result.escalated)
     def test_live_office_hours_bypass_rag_and_provider_prior_knowledge(self) -> None:
         settings = {"officeHours": "Monday to Friday, 9:00 AM to 4:00 PM"}
         operational = OperationalGuidanceService(

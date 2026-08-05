@@ -761,9 +761,67 @@ table.inquiry-table .table-empty-state {
   margin-bottom: 18px;
 }
 
+.faq-management-panel {
+  margin-bottom: 18px;
+}
+
+.faq-management-list {
+  display: grid;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.faq-editor-card,
+.faq-editor {
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  background: var(--gray-50);
+}
+
+.faq-editor-card-header,
+.faq-editor-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.faq-editor-card-header {
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.faq-editor-card h4,
+.faq-editor h4 {
+  margin: 0;
+  color: var(--gray-800);
+  font-size: 13px;
+}
+
+.faq-editor-card .field-group,
+.faq-editor .field-group {
+  margin-top: 12px;
+}
+
+.faq-editor-card-actions {
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.faq-active-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--gray-700);
+  font-size: 12px;
+}
+
 .appointment-availability-window {
   display: grid;
-  grid-template-columns: minmax(150px, 1.2fr) minmax(130px, 1fr) minmax(130px, 1fr) auto;
+  grid-template-columns: minmax(150px, 1.2fr) minmax(130px, 1fr) minmax(
+      130px,
+      1fr
+    ) auto;
   align-items: end;
   gap: 10px;
   margin-bottom: 12px;
@@ -1941,6 +1999,14 @@ table.inquiry-table .table-empty-state {
   }
   .appointment-unavailable-date .btn,
   .settings-list-heading .btn {
+    width: 100%;
+  }
+  .faq-editor-card-header,
+  .faq-editor-card-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .faq-editor-card-actions .btn {
     width: 100%;
   }
 }

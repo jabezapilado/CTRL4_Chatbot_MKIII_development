@@ -44,6 +44,7 @@ from .response_validator import ResponseValidator
 from .response_safety_service import ResponseSafetyService
 from .conversation_history import normalize_conversation_history
 from .operational_guidance_service import OperationalGuidanceService
+from .settings_service import SettingsService
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +99,7 @@ class AIService:
         metadata_extractor: MetadataExtractionService | None = None,
         response_safety: ResponseSafetyService | None = None,
         operational_guidance: OperationalGuidanceService | None = None,
+        faq_settings: SettingsService | None = None,
     ):
 
         self.safety = safety or SafetyService()
@@ -125,6 +127,7 @@ class AIService:
         self.response_safety = response_safety or ResponseSafetyService()
 
         self.operational_guidance = operational_guidance or OperationalGuidanceService()
+        self.faq_settings = faq_settings or SettingsService()
     
     def generate_text(
         self,
@@ -586,6 +589,36 @@ class AIService:
                     response_safety.replacement
                     if not response_safety.allowed and response_safety.replacement
                     else operational_answer.response
+                )
+                return ChatResponse(
+                    success=True,
+                    response=response,
+                    emotion=emotion.emotion,
+                    sentiment=emotion.sentiment,
+                    language=language.language,
+                    topic=conversation_topic.value,
+                    state=conversation_state.value,
+                    escalated=(
+                        safety.should_escalate
+                        or emotion.normalized_emotion in {"crisis", "distressed"}
+                    ),
+                    confidence=emotion.confidence,
+                    intent=intent,
+                    normalized_emotion=emotion.normalized_emotion,
+                    normalized_topic=normalized_topic,
+                    metadata=metadata.to_dict(),
+                )
+
+            faq_answer = self.faq_settings.answer_faq(message, user)
+            if faq_answer is not None:
+                response_safety = self.response_safety.validate(
+                    faq_answer.response,
+                    [faq_answer],
+                )
+                response = (
+                    response_safety.replacement
+                    if not response_safety.allowed and response_safety.replacement
+                    else faq_answer.response
                 )
                 return ChatResponse(
                     success=True,

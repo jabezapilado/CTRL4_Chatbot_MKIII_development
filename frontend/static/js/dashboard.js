@@ -26,6 +26,7 @@ const views = document.querySelectorAll(".view");
 
 let persistedSettings = null;
 let appointmentBookingOptions = { state: "loading", bookingEnabled: false };
+let persistedFaqs = [];
 
 async function fetchJson(url, options) {
   const response = await fetch(url, options);
@@ -1803,6 +1804,15 @@ function setSettingsStatus(message, type = "") {
   if (type) status.classList.add(type);
 }
 
+function setFaqStatus(message, type = "") {
+  const status = document.getElementById("faq-status");
+  if (!status) return;
+  status.textContent = message || "";
+  status.hidden = !message;
+  status.classList.remove("error", "success");
+  if (type) status.classList.add(type);
+}
+
 function canonicalTimeToInputValue(value) {
   const match = String(value || "")
     .trim()
@@ -1813,13 +1823,14 @@ function canonicalTimeToInputValue(value) {
   const minute = Number(match[2]);
   if (inputHour < 1 || inputHour > 12 || minute > 59) return "";
 
-  const hour =
-    inputHour % 12 + (match[3].toUpperCase() === "PM" ? 12 : 0);
+  const hour = (inputHour % 12) + (match[3].toUpperCase() === "PM" ? 12 : 0);
   return `${String(hour).padStart(2, "0")}:${match[2]}`;
 }
 
 function inputTimeToCanonical(value) {
-  const match = String(value || "").trim().match(/^(\d{2}):(\d{2})$/);
+  const match = String(value || "")
+    .trim()
+    .match(/^(\d{2}):(\d{2})$/);
   if (!match) return "";
 
   const hour = Number(match[1]);
@@ -1959,9 +1970,12 @@ function collectAvailabilityWindows() {
   let hasInvalidRow = false;
 
   rows.forEach((row) => {
-    const weekday = row.querySelector("[data-availability-weekday]")?.value || "";
-    const startTime = row.querySelector("[data-availability-start-time]")?.value || "";
-    const endTime = row.querySelector("[data-availability-end-time]")?.value || "";
+    const weekday =
+      row.querySelector("[data-availability-weekday]")?.value || "";
+    const startTime =
+      row.querySelector("[data-availability-start-time]")?.value || "";
+    const endTime =
+      row.querySelector("[data-availability-end-time]")?.value || "";
     const canonicalStartTime = inputTimeToCanonical(startTime);
     const canonicalEndTime = inputTimeToCanonical(endTime);
 
@@ -1975,10 +1989,7 @@ function collectAvailabilityWindows() {
       return;
     }
     if (!canonicalStartTime || !canonicalEndTime || startTime >= endTime) {
-      setAvailabilityRowError(
-        row,
-        "End time must be later than start time.",
-      );
+      setAvailabilityRowError(row, "End time must be later than start time.");
       hasInvalidRow = true;
       return;
     }
@@ -2002,6 +2013,7 @@ function getSettingsSnapshot() {
   ).filter(Boolean);
 
   return {
+    officeName: document.getElementById("settings-office-name")?.value || "",
     officeHours: document.getElementById("settings-office-hours")?.value || "",
     officeEmail: document.getElementById("settings-office-email")?.value || "",
     contactNumber:
@@ -2026,6 +2038,7 @@ function renderPersistedSettings(settings) {
   persistedSettings = settings || null;
   const availability = settings?.appointmentAvailability || null;
   const fields = {
+    "settings-office-name": settings?.officeName || "",
     "settings-office-hours": settings?.officeHours || "",
     "settings-office-email": settings?.officeEmail || "",
     "settings-contact-number": settings?.contactNumber || "",
@@ -2052,7 +2065,8 @@ function renderPersistedSettings(settings) {
       : configurationState === "booking_disabled"
         ? "Appointment booking is disabled. Incomplete booking configuration is preserved but unavailable to students and manual entry."
         : "Appointment configuration is unconfigured. Booking is unavailable until it is saved with availability, categories, and modes.",
-    configurationState === "configured" || configurationState === "booking_disabled"
+    configurationState === "configured" ||
+      configurationState === "booking_disabled"
       ? "success"
       : "error",
   );
@@ -2061,6 +2075,127 @@ function renderPersistedSettings(settings) {
 async function loadPersistedSettings() {
   const response = await fetchJson(`${API_BASE}/api/settings`);
   renderPersistedSettings(response.data);
+}
+
+function createFaqField(labelText, id, control) {
+  const field = document.createElement("div");
+  const label = document.createElement("label");
+  field.className = "field-group";
+  label.htmlFor = id;
+  label.textContent = labelText;
+  control.id = id;
+  field.append(label, control);
+  return field;
+}
+
+function createFaqEditorCard(faq) {
+  const card = document.createElement("article");
+  const header = document.createElement("div");
+  const heading = document.createElement("h4");
+  const activeLabel = document.createElement("label");
+  const active = document.createElement("input");
+  const title = document.createElement("input");
+  const question = document.createElement("input");
+  const answer = document.createElement("textarea");
+  const actions = document.createElement("div");
+  const save = document.createElement("button");
+  const remove = document.createElement("button");
+
+  card.className = "faq-editor-card";
+  header.className = "faq-editor-card-header";
+  heading.textContent = faq.title || "FAQ";
+  active.type = "checkbox";
+  active.checked = Boolean(faq.active);
+  active.id = `faq-active-${faq.id}`;
+  activeLabel.className = "faq-active-toggle";
+  activeLabel.htmlFor = active.id;
+  activeLabel.append(active, document.createTextNode("Active"));
+  header.append(heading, activeLabel);
+
+  title.type = "text";
+  title.value = faq.title || "";
+  question.type = "text";
+  question.value = faq.question || "";
+  answer.rows = 4;
+  answer.value = faq.answer || "";
+
+  actions.className = "faq-editor-card-actions";
+  save.type = "button";
+  save.className = "btn btn-primary btn-sm";
+  save.textContent = "Save FAQ";
+  remove.type = "button";
+  remove.className = "btn btn-outline btn-sm";
+  remove.textContent = "Remove";
+  actions.append(save, remove);
+  card.append(
+    header,
+    createFaqField("Title", `faq-title-${faq.id}`, title),
+    createFaqField("Question", `faq-question-${faq.id}`, question),
+    createFaqField("Answer", `faq-answer-${faq.id}`, answer),
+    actions,
+  );
+
+  save.addEventListener("click", async () => {
+    save.disabled = true;
+    setFaqStatus("Saving FAQ...");
+    try {
+      await fetchJson(`${API_BASE}/api/settings/faqs/${encodeURIComponent(faq.id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: title.value,
+          question: question.value,
+          answer: answer.value,
+          active: active.checked,
+        }),
+      });
+      await loadFaqs();
+      setFaqStatus("FAQ saved.", "success");
+    } catch (error) {
+      setFaqStatus(error.message || "Unable to save FAQ.", "error");
+    } finally {
+      save.disabled = false;
+    }
+  });
+
+  remove.addEventListener("click", async () => {
+    if (!window.confirm("Remove this FAQ?")) return;
+    remove.disabled = true;
+    setFaqStatus("Removing FAQ...");
+    try {
+      await fetchJson(`${API_BASE}/api/settings/faqs/${encodeURIComponent(faq.id)}`, {
+        method: "DELETE",
+      });
+      await loadFaqs();
+      setFaqStatus("FAQ removed.", "success");
+    } catch (error) {
+      setFaqStatus(error.message || "Unable to remove FAQ.", "error");
+      remove.disabled = false;
+    }
+  });
+  return card;
+}
+
+function renderFaqs(items) {
+  const list = document.getElementById("faq-list");
+  if (!list) return;
+  list.replaceChildren();
+  if (!items.length) {
+    const empty = document.createElement("p");
+    empty.className = "settings-status";
+    empty.textContent = "No persisted FAQs are available.";
+    list.appendChild(empty);
+    return;
+  }
+  items.forEach((faq) => list.appendChild(createFaqEditorCard(faq)));
+}
+
+async function loadFaqs() {
+  setFaqStatus("Loading FAQs...");
+  const response = await fetchJson(`${API_BASE}/api/settings/faqs`);
+  persistedFaqs = Array.isArray(response.data?.items) ? response.data.items : [];
+  renderFaqs(persistedFaqs);
+  setFaqStatus("");
 }
 
 async function saveSettingsToApi() {
@@ -2102,6 +2237,34 @@ function bindSettingsInteractions() {
     event.target
       .closest("[data-remove-unavailable-date]")
       ?.parentElement?.remove();
+  });
+}
+
+function bindFaqManagement() {
+  const form = document.getElementById("add-faq-form");
+  if (!form) return;
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const title = document.getElementById("new-faq-title");
+    const question = document.getElementById("new-faq-question");
+    const answer = document.getElementById("new-faq-answer");
+    setFaqStatus("Saving FAQ...");
+    try {
+      await fetchJson(`${API_BASE}/api/settings/faqs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: title?.value || "",
+          question: question?.value || "",
+          answer: answer?.value || "",
+        }),
+      });
+      form.reset();
+      await loadFaqs();
+      setFaqStatus("FAQ added.", "success");
+    } catch (error) {
+      setFaqStatus(error.message || "Unable to add FAQ.", "error");
+    }
   });
 }
 
@@ -4268,6 +4431,15 @@ async function loadBackendData() {
   }
 
   try {
+    await loadFaqs();
+  } catch (error) {
+    console.error(error);
+    persistedFaqs = [];
+    renderFaqs(persistedFaqs);
+    setFaqStatus("Unable to load persisted FAQs.", "error");
+  }
+
+  try {
     const bookingOptions = await fetchJson(
       `${API_BASE}/api/appointments/booking-options`,
     );
@@ -4307,6 +4479,7 @@ window.addEventListener("error", (event) => {
 });
 
 bindSettingsInteractions();
+bindFaqManagement();
 bindAppointmentSearch();
 bindAppointmentCalendar();
 bindAppointmentAnalyticsFilters();

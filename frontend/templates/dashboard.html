@@ -1149,6 +1149,13 @@
                 </p>
                 <div class="field-grid-2">
                   <div class="field-group">
+                    <label for="settings-office-name">Office Name</label>
+                    <input
+                      id="settings-office-name"
+                      autocomplete="organization"
+                    />
+                  </div>
+                  <div class="field-group">
                     <label for="settings-office-hours">Office Hours</label>
                     <input id="settings-office-hours" autocomplete="off" />
                   </div>
@@ -1237,7 +1244,64 @@
                 </div>
               </div>
             </section>
-            </div>
+
+            <section class="settings-panel faq-management-panel">
+              <div class="settings-list-heading">
+                <div>
+                  <h3>FAQ Management</h3>
+                  <p class="sub">
+                    Active FAQs answer common Guidance Office questions after live operational settings are checked.
+                  </p>
+                </div>
+              </div>
+              <p
+                id="faq-status"
+                class="settings-status"
+                role="status"
+                aria-live="polite"
+                hidden
+              ></p>
+              <div
+                id="faq-list"
+                class="faq-management-list"
+                aria-live="polite"
+              ></div>
+              <form id="add-faq-form" class="faq-editor" novalidate>
+                <h4>Add FAQ</h4>
+                <div class="field-grid-2">
+                  <div class="field-group">
+                    <label for="new-faq-title">Title</label>
+                    <input
+                      id="new-faq-title"
+                      name="title"
+                      autocomplete="off"
+                      required
+                    />
+                  </div>
+                  <div class="field-group">
+                    <label for="new-faq-question">Question</label>
+                    <input
+                      id="new-faq-question"
+                      name="question"
+                      autocomplete="off"
+                      required
+                    />
+                  </div>
+                </div>
+                <div class="field-group">
+                  <label for="new-faq-answer">Answer</label>
+                  <textarea
+                    id="new-faq-answer"
+                    name="answer"
+                    rows="4"
+                    required
+                  ></textarea>
+                </div>
+                <div class="settings-actions">
+                  <button class="btn btn-primary" type="submit">Add FAQ</button>
+                </div>
+              </form>
+            </section>
 
             <p
               id="settings-status"
