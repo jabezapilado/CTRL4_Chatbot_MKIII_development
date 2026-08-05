@@ -4,7 +4,7 @@ LLM Service
 Provides a unified interface for communicating with
 different Large Language Model providers.
 
-CTRL4 Chatbot MK II
+CTRL4 Chatbot MK III
 
 Authors:
 - Apilado, Jabez Timothy E.

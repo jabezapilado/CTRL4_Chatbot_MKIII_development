@@ -1,20 +1,21 @@
 import logging
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, session
 
 from ..request_validation import require_login
 
-from ..db import (
-    current_time,
-    save_inquiry,
-)
-
 from ..services import ai_service
-from ..services.conversation_service import finalize_conversation
+from ..services.conversation_service import (
+    determine_escalation_reason,
+    finalize_conversation,
+    record_chat_inquiry,
+    should_escalate_conversation,
+)
 
 logger = logging.getLogger(__name__)
 
-CATEGORY_AI_CHAT = "ai_chat"
+_ESCALATION_SESSION_KEY = "conversation_escalated"
+_ESCALATION_REASON_SESSION_KEY = "conversation_escalation_reason"
 
 chatbot_bp = Blueprint(
     "chatbot",
@@ -64,10 +65,7 @@ def chat():
             result.confidence,
         )
         if not result.success:
-            logger.warning(
-                "AIService failed for message: %s",
-                message,
-            )
+            logger.warning("AIService returned an unsuccessful chat result.")
             return jsonify(
                 {
                     "success": False,
@@ -78,16 +76,25 @@ def chat():
                 }
             ), 200
 
-        save_inquiry(
-            {
-                "account_id": user["id"] if user else None,
-                "inquiry_type": CATEGORY_AI_CHAT,
-                "emotion_result": result.emotion,
-                "escalated": result.escalated,
-                "appointment_recommended": False,
-                "created_at": current_time(),
-            }
+        record_chat_inquiry(
+            account_id=user["id"],
+            emotion=result.emotion,
+            escalated=result.escalated,
         )
+
+        should_escalate = should_escalate_conversation(
+            escalated=result.escalated,
+            normalized_emotion=result.normalized_emotion,
+        )
+        if should_escalate:
+            session[_ESCALATION_SESSION_KEY] = True
+            session[_ESCALATION_REASON_SESSION_KEY] = (
+                determine_escalation_reason(
+                    escalated=result.escalated,
+                    normalized_emotion=result.normalized_emotion,
+                )
+                or "AI safety escalation."
+            )
 
         return jsonify(
             {
@@ -104,8 +111,11 @@ def chat():
             }
         ), 200
 
-    except Exception:
-        logger.exception("AIService failed while processing chat request.")
+    except Exception as exc:
+        logger.error(
+            "Chat request processing failed (exception_type=%s).",
+            type(exc).__name__,
+        )
         return jsonify(
             {
                 "success": False,
@@ -147,8 +157,11 @@ def finalize_chat():
             topic=str(payload.get("topic", "general")),
             language=str(payload.get("language", "unknown")),
             emotion=str(payload.get("emotion", "neutral")),
-            flagged=bool(payload.get("flagged", False)),
+            flagged=bool(session.get(_ESCALATION_SESSION_KEY)),
+            escalation_reason=session.get(_ESCALATION_REASON_SESSION_KEY),
         )
+        session.pop(_ESCALATION_SESSION_KEY, None)
+        session.pop(_ESCALATION_REASON_SESSION_KEY, None)
 
         return jsonify(
             {
@@ -158,10 +171,10 @@ def finalize_chat():
             }
         ), 200
 
-    except Exception:
-        logger.exception(
-            "Failed to finalize conversation for user %s.",
-            user["id"],
+    except Exception as exc:
+        logger.error(
+            "Conversation finalization failed (exception_type=%s).",
+            type(exc).__name__,
         )
 
         return jsonify(

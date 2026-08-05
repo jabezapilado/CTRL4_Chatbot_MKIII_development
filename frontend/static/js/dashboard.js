@@ -8,6 +8,17 @@ const API_BASE = window.location.origin;
 
 let sampleInquiries = [];
 let conversationSummaries = [];
+let flaggedConversations = [];
+let appointmentAnalytics = null;
+let chatbotAnalytics = null;
+let counselorWorkloadAnalytics = null;
+let flaggedCaseAnalytics = null;
+let reportsAnalytics = null;
+let appointmentCalendarMonth = new Date(
+  new Date().getFullYear(),
+  new Date().getMonth(),
+  1,
+);
 
 const views = document.querySelectorAll(".view");
 
@@ -113,12 +124,27 @@ function mapConversationSummary(row) {
   };
 }
 
+function mapFlaggedConversation(row) {
+  const createdAt = row.created_at ? new Date(row.created_at) : null;
+  return {
+    id: row.id,
+    category: row.primary_concern || "General inquiry",
+    emotion: row.emotion_results || "neutral",
+    summary: row.summary || "No summary available.",
+    recommendation: row.recommendations || "No recommendation available.",
+    escalationReason: row.escalation_reason || "AI safety escalation.",
+    status: row.escalation_status || "pending",
+    totalMessages: Number(row.total_messages) || 0,
+    createdAt,
+  };
+}
+
 function mapAppointment(row) {
   return {
     id: row.id,
     student: row.student_name || row.full_name || "Unknown",
     studentNumber: row.student_number || "—",
-    email: row.student_email || "",
+    email: row.student_email || row.email || "",
 
     date: row.preferred_date
       ? new Date(row.preferred_date).toISOString().split("T")[0]
@@ -215,13 +241,694 @@ function formatAppointmentCategory(category) {
   );
 }
 
+function escapeHtml(value) {
+  const escapeMap = {
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  };
+
+  return String(value ?? "").replace(
+    /[&<>"']/g,
+    (character) => escapeMap[character],
+  );
+}
+
+function escapeAppointmentText(value) {
+  return escapeHtml(value);
+}
+
+function getAppointmentCardText(appointment) {
+  return {
+    student: escapeAppointmentText(appointment.student),
+    studentNumber: escapeAppointmentText(appointment.studentNumber),
+    date: escapeAppointmentText(formatAppointmentDate(appointment.date)),
+    time: escapeAppointmentText(formatAppointmentTime(appointment.time)),
+    mode: escapeAppointmentText(formatAppointmentMode(appointment.mode)),
+    source: escapeAppointmentText(formatAppointmentSource(appointment.source)),
+    category: escapeAppointmentText(
+      formatAppointmentCategory(appointment.category),
+    ),
+  };
+}
+
+const CALENDAR_STATUS_BADGES = {
+  pending: ["pending", "Pending"],
+  confirmed: ["neutral", "Confirmed"],
+  cancelled: ["negative", "Cancelled"],
+  rejected: ["negative", "Rejected"],
+  completed: ["resolved", "Completed"],
+};
+
+function getAppointmentCalendarDate(value) {
+  const date = String(value || "");
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : "";
+}
+
+function getAppointmentCalendarTimeSortValue(value) {
+  const time = String(value || "").trim();
+  const twelveHourMatch = time.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+
+  if (twelveHourMatch) {
+    const hour = Number(twelveHourMatch[1]);
+    const minute = Number(twelveHourMatch[2]);
+
+    if (hour >= 1 && hour <= 12 && minute >= 0 && minute <= 59) {
+      const normalizedHour =
+        (hour % 12) + (twelveHourMatch[3].toUpperCase() === "PM" ? 12 : 0);
+      return normalizedHour * 60 + minute;
+    }
+  }
+
+  const twentyFourHourMatch = time.match(/^(\d{1,2}):(\d{2})$/);
+  if (twentyFourHourMatch) {
+    const hour = Number(twentyFourHourMatch[1]);
+    const minute = Number(twentyFourHourMatch[2]);
+
+    if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
+      return hour * 60 + minute;
+    }
+  }
+
+  return Number.MAX_SAFE_INTEGER;
+}
+
+function createAppointmentCalendarStatusBadge(status) {
+  const normalizedStatus = String(status || "").toLowerCase();
+  const [className, label] =
+    CALENDAR_STATUS_BADGES[normalizedStatus] || CALENDAR_STATUS_BADGES.pending;
+  const badge = document.createElement("span");
+
+  badge.className = `badge ${className}`;
+  badge.textContent = label;
+
+  return badge;
+}
+
+function createAppointmentCalendarEvent(appointment) {
+  const event = document.createElement("button");
+  const date = formatAppointmentDate(appointment.date);
+  const time = formatAppointmentTime(appointment.time);
+  const status = String(appointment.status || "pending").toLowerCase();
+
+  event.type = "button";
+  event.className = "appointment-calendar-event";
+  event.setAttribute(
+    "aria-label",
+    [
+      appointment.student || "Unknown student",
+      appointment.studentNumber || "No student number",
+      date,
+      time,
+      CALENDAR_STATUS_BADGES[status]?.[1] || "Pending",
+    ].join(", "),
+  );
+
+  const student = document.createElement("strong");
+  student.className = "appointment-calendar-event-student";
+  student.textContent = appointment.student || "Unknown";
+
+  const studentNumber = document.createElement("span");
+  studentNumber.className = "appointment-calendar-event-student-number";
+  studentNumber.textContent = appointment.studentNumber || "—";
+
+  const appointmentDate = document.createElement("time");
+  appointmentDate.className = "appointment-calendar-event-date";
+  appointmentDate.dateTime = getAppointmentCalendarDate(appointment.date);
+  appointmentDate.textContent = date;
+
+  const appointmentTime = document.createElement("time");
+  appointmentTime.className = "appointment-calendar-event-time";
+  appointmentTime.textContent = time;
+
+  const statusContainer = document.createElement("span");
+  statusContainer.className = "appointment-calendar-event-status";
+  statusContainer.appendChild(createAppointmentCalendarStatusBadge(status));
+
+  event.append(
+    student,
+    studentNumber,
+    appointmentDate,
+    appointmentTime,
+    statusContainer,
+  );
+  event.addEventListener("click", () => openAppointmentDetails(appointment));
+
+  return event;
+}
+
+function renderAppointmentCalendar() {
+  const grid = document.getElementById("appointment-calendar-grid");
+  const monthLabel = document.getElementById("appointment-calendar-month");
+
+  if (!grid || !monthLabel) {
+    return;
+  }
+
+  const year = appointmentCalendarMonth.getFullYear();
+  const month = appointmentCalendarMonth.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstWeekday = new Date(year, month, 1).getDay();
+  const totalCells = Math.ceil((firstWeekday + daysInMonth) / 7) * 7;
+  const appointmentsByDate = new Map();
+
+  (window.backendAppointments || []).forEach((appointment) => {
+    const date = getAppointmentCalendarDate(appointment.date);
+    if (!date) {
+      return;
+    }
+
+    const items = appointmentsByDate.get(date) || [];
+    items.push(appointment);
+    appointmentsByDate.set(date, items);
+  });
+
+  monthLabel.textContent = new Date(year, month, 1).toLocaleDateString(
+    "en-US",
+    {
+      month: "long",
+      year: "numeric",
+    },
+  );
+  grid.replaceChildren();
+
+  for (let index = 0; index < totalCells; index += 1) {
+    const dayNumber = index - firstWeekday + 1;
+    const day = document.createElement("section");
+    day.className = "appointment-calendar-day";
+
+    if (dayNumber < 1 || dayNumber > daysInMonth) {
+      day.classList.add("is-outside-month");
+      grid.appendChild(day);
+      continue;
+    }
+
+    const date = `${year}-${String(month + 1).padStart(2, "0")}-${String(
+      dayNumber,
+    ).padStart(2, "0")}`;
+    const heading = document.createElement("time");
+    heading.className = "appointment-calendar-day-number";
+    heading.dateTime = date;
+    heading.textContent = String(dayNumber);
+    day.appendChild(heading);
+
+    const events = document.createElement("div");
+    events.className = "appointment-calendar-events";
+    const appointments = appointmentsByDate.get(date) || [];
+
+    appointments
+      .sort(
+        (left, right) =>
+          getAppointmentCalendarTimeSortValue(left.time) -
+          getAppointmentCalendarTimeSortValue(right.time),
+      )
+      .forEach((appointment) => {
+        events.appendChild(createAppointmentCalendarEvent(appointment));
+      });
+
+    day.appendChild(events);
+    grid.appendChild(day);
+  }
+}
+
+function bindAppointmentCalendar() {
+  document
+    .getElementById("appointment-calendar-previous")
+    ?.addEventListener("click", () => {
+      appointmentCalendarMonth = new Date(
+        appointmentCalendarMonth.getFullYear(),
+        appointmentCalendarMonth.getMonth() - 1,
+        1,
+      );
+      renderAppointmentCalendar();
+    });
+
+  document
+    .getElementById("appointment-calendar-next")
+    ?.addEventListener("click", () => {
+      appointmentCalendarMonth = new Date(
+        appointmentCalendarMonth.getFullYear(),
+        appointmentCalendarMonth.getMonth() + 1,
+        1,
+      );
+      renderAppointmentCalendar();
+    });
+}
+
 function renderAppointmentDashboard() {
   renderAppointmentStatistics();
+  renderAppointmentAnalytics();
+  renderAppointmentCalendar();
   renderAppointmentRequests();
   renderTodaysAppointments();
   renderAppointmentHistory();
   renderFlaggedAppointmentCases();
   renderManualAppointmentEntry();
+}
+
+function renderAnalyticsRows(
+  containerId,
+  rows,
+  labelKey,
+  emptyMessage = "No appointment data for this period.",
+) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  container.replaceChildren();
+
+  if (!rows.length) {
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+    cell.colSpan = 2;
+    cell.textContent = emptyMessage;
+    row.appendChild(cell);
+    container.appendChild(row);
+    return;
+  }
+
+  rows.forEach((item) => {
+    const row = document.createElement("tr");
+    const label = document.createElement("td");
+    const count = document.createElement("td");
+    label.textContent = item[labelKey];
+    count.textContent = String(item.count);
+    row.append(label, count);
+    container.appendChild(row);
+  });
+}
+
+function renderAppointmentAnalytics() {
+  const analytics = appointmentAnalytics;
+  if (!analytics) return;
+
+  const total = document.getElementById("appointment-analytics-total");
+  const range = document.getElementById("appointment-analytics-range");
+  if (total) total.textContent = String(analytics.total_appointments || 0);
+
+  if (range) {
+    const { start_date: startDate, end_date: endDate } = analytics.filters || {};
+    range.textContent =
+      startDate || endDate
+        ? `${startDate || "Beginning"} to ${endDate || "Present"}`
+        : "All authorized appointment records";
+  }
+
+  renderAnalyticsRows(
+    "appointment-analytics-statuses",
+    analytics.status_distribution || [],
+    "status",
+  );
+  renderAnalyticsRows("appointment-analytics-daily", analytics.daily_trends || [], "date");
+  renderAnalyticsRows("appointment-analytics-weekly", analytics.weekly_trends || [], "week");
+  renderAnalyticsRows("appointment-analytics-monthly", analytics.monthly_trends || [], "month");
+  renderAnalyticsRows(
+    "appointment-analytics-counselors",
+    analytics.counselor_counts || [],
+    "counselor_name",
+  );
+  renderAnalyticsRows(
+    "appointment-analytics-programs",
+    analytics.program_statistics || [],
+    "program",
+  );
+}
+
+function renderChatbotAnalytics() {
+  const analytics = chatbotAnalytics;
+  if (!analytics) return;
+
+  const valueFor = (elementId, value, fallback = "0") => {
+    const element = document.getElementById(elementId);
+    if (element) element.textContent = value ?? fallback;
+  };
+
+  valueFor(
+    "chatbot-analytics-total-messages",
+    String(analytics.total_chatbot_messages || 0),
+  );
+  valueFor(
+    "chatbot-analytics-finalizations",
+    String(analytics.conversation_finalization_count || 0),
+  );
+  valueFor(
+    "chatbot-analytics-escalations",
+    String(analytics.escalation_count || 0),
+  );
+  valueFor(
+    "chatbot-analytics-average-length",
+    analytics.average_finalized_conversation_length === null
+      ? "—"
+      : String(analytics.average_finalized_conversation_length),
+    "—",
+  );
+
+  const volume = analytics.message_volume || {};
+  renderAnalyticsRows(
+    "chatbot-analytics-emotions",
+    analytics.persisted_emotion_result_distribution || [],
+    "emotion_result",
+    "No persisted inquiry records for this period.",
+  );
+  renderAnalyticsRows(
+    "chatbot-analytics-daily",
+    volume.daily || [],
+    "date",
+    "No persisted inquiry records for this period.",
+  );
+  renderAnalyticsRows(
+    "chatbot-analytics-weekly",
+    volume.weekly || [],
+    "week",
+    "No persisted inquiry records for this period.",
+  );
+  renderAnalyticsRows(
+    "chatbot-analytics-monthly",
+    volume.monthly || [],
+    "month",
+    "No persisted inquiry records for this period.",
+  );
+}
+
+async function loadChatbotAnalytics() {
+  const startDate = document.getElementById("chatbot-analytics-start-date")?.value;
+  const endDate = document.getElementById("chatbot-analytics-end-date")?.value;
+  const query = new URLSearchParams();
+  if (startDate) query.set("start_date", startDate);
+  if (endDate) query.set("end_date", endDate);
+
+  const suffix = query.size ? `?${query.toString()}` : "";
+  const result = await fetchJson(
+    `${API_BASE}/api/dashboard/chatbot/analytics${suffix}`,
+  );
+  chatbotAnalytics = result.data || null;
+  renderChatbotAnalytics();
+}
+
+function bindChatbotAnalyticsFilters() {
+  document
+    .getElementById("chatbot-analytics-apply")
+    ?.addEventListener("click", async () => {
+      try {
+        await loadChatbotAnalytics();
+      } catch (error) {
+        console.error(error);
+        createToast("Unable to load chatbot analytics.", "info");
+      }
+    });
+
+  document
+    .getElementById("chatbot-analytics-reset")
+    ?.addEventListener("click", async () => {
+      const startDate = document.getElementById("chatbot-analytics-start-date");
+      const endDate = document.getElementById("chatbot-analytics-end-date");
+      if (startDate) startDate.value = "";
+      if (endDate) endDate.value = "";
+
+      try {
+        await loadChatbotAnalytics();
+      } catch (error) {
+        console.error(error);
+        createToast("Unable to load chatbot analytics.", "info");
+      }
+    });
+}
+
+function renderCounselorWorkloadAnalytics() {
+  const analytics = counselorWorkloadAnalytics;
+  if (!analytics) return;
+
+  const values = [
+    [
+      "counselor-workload-authorized-appointments",
+      analytics.authorized_appointment_count,
+    ],
+    [
+      "counselor-workload-pending-appointments",
+      analytics.pending_appointment_count,
+    ],
+    [
+      "counselor-workload-confirmed-appointments",
+      analytics.confirmed_appointment_count,
+    ],
+    [
+      "counselor-workload-completed-appointments",
+      analytics.completed_appointment_count,
+    ],
+    ["counselor-workload-active-referrals", analytics.active_referral_count],
+    [
+      "counselor-workload-active-interventions",
+      analytics.active_intervention_count,
+    ],
+    [
+      "counselor-workload-completed-interventions",
+      analytics.completed_intervention_count,
+    ],
+  ];
+
+  values.forEach(([elementId, value]) => {
+    const element = document.getElementById(elementId);
+    if (element) element.textContent = String(value || 0);
+  });
+
+  renderAnalyticsRows(
+    "counselor-workload-programs",
+    analytics.workload_by_program || [],
+    "program",
+    "No authorized appointment records for this period.",
+  );
+}
+
+async function loadCounselorWorkloadAnalytics() {
+  const startDate = document.getElementById(
+    "counselor-workload-start-date",
+  )?.value;
+  const endDate = document.getElementById(
+    "counselor-workload-end-date",
+  )?.value;
+  const query = new URLSearchParams();
+  if (startDate) query.set("start_date", startDate);
+  if (endDate) query.set("end_date", endDate);
+
+  const suffix = query.size ? `?${query.toString()}` : "";
+  const result = await fetchJson(
+    `${API_BASE}/api/dashboard/counselor-workload${suffix}`,
+  );
+  counselorWorkloadAnalytics = result.data || null;
+  renderCounselorWorkloadAnalytics();
+}
+
+function bindCounselorWorkloadAnalyticsFilters() {
+  document
+    .getElementById("counselor-workload-apply")
+    ?.addEventListener("click", async () => {
+      try {
+        await loadCounselorWorkloadAnalytics();
+      } catch (error) {
+        console.error(error);
+        createToast("Unable to load counselor workload analytics.", "info");
+      }
+    });
+
+  document
+    .getElementById("counselor-workload-reset")
+    ?.addEventListener("click", async () => {
+      const startDate = document.getElementById(
+        "counselor-workload-start-date",
+      );
+      const endDate = document.getElementById("counselor-workload-end-date");
+      if (startDate) startDate.value = "";
+      if (endDate) endDate.value = "";
+
+      try {
+        await loadCounselorWorkloadAnalytics();
+      } catch (error) {
+        console.error(error);
+        createToast("Unable to load counselor workload analytics.", "info");
+      }
+    });
+}
+
+function renderFlaggedCaseAnalytics() {
+  const analytics = flaggedCaseAnalytics;
+  if (!analytics) return;
+
+  const values = [
+    ["flagged-case-analytics-total", analytics.total_flagged_cases],
+    [
+      "flagged-case-analytics-pending",
+      analytics.pending_flagged_case_reviews,
+    ],
+    ["flagged-case-analytics-reviewed", analytics.reviewed_flagged_cases],
+    ["flagged-case-analytics-referrals", analytics.referral_count],
+    ["flagged-case-analytics-interventions", analytics.intervention_count],
+    [
+      "flagged-case-analytics-confidential",
+      analytics.current_confidential_case_count,
+    ],
+  ];
+
+  values.forEach(([elementId, value]) => {
+    const element = document.getElementById(elementId);
+    if (element) element.textContent = String(value || 0);
+  });
+
+  const trends = analytics.escalation_trends || {};
+  renderAnalyticsRows(
+    "flagged-case-analytics-statuses",
+    analytics.persisted_case_status_distribution || [],
+    "status",
+    "No flagged-case records for this period.",
+  );
+  renderAnalyticsRows(
+    "flagged-case-analytics-daily",
+    trends.daily || [],
+    "date",
+    "No escalation records for this period.",
+  );
+  renderAnalyticsRows(
+    "flagged-case-analytics-weekly",
+    trends.weekly || [],
+    "week",
+    "No escalation records for this period.",
+  );
+  renderAnalyticsRows(
+    "flagged-case-analytics-monthly",
+    trends.monthly || [],
+    "month",
+    "No escalation records for this period.",
+  );
+}
+
+async function loadFlaggedCaseAnalytics() {
+  const startDate = document.getElementById(
+    "flagged-case-analytics-start-date",
+  )?.value;
+  const endDate = document.getElementById(
+    "flagged-case-analytics-end-date",
+  )?.value;
+  const query = new URLSearchParams();
+  if (startDate) query.set("start_date", startDate);
+  if (endDate) query.set("end_date", endDate);
+
+  const suffix = query.size ? `?${query.toString()}` : "";
+  const result = await fetchJson(
+    `${API_BASE}/api/dashboard/flagged-cases/analytics${suffix}`,
+  );
+  flaggedCaseAnalytics = result.data || null;
+  renderFlaggedCaseAnalytics();
+}
+
+function bindFlaggedCaseAnalyticsFilters() {
+  document
+    .getElementById("flagged-case-analytics-apply")
+    ?.addEventListener("click", async () => {
+      try {
+        await loadFlaggedCaseAnalytics();
+      } catch (error) {
+        console.error(error);
+        createToast("Unable to load flagged case analytics.", "info");
+      }
+    });
+
+  document
+    .getElementById("flagged-case-analytics-reset")
+    ?.addEventListener("click", async () => {
+      const startDate = document.getElementById(
+        "flagged-case-analytics-start-date",
+      );
+      const endDate = document.getElementById(
+        "flagged-case-analytics-end-date",
+      );
+      if (startDate) startDate.value = "";
+      if (endDate) endDate.value = "";
+
+      try {
+        await loadFlaggedCaseAnalytics();
+      } catch (error) {
+        console.error(error);
+        createToast("Unable to load flagged case analytics.", "info");
+      }
+    });
+}
+
+async function loadAppointmentAnalytics() {
+  const startDate = document.getElementById("appointment-analytics-start-date")?.value;
+  const endDate = document.getElementById("appointment-analytics-end-date")?.value;
+  const query = new URLSearchParams();
+  if (startDate) query.set("start_date", startDate);
+  if (endDate) query.set("end_date", endDate);
+
+  const suffix = query.size ? `?${query.toString()}` : "";
+  const result = await fetchJson(
+    `${API_BASE}/api/dashboard/appointments/analytics${suffix}`,
+  );
+  appointmentAnalytics = result.data || null;
+  renderAppointmentAnalytics();
+}
+
+function bindAppointmentAnalyticsFilters() {
+  document
+    .getElementById("appointment-analytics-apply")
+    ?.addEventListener("click", async () => {
+      try {
+        await loadAppointmentAnalytics();
+      } catch (error) {
+        console.error(error);
+        createToast("Unable to load appointment analytics.", "info");
+      }
+    });
+
+  document
+    .getElementById("appointment-analytics-reset")
+    ?.addEventListener("click", async () => {
+      const startDate = document.getElementById("appointment-analytics-start-date");
+      const endDate = document.getElementById("appointment-analytics-end-date");
+      if (startDate) startDate.value = "";
+      if (endDate) endDate.value = "";
+
+      try {
+        await loadAppointmentAnalytics();
+      } catch (error) {
+        console.error(error);
+        createToast("Unable to load appointment analytics.", "info");
+      }
+    });
+
+}
+
+function getSearchedAppointments() {
+  const appointments = window.backendAppointments || [];
+  const query = document
+    .getElementById("appointment-search-input")
+    ?.value.trim()
+    .toLowerCase();
+
+  if (!query) {
+    return appointments;
+  }
+
+  return appointments.filter((appointment) =>
+    [appointment.student, appointment.studentNumber].some((value) =>
+      String(value || "")
+        .toLowerCase()
+        .includes(query),
+    ),
+  );
+}
+
+function renderSearchedAppointmentSections() {
+  renderAppointmentRequests();
+  renderTodaysAppointments();
+  renderAppointmentHistory();
+}
+
+function bindAppointmentSearch() {
+  const input = document.getElementById("appointment-search-input");
+
+  input?.addEventListener("input", renderSearchedAppointmentSections);
 }
 
 function renderAppointmentStatistics() {
@@ -266,7 +973,7 @@ function renderAppointmentStatistics() {
 }
 
 function renderAppointmentRequests() {
-  const appointments = window.backendAppointments || [];
+  const appointments = getSearchedAppointments();
 
   const pendingAppointments = appointments.filter(
     (appointment) =>
@@ -296,7 +1003,7 @@ function renderAppointmentRequests() {
 }
 
 function renderTodaysAppointments() {
-  const appointments = window.backendAppointments || [];
+  const appointments = getSearchedAppointments();
 
   // (debug block moved below)
 
@@ -343,7 +1050,7 @@ function renderTodaysAppointments() {
 }
 
 function renderAppointmentHistory() {
-  const appointments = window.backendAppointments || [];
+  const appointments = getSearchedAppointments();
 
   const historyAppointments = appointments.filter((appointment) =>
     ["completed", "cancelled", "rejected"].includes(appointment.status),
@@ -586,10 +1293,11 @@ function renderManualAppointmentEntry() {
         option.type = "button";
         option.className = "manual-student-search-result";
 
-        option.innerHTML = `
-          <strong>${student.full_name}</strong><br>
-          <small>${student.student_number} • ${student.program}</small>
-        `;
+        const name = document.createElement("strong");
+        name.textContent = student.full_name || "Unknown";
+        const detail = document.createElement("small");
+        detail.textContent = `${student.student_number || "—"} • ${student.program || "—"}`;
+        option.append(name, document.createElement("br"), detail);
 
         option.addEventListener("click", () => {
           selectedStudent = student;
@@ -714,22 +1422,23 @@ function renderManualAppointmentEntry() {
 function createPendingAppointmentCard(appointment) {
   const card = document.createElement("div");
   card.className = "appointment-card";
+  const text = getAppointmentCardText(appointment);
   card.innerHTML = `
     <div class="appointment-card-header">
       <div>
-        <h4>${appointment.student}</h4>
-        <p class="sub">${appointment.studentNumber}</p>
+        <h4>${text.student}</h4>
+        <p class="sub">${text.studentNumber}</p>
       </div>
       ${badgeHTML(appointment.status)}
     </div>
     <div class="appointment-card-body">
       <div class="appointment-meta-grid">
-        <div><span>Date</span><strong>${formatAppointmentDate(appointment.date)}</strong></div>
-        <div><span>Time</span><strong>${formatAppointmentTime(appointment.time)}</strong></div>
-        <div><span>Mode</span><strong>${formatAppointmentMode(appointment.mode)}</strong></div>
-        <div><span>Source</span><strong>${formatAppointmentSource(appointment.source)}</strong></div>
+        <div><span>Date</span><strong>${text.date}</strong></div>
+        <div><span>Time</span><strong>${text.time}</strong></div>
+        <div><span>Mode</span><strong>${text.mode}</strong></div>
+        <div><span>Source</span><strong>${text.source}</strong></div>
       </div>
-      <p><strong>${formatAppointmentCategory(appointment.category)}</strong></p>
+      <p><strong>${text.category}</strong></p>
     </div>
     <div class="appointment-card-footer">
       <button class="btn btn-outline appointment-view-btn">
@@ -765,22 +1474,23 @@ function createPendingAppointmentCard(appointment) {
 function createTodaysAppointmentCard(appointment) {
   const card = document.createElement("div");
   card.className = "appointment-card";
+  const text = getAppointmentCardText(appointment);
   card.innerHTML = `
     <div class="appointment-card-header">
       <div>
-        <h4>${appointment.student}</h4>
-        <p class="sub">${appointment.studentNumber}</p>
+        <h4>${text.student}</h4>
+        <p class="sub">${text.studentNumber}</p>
       </div>
       ${badgeHTML(appointment.status)}
     </div>
     <div class="appointment-card-body">
       <div class="appointment-meta-grid">
-        <div><span>Date</span><strong>${formatAppointmentDate(appointment.date)}</strong></div>
-        <div><span>Time</span><strong>${formatAppointmentTime(appointment.time)}</strong></div>
-        <div><span>Mode</span><strong>${formatAppointmentMode(appointment.mode)}</strong></div>
-        <div><span>Source</span><strong>${formatAppointmentSource(appointment.source)}</strong></div>
+        <div><span>Date</span><strong>${text.date}</strong></div>
+        <div><span>Time</span><strong>${text.time}</strong></div>
+        <div><span>Mode</span><strong>${text.mode}</strong></div>
+        <div><span>Source</span><strong>${text.source}</strong></div>
       </div>
-      <p><strong>${formatAppointmentCategory(appointment.category)}</strong></p>
+      <p><strong>${text.category}</strong></p>
     </div>
     <div class="appointment-card-footer">
       <button class="btn btn-outline appointment-view-btn">
@@ -816,22 +1526,23 @@ function createTodaysAppointmentCard(appointment) {
 function createAppointmentHistoryCard(appointment) {
   const card = document.createElement("div");
   card.className = "appointment-card";
+  const text = getAppointmentCardText(appointment);
   card.innerHTML = `
     <div class="appointment-card-header">
       <div>
-        <h4>${appointment.student}</h4>
-        <p class="sub">${appointment.studentNumber}</p>
+        <h4>${text.student}</h4>
+        <p class="sub">${text.studentNumber}</p>
       </div>
       ${badgeHTML(appointment.status)}
     </div>
     <div class="appointment-card-body">
       <div class="appointment-meta-grid">
-        <div><span>Date</span><strong>${formatAppointmentDate(appointment.date)}</strong></div>
-        <div><span>Time</span><strong>${formatAppointmentTime(appointment.time)}</strong></div>
-        <div><span>Mode</span><strong>${formatAppointmentMode(appointment.mode)}</strong></div>
-        <div><span>Source</span><strong>${formatAppointmentSource(appointment.source)}</strong></div>
+        <div><span>Date</span><strong>${text.date}</strong></div>
+        <div><span>Time</span><strong>${text.time}</strong></div>
+        <div><span>Mode</span><strong>${text.mode}</strong></div>
+        <div><span>Source</span><strong>${text.source}</strong></div>
       </div>
-      <p><strong>${formatAppointmentCategory(appointment.category)}</strong></p>
+      <p><strong>${text.category}</strong></p>
     </div>
     <div class="appointment-card-footer">
       <button class="btn btn-outline appointment-view-btn">
@@ -879,21 +1590,21 @@ function createFlaggedAppointmentCaseCard(summary) {
 
   card.innerHTML = `
     <div class="appointment-card-header">
-      <h4>${summary.student}</h4>
-      <p class="sub">${summary.studentId}</p>
+      <h4>${escapeHtml(summary.student)}</h4>
+      <p class="sub">${escapeHtml(summary.studentId)}</p>
     </div>
 
     <div class="appointment-card-body">
-      <p><strong>${summary.category}</strong></p>
+      <p><strong>${escapeHtml(summary.category)}</strong></p>
 
       <p>
         Emotion:
-        ${capitalize(summary.emotion)}
+        ${escapeHtml(capitalize(summary.emotion))}
       </p>
 
       <p>
         Recommendation:
-        ${summary.recommendation || "No recommendation available."}
+        ${escapeHtml(summary.recommendation || "No recommendation available.")}
       </p>
 
       <p>
@@ -914,7 +1625,7 @@ function createFlaggedAppointmentCaseCard(summary) {
   const viewButton = card.querySelector(".view-case-btn");
 
   viewButton?.addEventListener("click", () => {
-    openCaseDetails(summary);
+    switchView("flagged");
   });
 
   return card;
@@ -925,11 +1636,11 @@ function createFaqBlock(title, question, answer) {
   container.className = "faq-block";
   container.innerHTML = `
     <div class="faq-block-header">
-      <div class="faq-title">${title}</div>
-      <div class="faq-q">${question}</div>
+      <div class="faq-title">${escapeHtml(title)}</div>
+      <div class="faq-q">${escapeHtml(question)}</div>
     </div>
     <div class="faq-block-body">
-      <textarea>${answer || ""}</textarea>
+      <textarea>${escapeHtml(answer || "")}</textarea>
     </div>
   `;
   return container;
@@ -1146,8 +1857,7 @@ const viewMeta = {
   inbox: {
     title: "Case Inbox",
     sub: "Completed AI conversations awaiting counselor review.",
-    actions:
-      '<button class="btn btn-primary" id="new-entry-btn">New Manual Entry</button>',
+    actions: "",
   },
 
   flagged: {
@@ -1177,37 +1887,32 @@ const viewMeta = {
   "conversation-summary-details": {
     title: "Conversation Summary",
     sub: "Review AI-generated conversation summary and recommendation.",
-    actions: '<button class="btn btn-outline" onclick="goBack()">Back</button>',
+    actions:
+      '<button class="btn btn-outline" data-dashboard-action="back">Back</button>',
   },
 
   reports: {
     title: "Reports",
-    sub: "Monitor chatbot inquiries, flagged concerns, and response trends.",
+    sub: "Review authorized aggregate analytics and export staff reports.",
     actions: '<div class="report-period-badge">This Month</div>',
   },
   settings: {
     title: "Settings & FAQ Management",
     sub: "Update chatbot responses, office details, categories, and escalation messages.",
     actions:
-      '<button class="btn btn-primary" onclick="saveSettings()">Save Changes</button>',
-  },
-  "manual-entry": {
-    title: "New Manual Entry",
-    sub: "Create an inquiry record for concerns received outside the chatbot.",
-    actions:
-      '<button class="btn btn-outline" onclick="goBack()">Back to Dashboard</button>',
+      '<button class="btn btn-primary" data-dashboard-action="save-settings">Save Changes</button>',
   },
   "case-details": {
     title: "Case Details",
     sub: "Review student concern, chatbot classification, and counselor action.",
     actions:
-      '<button class="btn btn-outline" onclick="goBack()">Back to Dashboard</button>',
+      '<button class="btn btn-outline" data-dashboard-action="back">Back to Dashboard</button>',
   },
   "appointment-details": {
     title: "Appointment Details",
     sub: "Review appointment information, manage its status, and record counselor notes.",
     actions:
-      '<button class="btn btn-outline" onclick="goBack()">Back to Appointments</button>',
+      '<button class="btn btn-outline" data-dashboard-action="back">Back to Appointments</button>',
   },
 };
 
@@ -1251,10 +1956,12 @@ function updateHeader(viewId) {
   headerSub.textContent = meta.sub || "";
   headerActions.innerHTML = meta.actions || "";
 
-  const newEntryBtn = document.getElementById("new-entry-btn");
-  if (newEntryBtn) {
-    newEntryBtn.addEventListener("click", () => switchView("manual-entry"));
-  }
+  headerActions
+    .querySelector('[data-dashboard-action="back"]')
+    ?.addEventListener("click", goBack);
+  headerActions
+    .querySelector('[data-dashboard-action="save-settings"]')
+    ?.addEventListener("click", saveSettings);
 
   const backToSettingsBtn = document.getElementById("back-to-settings-btn");
   if (backToSettingsBtn) {
@@ -1302,16 +2009,9 @@ sidebarOverlay.addEventListener("click", () => {
   sidebarOverlay.classList.remove("open");
 });
 
-function makeRow(inquiry, includeActions = true) {
+function makeRow(inquiry) {
   const tr = document.createElement("tr");
-  const actionsCell = includeActions
-    ? `<td>
-        <div class="action-cell">
-          <button class="action-link view-btn">View</button>
-          ${inquiry.status !== "resolved" ? '<button class="action-link resolve-btn">Resolve</button>' : ""}
-        </div>
-      </td>`
-    : "<td></td>";
+  const actionsCell = "<td></td>";
 
   const preview = inquiry.summary
     ? inquiry.summary.length > 80
@@ -1322,32 +2022,23 @@ function makeRow(inquiry, includeActions = true) {
   tr.innerHTML = `
     <td>
       <div class="student-cell">
-        <div class="student-avatar">${initials(inquiry.student)}</div>
+        <div class="student-avatar">${escapeHtml(initials(inquiry.student))}</div>
         <div>
-          <div class="student-name">${inquiry.student}</div>
-          <div class="student-id">${inquiry.studentId}</div>
+          <div class="student-name">${escapeHtml(inquiry.student)}</div>
+          <div class="student-id">${escapeHtml(inquiry.studentId)}</div>
         </div>
       </div>
     </td>
     <td>
       <div class="msg-preview">
-        ${preview}
+        ${escapeHtml(preview)}
       </div>
     </td>
-    <td>${inquiry.category}</td>
+    <td>${escapeHtml(inquiry.category)}</td>
     <td>${badgeHTML(inquiry.status)}</td>
-    <td class="time-cell">${inquiry.time}</td>
+    <td class="time-cell">${escapeHtml(inquiry.time)}</td>
     ${actionsCell}
   `;
-
-  tr.querySelector(".view-btn")?.addEventListener("click", () =>
-    openCaseDetails(inquiry),
-  );
-  tr.querySelector(".resolve-btn")?.addEventListener("click", () => {
-    inquiry.status = "resolved";
-    renderAllTables();
-    updateFlaggedCount();
-  });
 
   return tr;
 }
@@ -1401,8 +2092,61 @@ function renderConversationTable(tbodyId, filter) {
 
 function renderAllTables() {
   renderConversationTable("inquiry-tbody", currentInboxFilter);
-  renderConversationTable("flagged-tbody", "negative");
+  renderFlaggedConversations();
   renderConversationTable("resolved-tbody", "resolved");
+}
+
+function appendTableCell(row, value) {
+  const cell = document.createElement("td");
+  cell.textContent = value;
+  row.appendChild(cell);
+}
+
+function renderFlaggedConversations() {
+  const tbody = document.getElementById("flagged-tbody");
+  if (!tbody) return;
+
+  tbody.replaceChildren();
+
+  if (!flaggedConversations.length) {
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+    cell.colSpan = 6;
+    cell.style.cssText = "text-align:center;color:var(--gray-400);padding:30px";
+    cell.textContent = "No flagged conversations found.";
+    row.appendChild(cell);
+    tbody.appendChild(row);
+    return;
+  }
+
+  flaggedConversations.forEach((conversation) => {
+    const row = document.createElement("tr");
+    appendTableCell(row, "Confidential conversation");
+    appendTableCell(row, conversation.summary);
+    appendTableCell(row, conversation.category);
+    appendTableCell(
+      row,
+      conversation.status === "reviewed" ? "Reviewed" : "Pending review",
+    );
+    appendTableCell(
+      row,
+      conversation.createdAt
+        ? conversation.createdAt.toLocaleString()
+        : "Unavailable",
+    );
+
+    const actionCell = document.createElement("td");
+    const viewButton = document.createElement("button");
+    viewButton.type = "button";
+    viewButton.className = "action-link";
+    viewButton.textContent = "View";
+    viewButton.addEventListener("click", () => {
+      openFlaggedConversationDetails(conversation);
+    });
+    actionCell.appendChild(viewButton);
+    row.appendChild(actionCell);
+    tbody.appendChild(row);
+  });
 }
 
 function renderConversationSummaries() {
@@ -1420,24 +2164,23 @@ function renderConversationSummaries() {
 
   conversationSummaries.forEach((summary) => {
     const tr = document.createElement("tr");
+    const createdAt = summary.createdAt
+      ? summary.createdAt.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        })
+      : "—";
 
     tr.innerHTML = `
-      <td>${summary.student}</td>
-      <td>${summary.category}</td>
-      <td>${capitalize(summary.emotion)}</td>
-      <td>${
-        summary.createdAt
-          ? summary.createdAt.toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            })
-          : "—"
-      }</td>
+      <td>${escapeHtml(summary.student)}</td>
+      <td>${escapeHtml(summary.category)}</td>
+      <td>${escapeHtml(capitalize(summary.emotion))}</td>
+      <td>${escapeHtml(createdAt)}</td>
       <td>
         <button
           class="action-link view-summary-btn"
-          data-id="${summary.id}"
+          data-id="${escapeHtml(summary.id)}"
         >
           View
         </button>
@@ -1461,34 +2204,1219 @@ function renderConversationSummaries() {
 }
 
 function renderReports() {
-  const totalInquiries = conversationSummaries.length;
+  renderDashboardOverview();
+}
 
-  const flaggedCases = conversationSummaries.filter(
-    (summary) => summary.flagged,
-  ).length;
+function overviewValue(elementId, value) {
+  const element = document.getElementById(elementId);
+  if (element) element.textContent = String(value || 0);
+}
 
-  const resolvedCases = conversationSummaries.filter(
-    (summary) => summary.status === "resolved",
-  ).length;
+function latestTrendRow(trends) {
+  const rows = trends || [];
+  return rows.length ? rows[rows.length - 1] : null;
+}
 
-  document.getElementById("report-total-inquiries").textContent =
-    totalInquiries;
+function renderDashboardOverview() {
+  const reports = reportsAnalytics;
+  if (!reports) return;
 
-  document.getElementById("report-flagged-cases").textContent = flaggedCases;
+  const appointment = reports.appointment || {};
+  const chatbot = reports.chatbot || {};
+  const workload = reports.workload || {};
+  const flaggedCases = reports.flaggedCases || {};
 
-  document.getElementById("report-resolved-cases").textContent = resolvedCases;
+  overviewValue(
+    "reports-overview-appointments",
+    appointment.total_appointments,
+  );
+  overviewValue(
+    "reports-overview-pending-cases",
+    flaggedCases.pending_flagged_case_reviews,
+  );
+  overviewValue(
+    "reports-overview-chatbot-messages",
+    chatbot.total_chatbot_messages,
+  );
+  overviewValue(
+    "reports-overview-active-referrals",
+    workload.active_referral_count,
+  );
+
+  appendReportRows("reports-overview-appointment-summary", [
+    ["Total appointments", appointment.total_appointments || 0],
+    ...(appointment.status_distribution || []).map((item) => [
+      `Persisted appointment status: ${item.status}`,
+      item.count,
+    ]),
+  ]);
+  appendReportRows("reports-overview-chatbot-summary", [
+    ["Total chatbot messages", chatbot.total_chatbot_messages || 0],
+    ["Conversation finalizations", chatbot.conversation_finalization_count || 0],
+    ["Escalations", chatbot.escalation_count || 0],
+  ]);
+  appendReportRows("reports-overview-workload-summary", [
+    ["Authorized appointments", workload.authorized_appointment_count || 0],
+    ["Pending appointments", workload.pending_appointment_count || 0],
+    ["Confirmed appointments", workload.confirmed_appointment_count || 0],
+    ["Completed appointments", workload.completed_appointment_count || 0],
+    ["Active referrals", workload.active_referral_count || 0],
+    ["Active interventions", workload.active_intervention_count || 0],
+    ["Completed interventions", workload.completed_intervention_count || 0],
+  ]);
+  appendReportRows("reports-overview-flagged-case-summary", [
+    ["Total flagged cases", flaggedCases.total_flagged_cases || 0],
+    [
+      "Pending flagged-case reviews",
+      flaggedCases.pending_flagged_case_reviews || 0,
+    ],
+    ["Reviewed flagged cases", flaggedCases.reviewed_flagged_cases || 0],
+    ["Current confidential cases", flaggedCases.current_confidential_case_count || 0],
+  ]);
+
+  const recentActivity = [
+    ["Appointment activity", latestTrendRow(appointment.daily_trends)],
+    [
+      "Chatbot message activity",
+      latestTrendRow((chatbot.message_volume || {}).daily),
+    ],
+    [
+      "Flagged-case escalation activity",
+      latestTrendRow((flaggedCases.escalation_trends || {}).daily),
+    ],
+  ]
+    .filter(([, trend]) => trend)
+    .map(([label, trend]) => [`${label}: ${trend.date}`, trend.count]);
+  appendReportRows("reports-overview-recent-activity", recentActivity);
+}
+
+function navigateOverview(target) {
+  const destinations = {
+    appointment: { view: "appointments", panelId: "appointment-analytics-panel" },
+    chatbot: { view: "reports", panelId: "chatbot-analytics-panel" },
+    workload: { view: "reports", panelId: "counselor-workload-panel" },
+    "flagged-cases": { view: "reports", panelId: "flagged-case-analytics-panel" },
+  };
+  const destination = destinations[target];
+  if (!destination) return;
+
+  switchView(destination.view);
+  document.getElementById(destination.panelId)?.scrollIntoView({
+    behavior: "smooth",
+    block: "start",
+  });
+}
+
+function bindDashboardOverviewNavigation() {
+  document.querySelectorAll("[data-overview-target]").forEach((button) => {
+    button.addEventListener("click", () => {
+      navigateOverview(button.dataset.overviewTarget);
+    });
+  });
+}
+
+function appendReportRows(containerId, rows) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  container.replaceChildren();
+
+  if (!rows.length) {
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+    cell.colSpan = 2;
+    cell.textContent = "No aggregate data for this period.";
+    row.appendChild(cell);
+    container.appendChild(row);
+    return;
+  }
+
+  rows.forEach(([labelText, value]) => {
+    const row = document.createElement("tr");
+    const label = document.createElement("td");
+    const count = document.createElement("td");
+    label.textContent = labelText;
+    count.textContent = String(value);
+    row.append(label, count);
+    container.appendChild(row);
+  });
+}
+
+function trendReportRows(label, trends) {
+  return (trends || []).map((item) => [
+    `${label}: ${item.date || item.week || item.month}`,
+    item.count,
+  ]);
+}
+
+function renderCombinedReports() {
+  const reports = reportsAnalytics;
+  if (!reports) return;
+
+  const appointment = reports.appointment || {};
+  const chatbot = reports.chatbot || {};
+  const workload = reports.workload || {};
+  const flaggedCases = reports.flaggedCases || {};
+
+  appendReportRows("reports-appointment-rows", [
+    ["Total appointments", appointment.total_appointments || 0],
+    ...(appointment.status_distribution || []).map((item) => [
+      `Status: ${item.status}`,
+      item.count,
+    ]),
+    ...trendReportRows("Daily trend", appointment.daily_trends),
+    ...trendReportRows("Weekly trend", appointment.weekly_trends),
+    ...trendReportRows("Monthly trend", appointment.monthly_trends),
+    ...(appointment.program_statistics || []).map((item) => [
+      `Program: ${item.program}`,
+      item.count,
+    ]),
+  ]);
+
+  const chatbotVolume = chatbot.message_volume || {};
+  appendReportRows("reports-chatbot-rows", [
+    ["Total chatbot messages", chatbot.total_chatbot_messages || 0],
+    ["Conversation finalizations", chatbot.conversation_finalization_count || 0],
+    ["Escalations", chatbot.escalation_count || 0],
+    [
+      "Average finalized conversation length",
+      chatbot.average_finalized_conversation_length ?? "—",
+    ],
+    ...(chatbot.persisted_emotion_result_distribution || []).map((item) => [
+      `Persisted emotion result: ${item.emotion_result}`,
+      item.count,
+    ]),
+    ...trendReportRows("Daily message volume", chatbotVolume.daily),
+    ...trendReportRows("Weekly message volume", chatbotVolume.weekly),
+    ...trendReportRows("Monthly message volume", chatbotVolume.monthly),
+  ]);
+
+  appendReportRows("reports-workload-rows", [
+    ["Authorized appointments", workload.authorized_appointment_count || 0],
+    ["Pending appointments", workload.pending_appointment_count || 0],
+    ["Confirmed appointments", workload.confirmed_appointment_count || 0],
+    ["Completed appointments", workload.completed_appointment_count || 0],
+    ["Active referrals", workload.active_referral_count || 0],
+    ["Active interventions", workload.active_intervention_count || 0],
+    ["Completed interventions", workload.completed_intervention_count || 0],
+    ...(workload.workload_by_program || []).map((item) => [
+      `Authorized program: ${item.program}`,
+      item.count,
+    ]),
+  ]);
+
+  const escalationTrends = flaggedCases.escalation_trends || {};
+  appendReportRows("reports-flagged-case-rows", [
+    ["Total flagged cases", flaggedCases.total_flagged_cases || 0],
+    [
+      "Pending flagged-case reviews",
+      flaggedCases.pending_flagged_case_reviews || 0,
+    ],
+    ["Reviewed flagged cases", flaggedCases.reviewed_flagged_cases || 0],
+    ["Referrals", flaggedCases.referral_count || 0],
+    ["Interventions", flaggedCases.intervention_count || 0],
+    [
+      "Current confidential cases",
+      flaggedCases.current_confidential_case_count || 0,
+    ],
+    ...(flaggedCases.persisted_case_status_distribution || []).map((item) => [
+      `Persisted case status: ${item.status}`,
+      item.count,
+    ]),
+    ...trendReportRows("Daily escalation trend", escalationTrends.daily),
+    ...trendReportRows("Weekly escalation trend", escalationTrends.weekly),
+    ...trendReportRows("Monthly escalation trend", escalationTrends.monthly),
+  ]);
+}
+
+function selectedReportDateRange() {
+  return {
+    startDate: document.getElementById("reports-start-date")?.value || "",
+    endDate: document.getElementById("reports-end-date")?.value || "",
+  };
+}
+
+function analyticsQuery(startDate, endDate) {
+  const query = new URLSearchParams();
+  if (startDate) query.set("start_date", startDate);
+  if (endDate) query.set("end_date", endDate);
+  return query.size ? `?${query.toString()}` : "";
+}
+
+async function loadCombinedReports() {
+  const { startDate, endDate } = selectedReportDateRange();
+  const suffix = analyticsQuery(startDate, endDate);
+  const [appointment, chatbot, workload, flaggedCases] = await Promise.all([
+    fetchJson(`${API_BASE}/api/dashboard/appointments/analytics${suffix}`),
+    fetchJson(`${API_BASE}/api/dashboard/chatbot/analytics${suffix}`),
+    fetchJson(`${API_BASE}/api/dashboard/counselor-workload${suffix}`),
+    fetchJson(`${API_BASE}/api/dashboard/flagged-cases/analytics${suffix}`),
+  ]);
+
+  reportsAnalytics = {
+    appointment: appointment.data || {},
+    chatbot: chatbot.data || {},
+    workload: workload.data || {},
+    flaggedCases: flaggedCases.data || {},
+  };
+  renderCombinedReports();
+  renderDashboardOverview();
+}
+
+function csvCell(value) {
+  const text = String(value ?? "");
+  const safeText = /^[=+\-@]/.test(text) ? `'${text}` : text;
+  return `"${safeText.replaceAll('"', '""')}"`;
+}
+
+function reportCsvRows() {
+  const reports = reportsAnalytics;
+  if (!reports) return [];
+
+  const { startDate, endDate } = selectedReportDateRange();
+  const rows = [
+    ["Report", "Generated at", "", new Date().toISOString()],
+    ["Report", "Start date", "", startDate || "All records"],
+    ["Report", "End date", "", endDate || "All records"],
+    ["Section", "Metric", "Period", "Value"],
+  ];
+  const add = (section, metric, value, period = "") => {
+    rows.push([section, metric, period, value]);
+  };
+  const addTrends = (section, metric, trends) => {
+    (trends || []).forEach((item) => {
+      add(section, metric, item.count, item.date || item.week || item.month);
+    });
+  };
+
+  const appointment = reports.appointment || {};
+  add("Appointment", "Total appointments", appointment.total_appointments || 0);
+  (appointment.status_distribution || []).forEach((item) =>
+    add("Appointment", "Persisted appointment status", item.count, item.status),
+  );
+  addTrends("Appointment", "Daily trend", appointment.daily_trends);
+  addTrends("Appointment", "Weekly trend", appointment.weekly_trends);
+  addTrends("Appointment", "Monthly trend", appointment.monthly_trends);
+  (appointment.program_statistics || []).forEach((item) =>
+    add("Appointment", "Program appointments", item.count, item.program),
+  );
+
+  const chatbot = reports.chatbot || {};
+  add("Chatbot", "Total chatbot messages", chatbot.total_chatbot_messages || 0);
+  add("Chatbot", "Conversation finalizations", chatbot.conversation_finalization_count || 0);
+  add("Chatbot", "Escalations", chatbot.escalation_count || 0);
+  add(
+    "Chatbot",
+    "Average finalized conversation length",
+    chatbot.average_finalized_conversation_length ?? "",
+  );
+  (chatbot.persisted_emotion_result_distribution || []).forEach((item) =>
+    add("Chatbot", "Persisted emotion result", item.count, item.emotion_result),
+  );
+  const chatbotVolume = chatbot.message_volume || {};
+  addTrends("Chatbot", "Daily message volume", chatbotVolume.daily);
+  addTrends("Chatbot", "Weekly message volume", chatbotVolume.weekly);
+  addTrends("Chatbot", "Monthly message volume", chatbotVolume.monthly);
+
+  const workload = reports.workload || {};
+  [
+    ["Authorized appointments", workload.authorized_appointment_count],
+    ["Pending appointments", workload.pending_appointment_count],
+    ["Confirmed appointments", workload.confirmed_appointment_count],
+    ["Completed appointments", workload.completed_appointment_count],
+    ["Active referrals", workload.active_referral_count],
+    ["Active interventions", workload.active_intervention_count],
+    ["Completed interventions", workload.completed_intervention_count],
+  ].forEach(([metric, value]) => add("Counselor Workload", metric, value || 0));
+  (workload.workload_by_program || []).forEach((item) =>
+    add("Counselor Workload", "Authorized program appointments", item.count, item.program),
+  );
+
+  const flaggedCases = reports.flaggedCases || {};
+  [
+    ["Total flagged cases", flaggedCases.total_flagged_cases],
+    ["Pending flagged-case reviews", flaggedCases.pending_flagged_case_reviews],
+    ["Reviewed flagged cases", flaggedCases.reviewed_flagged_cases],
+    ["Referrals", flaggedCases.referral_count],
+    ["Interventions", flaggedCases.intervention_count],
+    ["Current confidential cases", flaggedCases.current_confidential_case_count],
+  ].forEach(([metric, value]) => add("Flagged Case", metric, value || 0));
+  (flaggedCases.persisted_case_status_distribution || []).forEach((item) =>
+    add("Flagged Case", "Persisted case status", item.count, item.status),
+  );
+  const escalationTrends = flaggedCases.escalation_trends || {};
+  addTrends("Flagged Case", "Daily escalation trend", escalationTrends.daily);
+  addTrends("Flagged Case", "Weekly escalation trend", escalationTrends.weekly);
+  addTrends("Flagged Case", "Monthly escalation trend", escalationTrends.monthly);
+
+  return rows;
+}
+
+function downloadReportsCsv() {
+  const rows = reportCsvRows();
+  if (!rows.length) {
+    createToast("Load reports before downloading CSV.", "info");
+    return;
+  }
+
+  const csv = rows.map((row) => row.map(csvCell).join(",")).join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const link = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  link.href = url;
+  link.download = "guidance-analytics-report.csv";
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function bindReportsControls() {
+  document
+    .getElementById("reports-apply")
+    ?.addEventListener("click", async () => {
+      try {
+        await loadCombinedReports();
+      } catch (error) {
+        console.error(error);
+        createToast("Unable to load reports.", "info");
+      }
+    });
+
+  document
+    .getElementById("reports-reset")
+    ?.addEventListener("click", async () => {
+      const startDate = document.getElementById("reports-start-date");
+      const endDate = document.getElementById("reports-end-date");
+      if (startDate) startDate.value = "";
+      if (endDate) endDate.value = "";
+
+      try {
+        await loadCombinedReports();
+      } catch (error) {
+        console.error(error);
+        createToast("Unable to load reports.", "info");
+      }
+    });
+
+  document
+    .getElementById("reports-export-csv")
+    ?.addEventListener("click", downloadReportsCsv);
 }
 
 function updateFlaggedCount() {
-  const count = conversationSummaries.filter(
-    (summary) => summary.flagged,
-  ).length;
+  const count = flaggedConversations.length;
   const flaggedCount = document.getElementById("flagged-count");
   const statFlagged = document.getElementById("stat-flagged");
   const statFlagged2 = document.getElementById("stat-flagged-2");
   if (flaggedCount) flaggedCount.textContent = count;
   if (statFlagged) statFlagged.textContent = count;
   if (statFlagged2) statFlagged2.textContent = count;
+}
+
+function formatCaseNoteTimestamp(timestamp) {
+  if (!timestamp) return "Timestamp unavailable";
+  const date = new Date(timestamp);
+  return Number.isNaN(date.getTime())
+    ? "Timestamp unavailable"
+    : date.toLocaleString();
+}
+
+function renderCaseNotes(notes, onEdit) {
+  const list = document.getElementById("case-notes-list");
+  if (!list) return;
+
+  list.replaceChildren();
+  if (!notes.length) {
+    const empty = document.createElement("p");
+    empty.className = "sub";
+    empty.textContent = "No counselor notes have been added.";
+    list.appendChild(empty);
+    return;
+  }
+
+  notes.forEach((note) => {
+    const entry = document.createElement("article");
+    entry.className = "case-note-entry";
+
+    const text = document.createElement("p");
+    text.className = "case-note-text";
+    text.textContent = note.note_text;
+
+    const footer = document.createElement("div");
+    footer.className = "case-note-footer";
+    const timestamp = document.createElement("span");
+    const createdAt = formatCaseNoteTimestamp(note.created_at);
+    const updatedAt = formatCaseNoteTimestamp(note.updated_at);
+    timestamp.textContent =
+      note.created_at === note.updated_at
+        ? `Created ${createdAt}`
+        : `Created ${createdAt} · Updated ${updatedAt}`;
+    const editButton = document.createElement("button");
+    editButton.type = "button";
+    editButton.className = "action-link";
+    editButton.textContent = "Edit";
+    editButton.addEventListener("click", () => onEdit(note));
+    footer.append(timestamp, editButton);
+
+    entry.append(text, footer);
+    list.appendChild(entry);
+  });
+}
+
+function formatReferralStatus(status) {
+  return String(status || "pending")
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function getReferralStatusBadgeClass(status) {
+  const classes = {
+    pending: "pending",
+    in_progress: "neutral",
+    completed: "resolved",
+    cancelled: "negative",
+  };
+  return classes[status] || "pending";
+}
+
+function renderReferralHistory(history) {
+  const list = document.createElement("ul");
+  list.className = "referral-history";
+  history.forEach((item) => {
+    const entry = document.createElement("li");
+    entry.textContent = `${formatReferralStatus(item.status)}: ${formatCaseNoteTimestamp(item.created_at)}`;
+    list.appendChild(entry);
+  });
+  return list;
+}
+
+function renderReferralNotes(notes) {
+  const list = document.createElement("ul");
+  list.className = "referral-notes-history";
+  notes.forEach((note) => {
+    const entry = document.createElement("li");
+    entry.textContent = `${formatCaseNoteTimestamp(note.created_at)}: ${note.note_text}`;
+    list.appendChild(entry);
+  });
+  return list;
+}
+
+function renderReferrals(referrals, onStatusChange, onAddNote) {
+  const list = document.getElementById("case-referrals-list");
+  if (!list) return;
+
+  list.replaceChildren();
+  if (!referrals.length) {
+    const empty = document.createElement("p");
+    empty.className = "sub";
+    empty.textContent = "No internal referrals have been created.";
+    list.appendChild(empty);
+    return;
+  }
+
+  referrals.forEach((referral) => {
+    const entry = document.createElement("article");
+    entry.className = "referral-entry";
+
+    const header = document.createElement("div");
+    header.className = "referral-entry-header";
+    const destination = document.createElement("h5");
+    destination.textContent = referral.destination;
+    const status = document.createElement("span");
+    status.className = `badge ${getReferralStatusBadgeClass(referral.status)}`;
+    status.textContent = formatReferralStatus(referral.status);
+    header.append(destination, status);
+
+    const reason = document.createElement("p");
+    reason.textContent = referral.referral_reason;
+
+    const footer = document.createElement("div");
+    footer.className = "referral-entry-footer";
+    const timestamps = document.createElement("span");
+    timestamps.textContent =
+      referral.created_at === referral.updated_at
+        ? `Created ${formatCaseNoteTimestamp(referral.created_at)}`
+        : `Created ${formatCaseNoteTimestamp(referral.created_at)} · Updated ${formatCaseNoteTimestamp(referral.updated_at)}`;
+    footer.appendChild(timestamps);
+
+    const statusControl = document.createElement("div");
+    statusControl.className = "referral-status-control";
+    const statusLabel = document.createElement("label");
+    statusLabel.textContent = "Referral Status";
+    const statusSelect = document.createElement("select");
+    ["pending", "in_progress", "completed", "cancelled"].forEach((value) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = formatReferralStatus(value);
+      option.selected = value === referral.status;
+      statusSelect.appendChild(option);
+    });
+    statusSelect.addEventListener("change", () => {
+      onStatusChange(referral, statusSelect.value);
+    });
+    statusControl.append(statusLabel, statusSelect);
+
+    const historyHeading = document.createElement("strong");
+    historyHeading.textContent = "Status History";
+    const notesHeading = document.createElement("strong");
+    notesHeading.textContent = "Referral Notes";
+
+    const noteEditor = document.createElement("div");
+    noteEditor.className = "referral-note-editor";
+    const noteInput = document.createElement("textarea");
+    noteInput.placeholder = "Add a confidential referral note.";
+    const addNoteButton = document.createElement("button");
+    addNoteButton.type = "button";
+    addNoteButton.className = "btn btn-outline btn-sm";
+    addNoteButton.textContent = "Add Referral Note";
+    addNoteButton.disabled = true;
+    addNoteButton.classList.add("disabled");
+    noteInput.addEventListener("input", () => {
+      const empty = !noteInput.value.trim();
+      addNoteButton.disabled = empty;
+      addNoteButton.classList.toggle("disabled", empty);
+    });
+    addNoteButton.addEventListener("click", () => {
+      const noteText = noteInput.value.trim();
+      if (noteText) onAddNote(referral, noteText);
+    });
+    noteEditor.append(noteInput, addNoteButton);
+
+    entry.append(
+      header,
+      reason,
+      footer,
+      statusControl,
+      historyHeading,
+      renderReferralHistory(referral.status_history || []),
+      notesHeading,
+      renderReferralNotes(referral.notes || []),
+      noteEditor,
+    );
+    list.appendChild(entry);
+  });
+}
+
+function formatInterventionProgress(progressStatus) {
+  return String(progressStatus || "planned")
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function getInterventionProgressBadgeClass(progressStatus) {
+  const classes = {
+    planned: "pending",
+    ongoing: "neutral",
+    completed: "resolved",
+    discontinued: "negative",
+  };
+  return classes[progressStatus] || "pending";
+}
+
+function renderInterventionHistory(history) {
+  const list = document.createElement("ul");
+  list.className = "intervention-history";
+  history.forEach((item) => {
+    const entry = document.createElement("li");
+    const progress = formatInterventionProgress(item.progress_status);
+    const timestamp = formatCaseNoteTimestamp(item.created_at);
+    entry.textContent = item.outcome
+      ? `${progress}: ${timestamp}. Outcome: ${item.outcome}`
+      : `${progress}: ${timestamp}`;
+    list.appendChild(entry);
+  });
+  return list;
+}
+
+function renderInterventions(interventions, onProgressChange, onOutcome) {
+  const list = document.getElementById("case-interventions-list");
+  if (!list) return;
+
+  list.replaceChildren();
+  if (!interventions.length) {
+    const empty = document.createElement("p");
+    empty.className = "sub";
+    empty.textContent = "No confidential interventions have been created.";
+    list.appendChild(empty);
+    return;
+  }
+
+  interventions.forEach((intervention) => {
+    const entry = document.createElement("article");
+    entry.className = "intervention-entry";
+    const isTerminal = ["completed", "discontinued"].includes(
+      intervention.progress_status,
+    );
+    const hasOutcome = Boolean(intervention.outcome);
+
+    const header = document.createElement("div");
+    header.className = "intervention-entry-header";
+    const type = document.createElement("h5");
+    type.textContent = intervention.intervention_type;
+    const status = document.createElement("span");
+    status.className = `badge ${getInterventionProgressBadgeClass(intervention.progress_status)}`;
+    status.textContent = formatInterventionProgress(
+      intervention.progress_status,
+    );
+    header.append(type, status);
+
+    const objective = document.createElement("p");
+    objective.textContent = intervention.objective;
+    const footer = document.createElement("div");
+    footer.className = "intervention-entry-footer";
+    const timestamps = document.createElement("span");
+    timestamps.textContent =
+      intervention.created_at === intervention.updated_at
+        ? `Created ${formatCaseNoteTimestamp(intervention.created_at)}`
+        : `Created ${formatCaseNoteTimestamp(intervention.created_at)} · Updated ${formatCaseNoteTimestamp(intervention.updated_at)}`;
+    footer.appendChild(timestamps);
+
+    const progressControl = document.createElement("div");
+    progressControl.className = "intervention-progress-control";
+    const progressLabel = document.createElement("label");
+    progressLabel.textContent = "Progress";
+    const progressSelect = document.createElement("select");
+    ["planned", "ongoing", "completed", "discontinued"].forEach((value) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = formatInterventionProgress(value);
+      option.selected = value === intervention.progress_status;
+      progressSelect.appendChild(option);
+    });
+    progressSelect.disabled = hasOutcome;
+    progressSelect.addEventListener("change", () => {
+      onProgressChange(intervention, progressSelect.value);
+    });
+    progressControl.append(progressLabel, progressSelect);
+
+    const completeButton = document.createElement("button");
+    completeButton.type = "button";
+    completeButton.className = "btn btn-outline btn-sm";
+    completeButton.textContent = "Mark Completed";
+    completeButton.hidden = isTerminal || hasOutcome;
+    completeButton.addEventListener("click", () => {
+      onProgressChange(intervention, "completed");
+    });
+
+    const historyHeading = document.createElement("strong");
+    historyHeading.textContent = "Intervention History";
+
+    entry.append(
+      header,
+      objective,
+      footer,
+      progressControl,
+      completeButton,
+      historyHeading,
+      renderInterventionHistory(intervention.history || []),
+    );
+
+    if (hasOutcome) {
+      const outcomeHeading = document.createElement("strong");
+      outcomeHeading.textContent = "Outcome";
+      const outcome = document.createElement("p");
+      outcome.textContent = intervention.outcome;
+      entry.append(outcomeHeading, outcome);
+    } else if (isTerminal) {
+      const outcomeEditor = document.createElement("div");
+      outcomeEditor.className = "intervention-outcome-editor";
+      const outcomeInput = document.createElement("textarea");
+      outcomeInput.placeholder =
+        "Record the confidential intervention outcome.";
+      const outcomeButton = document.createElement("button");
+      outcomeButton.type = "button";
+      outcomeButton.className = "btn btn-primary btn-sm";
+      outcomeButton.textContent = "Record Outcome";
+      outcomeButton.disabled = true;
+      outcomeButton.classList.add("disabled");
+      outcomeInput.addEventListener("input", () => {
+        const empty = !outcomeInput.value.trim();
+        outcomeButton.disabled = empty;
+        outcomeButton.classList.toggle("disabled", empty);
+      });
+      outcomeButton.addEventListener("click", () => {
+        const outcome = outcomeInput.value.trim();
+        if (outcome) onOutcome(intervention, outcome);
+      });
+      outcomeEditor.append(outcomeInput, outcomeButton);
+      entry.appendChild(outcomeEditor);
+    }
+
+    list.appendChild(entry);
+  });
+}
+
+function formatConfidentialityStatus(confidentialityStatus) {
+  return confidentialityStatus === "confidential"
+    ? "Confidential"
+    : "Not Confidential";
+}
+
+function renderCaseConfidentiality(confidentiality) {
+  const current = document.getElementById("case-confidentiality-current");
+  if (!current) return;
+
+  current.replaceChildren();
+  const status = document.createElement("span");
+  status.className = `badge ${
+    confidentiality.confidentiality_status === "confidential"
+      ? "negative"
+      : "resolved"
+  }`;
+  status.textContent = formatConfidentialityStatus(
+    confidentiality.confidentiality_status,
+  );
+  current.appendChild(status);
+
+  if (confidentiality.confidentiality_reason) {
+    const reason = document.createElement("p");
+    reason.textContent = confidentiality.confidentiality_reason;
+    current.appendChild(reason);
+  }
+
+  if (confidentiality.history?.length) {
+    const historyHeading = document.createElement("strong");
+    historyHeading.textContent = "Confidentiality History";
+    const history = document.createElement("ul");
+    history.className = "case-confidentiality-history";
+    confidentiality.history.forEach((item) => {
+      const entry = document.createElement("li");
+      const timestamp = formatCaseNoteTimestamp(item.created_at);
+      const reason = item.confidentiality_reason
+        ? ` Reason: ${item.confidentiality_reason}`
+        : "";
+      entry.textContent = `${formatConfidentialityStatus(item.confidentiality_status)}: ${timestamp}.${reason}`;
+      history.appendChild(entry);
+    });
+    current.append(historyHeading, history);
+  }
+}
+
+async function openFlaggedConversationDetails(conversation) {
+  try {
+    const response = await fetchJson(
+      `${API_BASE}/api/flagged-conversations/${conversation.id}`,
+    );
+    const detail = response.data;
+    const reviewButton = document.getElementById("case-resolve-btn");
+    const pendingButton = document.getElementById("case-pending-btn");
+    const notesCard = document.querySelector(".staff-notes-card");
+    const notesInput = document.getElementById("case-notes-input");
+    const saveNotesButton = document.getElementById("save-notes-btn");
+    const referralsCard = document.getElementById("case-referrals-card");
+    const referralDestination = document.getElementById("referral-destination");
+    const referralReason = document.getElementById("referral-reason");
+    const referralNote = document.getElementById("referral-note");
+    const createReferralButton = document.getElementById("create-referral-btn");
+    const interventionsCard = document.getElementById(
+      "case-interventions-card",
+    );
+    const interventionType = document.getElementById("intervention-type");
+    const interventionObjective = document.getElementById(
+      "intervention-objective",
+    );
+    const createInterventionButton = document.getElementById(
+      "create-intervention-btn",
+    );
+    const confidentialityCard = document.getElementById(
+      "case-confidentiality-card",
+    );
+    const confidentialityReason = document.getElementById(
+      "case-confidentiality-reason",
+    );
+    const markConfidentialButton = document.getElementById(
+      "mark-case-confidential-btn",
+    );
+    const removeConfidentialityButton = document.getElementById(
+      "remove-case-confidential-btn",
+    );
+    const notesResponse = await fetchJson(
+      `${API_BASE}/api/flagged-conversations/${conversation.id}/notes`,
+    );
+    const notes = notesResponse.data?.items || [];
+    const referralsResponse = await fetchJson(
+      `${API_BASE}/api/flagged-conversations/${conversation.id}/referrals`,
+    );
+    const referrals = referralsResponse.data?.items || [];
+    const interventionsResponse = await fetchJson(
+      `${API_BASE}/api/flagged-conversations/${conversation.id}/interventions`,
+    );
+    const interventions = interventionsResponse.data?.items || [];
+    const confidentialityResponse = await fetchJson(
+      `${API_BASE}/api/flagged-conversations/${conversation.id}/confidentiality`,
+    );
+    let confidentiality = confidentialityResponse.data;
+    let editingNoteId = null;
+
+    document.getElementById("case-avatar").textContent = "FC";
+    document.getElementById("case-name").textContent = "Flagged Conversation";
+    document.getElementById("case-meta").textContent =
+      "Confidential staff conversation record";
+    document.getElementById("case-message").textContent = detail.summary;
+    document.getElementById("case-category").textContent =
+      detail.primary_concern || "General inquiry";
+    document.getElementById("case-emotion").textContent = capitalize(
+      detail.emotion_results || "neutral",
+    );
+    document.getElementById("case-time").textContent = detail.created_at
+      ? new Date(detail.created_at).toLocaleString()
+      : "Unavailable";
+    document.getElementById("case-recommendation").textContent =
+      detail.recommendations || "No recommendation available.";
+    document.getElementById("case-total-messages").textContent = String(
+      detail.total_messages || 0,
+    );
+    document.getElementById("case-student-messages").textContent =
+      "Not retained";
+    document.getElementById("case-ai-messages").textContent = "Not retained";
+    document.getElementById("case-escalation-status").textContent =
+      detail.escalation_status === "reviewed" ? "Reviewed" : "Pending review";
+    document.getElementById("case-escalation-reason").textContent =
+      detail.escalation_reason || "AI safety escalation.";
+    document.getElementById("case-status-label").textContent =
+      detail.escalation_status === "reviewed" ? "Reviewed" : "Pending review";
+
+    const badge = document.getElementById("case-badge");
+    badge.className =
+      detail.escalation_status === "reviewed"
+        ? "badge resolved"
+        : "badge negative";
+    badge.textContent =
+      detail.escalation_status === "reviewed" ? "Reviewed" : "Pending review";
+
+    pendingButton.hidden = true;
+    notesCard.hidden = false;
+    referralsCard.hidden = false;
+    interventionsCard.hidden = false;
+    confidentialityCard.hidden = false;
+    reviewButton.textContent = "Mark as Reviewed";
+    reviewButton.disabled = detail.escalation_status === "reviewed";
+    reviewButton.classList.toggle("disabled", reviewButton.disabled);
+    reviewButton.onclick = async () => {
+      try {
+        const reviewed = await fetchJson(
+          `${API_BASE}/api/flagged-conversations/${conversation.id}/review`,
+          { method: "PATCH" },
+        );
+        conversation.status = reviewed.data.escalation_status;
+        renderFlaggedConversations();
+        updateFlaggedCount();
+        await openFlaggedConversationDetails(conversation);
+        createToast("Flagged conversation marked as reviewed.", "success");
+      } catch (error) {
+        console.error(error);
+        createToast("Unable to mark flagged conversation as reviewed.", "info");
+      }
+    };
+
+    function resetNoteEditor() {
+      editingNoteId = null;
+      notesInput.value = "";
+      saveNotesButton.textContent = "Add Note";
+      saveNotesButton.disabled = true;
+      saveNotesButton.classList.add("disabled");
+    }
+
+    function startEditingNote(note) {
+      editingNoteId = note.id;
+      notesInput.value = note.note_text;
+      saveNotesButton.textContent = "Update Note";
+      saveNotesButton.disabled = false;
+      saveNotesButton.classList.remove("disabled");
+      notesInput.focus();
+    }
+
+    notesInput.oninput = () => {
+      const empty = !notesInput.value.trim();
+      saveNotesButton.disabled = empty;
+      saveNotesButton.classList.toggle("disabled", empty);
+    };
+    saveNotesButton.onclick = async () => {
+      const noteText = notesInput.value.trim();
+      if (!noteText) return;
+
+      try {
+        const isEditing = editingNoteId !== null;
+        const endpoint = isEditing
+          ? `${API_BASE}/api/flagged-conversations/${conversation.id}/notes/${editingNoteId}`
+          : `${API_BASE}/api/flagged-conversations/${conversation.id}/notes`;
+        const response = await fetchJson(endpoint, {
+          method: isEditing ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ note_text: noteText }),
+        });
+        const savedNote = response.data;
+        const index = notes.findIndex((note) => note.id === savedNote.id);
+        if (index >= 0) {
+          notes[index] = savedNote;
+        } else {
+          notes.push(savedNote);
+        }
+        renderCaseNotes(notes, startEditingNote);
+        resetNoteEditor();
+        createToast(
+          isEditing ? "Counselor note updated." : "Counselor note added.",
+          "success",
+        );
+      } catch (error) {
+        console.error(error);
+        createToast("Unable to save counselor note.", "info");
+      }
+    };
+
+    renderCaseNotes(notes, startEditingNote);
+    resetNoteEditor();
+
+    function resetReferralEditor() {
+      referralDestination.value = "";
+      referralReason.value = "";
+      referralNote.value = "";
+      createReferralButton.disabled = true;
+      createReferralButton.classList.add("disabled");
+    }
+
+    function updateReferralButton() {
+      const incomplete =
+        !referralDestination.value || !referralReason.value.trim();
+      createReferralButton.disabled = incomplete;
+      createReferralButton.classList.toggle("disabled", incomplete);
+    }
+
+    async function replaceReferral(savedReferral) {
+      const index = referrals.findIndex(
+        (referral) => referral.id === savedReferral.id,
+      );
+      if (index >= 0) {
+        referrals[index] = savedReferral;
+      } else {
+        referrals.push(savedReferral);
+      }
+      renderReferrals(referrals, updateReferralStatus, addReferralNote);
+    }
+
+    async function updateReferralStatus(referral, status) {
+      try {
+        const response = await fetchJson(
+          `${API_BASE}/api/flagged-conversations/${conversation.id}/referrals/${referral.id}/status`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status }),
+          },
+        );
+        await replaceReferral(response.data);
+        createToast("Referral status updated.", "success");
+      } catch (error) {
+        console.error(error);
+        createToast("Unable to update referral status.", "info");
+      }
+    }
+
+    async function addReferralNote(referral, noteText) {
+      try {
+        const response = await fetchJson(
+          `${API_BASE}/api/flagged-conversations/${conversation.id}/referrals/${referral.id}/notes`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ note_text: noteText }),
+          },
+        );
+        await replaceReferral(response.data);
+        createToast("Referral note added.", "success");
+      } catch (error) {
+        console.error(error);
+        createToast("Unable to add referral note.", "info");
+      }
+    }
+
+    referralDestination.onchange = updateReferralButton;
+    referralReason.oninput = updateReferralButton;
+    createReferralButton.onclick = async () => {
+      if (createReferralButton.disabled) return;
+      try {
+        const response = await fetchJson(
+          `${API_BASE}/api/flagged-conversations/${conversation.id}/referrals`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              destination: referralDestination.value,
+              referral_reason: referralReason.value.trim(),
+              note_text: referralNote.value.trim(),
+            }),
+          },
+        );
+        await replaceReferral(response.data);
+        resetReferralEditor();
+        createToast("Referral created.", "success");
+      } catch (error) {
+        console.error(error);
+        createToast("Unable to create referral.", "info");
+      }
+    };
+
+    renderReferrals(referrals, updateReferralStatus, addReferralNote);
+    resetReferralEditor();
+
+    function resetInterventionEditor() {
+      interventionType.value = "";
+      interventionObjective.value = "";
+      createInterventionButton.disabled = true;
+      createInterventionButton.classList.add("disabled");
+    }
+
+    function updateInterventionButton() {
+      const incomplete =
+        !interventionType.value || !interventionObjective.value.trim();
+      createInterventionButton.disabled = incomplete;
+      createInterventionButton.classList.toggle("disabled", incomplete);
+    }
+
+    async function replaceIntervention(savedIntervention) {
+      const index = interventions.findIndex(
+        (intervention) => intervention.id === savedIntervention.id,
+      );
+      if (index >= 0) {
+        interventions[index] = savedIntervention;
+      } else {
+        interventions.push(savedIntervention);
+      }
+      renderInterventions(
+        interventions,
+        updateInterventionProgress,
+        recordInterventionOutcome,
+      );
+    }
+
+    async function updateInterventionProgress(intervention, progressStatus) {
+      try {
+        const response = await fetchJson(
+          `${API_BASE}/api/flagged-conversations/${conversation.id}/interventions/${intervention.id}/progress`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ progress_status: progressStatus }),
+          },
+        );
+        await replaceIntervention(response.data);
+        createToast("Intervention progress updated.", "success");
+      } catch (error) {
+        console.error(error);
+        createToast("Unable to update intervention progress.", "info");
+      }
+    }
+
+    async function recordInterventionOutcome(intervention, outcome) {
+      try {
+        const response = await fetchJson(
+          `${API_BASE}/api/flagged-conversations/${conversation.id}/interventions/${intervention.id}/outcome`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ outcome }),
+          },
+        );
+        await replaceIntervention(response.data);
+        createToast("Intervention outcome recorded.", "success");
+      } catch (error) {
+        console.error(error);
+        createToast("Unable to record intervention outcome.", "info");
+      }
+    }
+
+    interventionType.onchange = updateInterventionButton;
+    interventionObjective.oninput = updateInterventionButton;
+    createInterventionButton.onclick = async () => {
+      if (createInterventionButton.disabled) return;
+      try {
+        const response = await fetchJson(
+          `${API_BASE}/api/flagged-conversations/${conversation.id}/interventions`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              intervention_type: interventionType.value,
+              objective: interventionObjective.value.trim(),
+            }),
+          },
+        );
+        await replaceIntervention(response.data);
+        resetInterventionEditor();
+        createToast("Intervention created.", "success");
+      } catch (error) {
+        console.error(error);
+        createToast("Unable to create intervention.", "info");
+      }
+    };
+
+    renderInterventions(
+      interventions,
+      updateInterventionProgress,
+      recordInterventionOutcome,
+    );
+    resetInterventionEditor();
+
+    function updateConfidentialityControls() {
+      const isConfidential =
+        confidentiality.confidentiality_status === "confidential";
+      confidentialityReason.value = "";
+      confidentialityReason.hidden = isConfidential;
+      document.querySelector(
+        'label[for="case-confidentiality-reason"]',
+      ).hidden = isConfidential;
+      markConfidentialButton.hidden = isConfidential;
+      markConfidentialButton.disabled = true;
+      markConfidentialButton.classList.add("disabled");
+      removeConfidentialityButton.hidden = !isConfidential;
+      renderCaseConfidentiality(confidentiality);
+    }
+
+    async function updateConfidentiality(status, reason) {
+      try {
+        const response = await fetchJson(
+          `${API_BASE}/api/flagged-conversations/${conversation.id}/confidentiality`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              confidentiality_status: status,
+              confidentiality_reason: reason,
+            }),
+          },
+        );
+        confidentiality = response.data;
+        updateConfidentialityControls();
+        createToast(
+          status === "confidential"
+            ? "Case marked confidential."
+            : "Case confidentiality removed.",
+          "success",
+        );
+      } catch (error) {
+        console.error(error);
+        createToast("Unable to update case confidentiality.", "info");
+      }
+    }
+
+    confidentialityReason.oninput = () => {
+      const empty = !confidentialityReason.value.trim();
+      markConfidentialButton.disabled = empty;
+      markConfidentialButton.classList.toggle("disabled", empty);
+    };
+    markConfidentialButton.onclick = () => {
+      const reason = confidentialityReason.value.trim();
+      if (reason) updateConfidentiality("confidential", reason);
+    };
+    removeConfidentialityButton.onclick = () => {
+      updateConfidentiality("not_confidential");
+    };
+    updateConfidentialityControls();
+
+    switchView("case-details");
+  } catch (error) {
+    console.error(error);
+    createToast("Unable to open flagged conversation.", "info");
+  }
 }
 
 filterTabs.forEach((tab) => {
@@ -1568,214 +3496,6 @@ function openConversationSummary(summary) {
     summary.flagged ? "Flagged for Review" : "No Escalation";
 
   switchView("conversation-summary-details");
-}
-
-function openCaseDetails(summary) {
-  document.getElementById("case-avatar").textContent = initials(
-    summary.student,
-  );
-
-  document.getElementById("case-name").textContent = summary.student;
-
-  document.getElementById("case-meta").textContent =
-    `Student ID: ${summary.studentId} · Email: ${summary.email || "N/A"}`;
-  document.getElementById("case-message").textContent =
-    summary.summary || "No AI summary available.";
-  document.getElementById("case-recommendation").textContent =
-    summary.recommendation || "No recommendation available.";
-  const notesInput = document.getElementById("case-notes-input");
-  const saveNotesBtn = document.getElementById("save-notes-btn");
-
-  notesInput.value = summary.counselorNotes || "";
-
-  let originalNotes = notesInput.value.trim();
-
-  saveNotesBtn.disabled = true;
-  saveNotesBtn.classList.add("disabled");
-
-  notesInput.oninput = function () {
-    const current = notesInput.value.trim();
-    const unchanged = current === originalNotes;
-
-    saveNotesBtn.disabled = unchanged;
-    saveNotesBtn.classList.toggle("disabled", unchanged);
-  };
-  document.getElementById("case-category").textContent = summary.category;
-  document.getElementById("case-time").textContent = summary.time;
-  document.getElementById("case-emotion").textContent = capitalize(
-    summary.emotion,
-  );
-  document.getElementById("case-status-label").textContent =
-    summary.status === "resolved"
-      ? "Resolved"
-      : summary.flagged
-        ? "Pending Review"
-        : "Routine";
-
-  const badge = document.getElementById("case-badge");
-
-  if (summary.status === "resolved") {
-    badge.className = "badge resolved";
-    badge.textContent = "Resolved";
-  } else if (summary.flagged) {
-    badge.className = "badge negative";
-    badge.textContent = "Pending Review";
-  } else {
-    badge.className = "badge neutral";
-    badge.textContent = "Routine";
-  }
-
-  let transcript = [];
-
-  try {
-    if (Array.isArray(summary.conversation)) {
-      transcript = summary.conversation;
-    } else if (typeof summary.conversation === "string") {
-      transcript = JSON.parse(summary.conversation);
-    }
-  } catch (error) {
-    console.error(error);
-    transcript = [];
-  }
-
-  const totalMessages = transcript.length;
-
-  const studentMessages = transcript.filter(
-    (message) => message.from === "user",
-  ).length;
-
-  const aiMessages = transcript.filter(
-    (message) => message.from === "bot",
-  ).length;
-
-  document.getElementById("case-total-messages").textContent = totalMessages;
-
-  document.getElementById("case-student-messages").textContent =
-    studentMessages;
-
-  document.getElementById("case-ai-messages").textContent = aiMessages;
-
-  document.getElementById("case-escalation-status").textContent =
-    summary.flagged ? "Flagged for Review" : "No Escalation";
-
-  const resolveBtn = document.getElementById("case-resolve-btn");
-  const pendingBtn = document.getElementById("case-pending-btn");
-
-  function updateActionButtons() {
-    resolveBtn.disabled = false;
-    pendingBtn.disabled = false;
-
-    resolveBtn.classList.remove("disabled");
-    pendingBtn.classList.remove("disabled");
-
-    if (summary.status === "resolved") {
-      resolveBtn.disabled = true;
-      resolveBtn.classList.add("disabled");
-    }
-
-    if (summary.status === "pending") {
-      pendingBtn.disabled = true;
-      pendingBtn.classList.add("disabled");
-    }
-  }
-
-  updateActionButtons();
-
-  resolveBtn.onclick = async () => {
-    try {
-      await fetchJson(`${API_BASE}/api/conversation-summaries/${summary.id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          status: "resolved",
-        }),
-      });
-
-      summary.status = "resolved";
-
-      updateActionButtons();
-
-      document.getElementById("case-status-label").textContent = "Resolved";
-      badge.className = "badge resolved";
-      badge.textContent = "Resolved";
-
-      renderAllTables();
-
-      createToast("Case marked as resolved.", "success");
-    } catch (error) {
-      console.error(error);
-      createToast("Unable to update case status.", "info");
-    }
-  };
-
-  pendingBtn.onclick = async () => {
-    try {
-      await fetchJson(`${API_BASE}/api/conversation-summaries/${summary.id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          status: "pending",
-        }),
-      });
-
-      summary.status = "pending";
-
-      updateActionButtons();
-
-      document.getElementById("case-status-label").textContent =
-        "Pending Review";
-
-      badge.className = "badge negative";
-      badge.textContent = "Pending Review";
-
-      renderAllTables();
-
-      createToast("Case marked as pending.", "info");
-    } catch (error) {
-      console.error(error);
-      createToast("Unable to update case status.", "info");
-    }
-  };
-
-  document.getElementById("save-notes-btn").onclick = async () => {
-    const notes = document.getElementById("case-notes-input").value.trim();
-
-    if (!notes) {
-      createToast("Please enter a note first.", "info");
-      return;
-    }
-
-    try {
-      await fetchJson(`${API_BASE}/api/conversation-summaries/${summary.id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          status: summary.status,
-          counselor_notes: notes,
-        }),
-      });
-
-      summary.counselorNotes = notes;
-
-      originalNotes = notes.trim();
-
-      saveNotesBtn.disabled = true;
-      saveNotesBtn.classList.add("disabled");
-
-      createToast("Counselor notes saved.", "success");
-    } catch (error) {
-      console.error(error);
-      createToast("Unable to save counselor notes.", "info");
-    }
-  };
-
-  switchView("case-details");
 }
 
 function openAppointmentDetails(appointment) {
@@ -2036,11 +3756,58 @@ async function loadBackendData() {
   }
 
   try {
+    const flagged = await fetchJson(`${API_BASE}/api/flagged-conversations`);
+    flaggedConversations = (flagged.data?.items || []).map(
+      mapFlaggedConversation,
+    );
+  } catch (error) {
+    console.error(error);
+    flaggedConversations = [];
+  }
+
+  try {
     const appointments = await fetchJson(`${API_BASE}/api/appointments`);
-    window.backendAppointments = (appointments.items || []).map(mapAppointment);
+    window.backendAppointments = (appointments.data?.items || []).map(
+      mapAppointment,
+    );
   } catch (error) {
     console.error(error);
     window.backendAppointments = [];
+  }
+
+  try {
+    await loadAppointmentAnalytics();
+  } catch (error) {
+    console.error(error);
+    appointmentAnalytics = null;
+  }
+
+  try {
+    await loadChatbotAnalytics();
+  } catch (error) {
+    console.error(error);
+    chatbotAnalytics = null;
+  }
+
+  try {
+    await loadCounselorWorkloadAnalytics();
+  } catch (error) {
+    console.error(error);
+    counselorWorkloadAnalytics = null;
+  }
+
+  try {
+    await loadFlaggedCaseAnalytics();
+  } catch (error) {
+    console.error(error);
+    flaggedCaseAnalytics = null;
+  }
+
+  try {
+    await loadCombinedReports();
+  } catch (error) {
+    console.error(error);
+    reportsAnalytics = null;
   }
 
   try {
@@ -2057,85 +3824,6 @@ async function loadBackendData() {
   renderReports();
   renderAppointmentDashboard();
 }
-
-function openCaseFromReport(name, id, message, category, status, time) {
-  openCaseDetails({
-    student: name,
-    studentId: id,
-    message,
-    category,
-    status,
-    time,
-  });
-}
-
-document.getElementById("save-entry-btn")?.addEventListener("click", () => {
-  const name = document.getElementById("entry-name").value.trim();
-  const studentId = document.getElementById("entry-id").value.trim();
-  const email = document.getElementById("entry-email").value.trim();
-  const message = document.getElementById("entry-message").value.trim();
-  const category = document.getElementById("entry-category").value;
-  const statusValue = document
-    .getElementById("entry-status")
-    .value.toLowerCase();
-  const now = new Date();
-  const time = now.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-
-  if (!name || !studentId || !message) {
-    createToast(
-      "Please fill in Student Name, Student ID, and Message.",
-      "info",
-    );
-    return;
-  }
-
-  const status = statusValue === "resolved" ? "resolved" : "neutral";
-  fetchJson(`${API_BASE}/api/inquiries`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      student_id: studentId,
-      student_name: name,
-      student_email: email,
-      message,
-      category,
-      status,
-      source: "manual",
-    }),
-  })
-    .then(() => loadBackendData())
-    .then(() => {
-      [
-        "entry-name",
-        "entry-id",
-        "entry-email",
-        "entry-message",
-        "entry-notes",
-      ].forEach((id) => {
-        const el = document.getElementById(id);
-        if (el) el.value = "";
-      });
-      createToast("Entry saved successfully!", "success");
-      switchView("inbox");
-    })
-    .catch(() => createToast("Unable to save entry right now.", "info"));
-});
-
-document.getElementById("clear-entry-btn")?.addEventListener("click", () => {
-  [
-    "entry-name",
-    "entry-id",
-    "entry-email",
-    "entry-message",
-    "entry-notes",
-  ].forEach((id) => {
-    const el = document.getElementById(id);
-    if (el) el.value = "";
-  });
-});
 
 function logout() {
   fetch(`${API_BASE}/auth/logout`, { method: "POST" })
@@ -2154,12 +3842,15 @@ window.addEventListener("error", (event) => {
 });
 
 bindSettingsInteractions();
+bindAppointmentSearch();
+bindAppointmentCalendar();
+bindAppointmentAnalyticsFilters();
+bindChatbotAnalyticsFilters();
+bindCounselorWorkloadAnalyticsFilters();
+bindFlaggedCaseAnalyticsFilters();
+bindReportsControls();
+bindDashboardOverviewNavigation();
 loadBackendData();
-
-// UI buttons
-document
-  .getElementById("new-entry-btn")
-  ?.addEventListener("click", () => switchView("manual-entry"));
 
 async function addFaqFromButton() {
   const title = await showPrompt(
@@ -2195,7 +3886,5 @@ document
 
 window.saveSettings = saveSettings;
 window.goBack = goBack;
-window.openCaseFromReport = openCaseFromReport;
-window.openCaseDetails = openCaseDetails;
 window.logout = window.logout || logout;
 window.addFaqFromButton = addFaqFromButton;

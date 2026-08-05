@@ -9,7 +9,7 @@ Supported Languages
 - Taglish
 - Unknown
 
-CTRL4 Chatbot MK2
+CTRL4 Chatbot MK III
 
 Authors:
 - Apilado, Jabez Timothy E.
@@ -210,6 +210,10 @@ CHAT_EXPRESSIONS: Final = {
     "sure",
 }
 
+# Vocabulary shared by the English and Filipino lexicons is neutral evidence.
+# A shared academic or guidance term alone must not make a message Taglish.
+SHARED_VOCABULARY: Final = frozenset(FILIPINO_WORDS & ENGLISH_WORDS)
+
 
 @dataclass
 class LanguagePrediction:
@@ -293,11 +297,12 @@ class LanguageService:
 
         for word in words:
 
-            # Regular vocabulary
-            if word in FILIPINO_WORDS:
+            # Regular vocabulary. Shared words are intentionally neutral so
+            # only language-exclusive vocabulary can establish mixed input.
+            if word in FILIPINO_WORDS and word not in SHARED_VOCABULARY:
                 filipino_count += 1
 
-            if word in ENGLISH_WORDS:
+            if word in ENGLISH_WORDS and word not in SHARED_VOCABULARY:
                 english_count += 1
 
             # Strong indicators

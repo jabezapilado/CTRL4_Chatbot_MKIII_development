@@ -11,7 +11,7 @@ Responsibilities
 - Acknowledgement Detection
 - Escalation Decision
 
-CTRL4 Chatbot MK2
+CTRL4 Chatbot MK III
 
 Authors:
 - Apilado, Jabez Timothy E.
@@ -41,6 +41,47 @@ class SafetyResult:
 
 
 class SafetyService:
+
+    _CRISIS_RESPONSES: Final[dict[str, str]] = {
+        "english": (
+            "I'm really sorry you're going through this. "
+            "Please contact the Guidance Office immediately "
+            "or reach out to someone you trust. "
+            "If you are in immediate danger, "
+            "please contact your local emergency services."
+        ),
+        "filipino": (
+            "Ikinalulungkot kong nararanasan mo ito. "
+            "Mangyaring makipag-ugnayan agad sa Guidance Office "
+            "o sa isang taong pinagkakatiwalaan mo. "
+            "Kung nasa agarang panganib ka, "
+            "tumawag sa lokal na emergency services."
+        ),
+        "taglish": (
+            "I'm really sorry na nararanasan mo ito. "
+            "Please contact the Guidance Office agad "
+            "or reach out to someone you trust. "
+            "Kung nasa immediate danger ka, "
+            "please contact your local emergency services."
+        ),
+    }
+    _DIAGNOSIS_RESPONSES: Final[dict[str, str]] = {
+        "english": (
+            "I'm not able to diagnose mental health conditions. "
+            "I encourage you to speak with a licensed guidance "
+            "counselor for proper support."
+        ),
+        "filipino": (
+            "Hindi ako makakapagbigay ng diagnosis para sa kalusugang "
+            "pangkaisipan. Hinihikayat kitang makipag-usap sa isang "
+            "lisensyadong guidance counselor para sa angkop na suporta."
+        ),
+        "taglish": (
+            "Hindi ako makakapagbigay ng mental health diagnosis. "
+            "I encourage you to speak with a licensed guidance "
+            "counselor for proper support."
+        ),
+    }
 
     CRISIS_PATTERNS: Final[tuple[str, ...]] = (
 
@@ -140,6 +181,7 @@ class SafetyService:
     def check(
         self,
         message: str,
+        language: str = "english",
     ) -> SafetyResult:
 
         text = message.lower().strip()
@@ -156,12 +198,9 @@ class SafetyService:
                 safe=False,
                 should_escalate=True,
                 reason="crisis",
-                response=(
-                    "I'm really sorry you're going through this. "
-                    "Please contact the Guidance Office immediately "
-                    "or reach out to someone you trust. "
-                    "If you are in immediate danger, "
-                    "please contact your local emergency services."
+                response=self._CRISIS_RESPONSES.get(
+                    language.lower(),
+                    self._CRISIS_RESPONSES["english"],
                 ),
             )
 
@@ -171,10 +210,9 @@ class SafetyService:
                 safe=False,
                 should_escalate=True,
                 reason="diagnosis",
-                response=(
-                    "I'm not able to diagnose mental health conditions. "
-                    "I encourage you to speak with a licensed guidance "
-                    "counselor for proper support."
+                response=self._DIAGNOSIS_RESPONSES.get(
+                    language.lower(),
+                    self._DIAGNOSIS_RESPONSES["english"],
                 ),
             )
 

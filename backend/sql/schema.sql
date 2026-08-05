@@ -1,6 +1,5 @@
-CREATE DATABASE IF NOT EXISTS soc_chatbot CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
-USE soc_chatbot;
+-- Run this file against an already-created database selected by the deployment
+-- environment. The application runtime database name is CHATBOT_DB_NAME.
 
 CREATE TABLE IF NOT EXISTS accounts (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -78,9 +77,11 @@ CREATE TABLE IF NOT EXISTS escalations (
     account_id INT NULL,
     summary_id INT NULL,
     status VARCHAR(50) NOT NULL DEFAULT 'pending',
+    escalation_reason VARCHAR(255) NULL,
     intervention_notes TEXT NULL,
     created_at DATETIME NOT NULL,
     resolved_at DATETIME NULL,
+    reviewed_at DATETIME NULL,
     FOREIGN KEY (account_id)
     REFERENCES accounts(id)
     ON DELETE SET NULL,
@@ -90,6 +91,162 @@ CREATE TABLE IF NOT EXISTS escalations (
     INDEX idx_escalations_account (account_id),
     INDEX idx_escalations_summary (summary_id),
     INDEX idx_escalations_status (status)
+);
+
+CREATE TABLE IF NOT EXISTS case_notes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    conversation_summary_id INT NOT NULL,
+    staff_account_id INT NOT NULL,
+    note_text TEXT NOT NULL,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    FOREIGN KEY (conversation_summary_id)
+    REFERENCES conversation_summaries(id)
+    ON DELETE RESTRICT,
+    FOREIGN KEY (staff_account_id)
+    REFERENCES accounts(id)
+    ON DELETE RESTRICT,
+    INDEX idx_case_notes_summary_created (
+        conversation_summary_id,
+        created_at
+    ),
+    INDEX idx_case_notes_staff (staff_account_id)
+);
+
+CREATE TABLE IF NOT EXISTS referrals (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    conversation_summary_id INT NOT NULL,
+    staff_account_id INT NOT NULL,
+    destination VARCHAR(100) NOT NULL,
+    referral_reason TEXT NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'pending',
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    FOREIGN KEY (conversation_summary_id)
+    REFERENCES conversation_summaries(id)
+    ON DELETE RESTRICT,
+    FOREIGN KEY (staff_account_id)
+    REFERENCES accounts(id)
+    ON DELETE RESTRICT,
+    INDEX idx_referrals_summary_created (
+        conversation_summary_id,
+        created_at
+    ),
+    INDEX idx_referrals_status (status)
+);
+
+CREATE TABLE IF NOT EXISTS referral_status_history (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    referral_id INT NOT NULL,
+    staff_account_id INT NOT NULL,
+    status VARCHAR(50) NOT NULL,
+    created_at DATETIME NOT NULL,
+    FOREIGN KEY (referral_id)
+    REFERENCES referrals(id)
+    ON DELETE RESTRICT,
+    FOREIGN KEY (staff_account_id)
+    REFERENCES accounts(id)
+    ON DELETE RESTRICT,
+    INDEX idx_referral_status_history_referral_created (
+        referral_id,
+        created_at
+    )
+);
+
+CREATE TABLE IF NOT EXISTS referral_notes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    referral_id INT NOT NULL,
+    staff_account_id INT NOT NULL,
+    note_text TEXT NOT NULL,
+    created_at DATETIME NOT NULL,
+    FOREIGN KEY (referral_id)
+    REFERENCES referrals(id)
+    ON DELETE RESTRICT,
+    FOREIGN KEY (staff_account_id)
+    REFERENCES accounts(id)
+    ON DELETE RESTRICT,
+    INDEX idx_referral_notes_referral_created (
+        referral_id,
+        created_at
+    )
+);
+
+CREATE TABLE IF NOT EXISTS interventions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    conversation_summary_id INT NOT NULL,
+    staff_account_id INT NOT NULL,
+    intervention_type VARCHAR(100) NOT NULL,
+    objective TEXT NOT NULL,
+    progress_status VARCHAR(50) NOT NULL DEFAULT 'planned',
+    outcome TEXT NULL,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    FOREIGN KEY (conversation_summary_id)
+    REFERENCES conversation_summaries(id)
+    ON DELETE RESTRICT,
+    FOREIGN KEY (staff_account_id)
+    REFERENCES accounts(id)
+    ON DELETE RESTRICT,
+    INDEX idx_interventions_summary_created (
+        conversation_summary_id,
+        created_at
+    ),
+    INDEX idx_interventions_progress_status (progress_status)
+);
+
+CREATE TABLE IF NOT EXISTS intervention_history (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    intervention_id INT NOT NULL,
+    staff_account_id INT NOT NULL,
+    progress_status VARCHAR(50) NOT NULL,
+    outcome TEXT NULL,
+    created_at DATETIME NOT NULL,
+    FOREIGN KEY (intervention_id)
+    REFERENCES interventions(id)
+    ON DELETE RESTRICT,
+    FOREIGN KEY (staff_account_id)
+    REFERENCES accounts(id)
+    ON DELETE RESTRICT,
+    INDEX idx_intervention_history_intervention_created (
+        intervention_id,
+        created_at
+    )
+);
+
+CREATE TABLE IF NOT EXISTS case_confidentiality (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    conversation_summary_id INT NOT NULL UNIQUE,
+    staff_account_id INT NOT NULL,
+    confidentiality_status VARCHAR(50) NOT NULL,
+    confidentiality_reason TEXT NULL,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    FOREIGN KEY (conversation_summary_id)
+    REFERENCES conversation_summaries(id)
+    ON DELETE RESTRICT,
+    FOREIGN KEY (staff_account_id)
+    REFERENCES accounts(id)
+    ON DELETE RESTRICT,
+    INDEX idx_case_confidentiality_status (confidentiality_status)
+);
+
+CREATE TABLE IF NOT EXISTS case_confidentiality_history (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    case_confidentiality_id INT NOT NULL,
+    staff_account_id INT NOT NULL,
+    confidentiality_status VARCHAR(50) NOT NULL,
+    confidentiality_reason TEXT NULL,
+    created_at DATETIME NOT NULL,
+    FOREIGN KEY (case_confidentiality_id)
+    REFERENCES case_confidentiality(id)
+    ON DELETE RESTRICT,
+    FOREIGN KEY (staff_account_id)
+    REFERENCES accounts(id)
+    ON DELETE RESTRICT,
+    INDEX idx_case_confidentiality_history_record_created (
+        case_confidentiality_id,
+        created_at
+    )
 );
 
 CREATE TABLE IF NOT EXISTS appointments (
@@ -126,6 +283,23 @@ CREATE TABLE IF NOT EXISTS appointments (
     INDEX idx_appointments_preferred_date (preferred_date),
     INDEX idx_appointments_status (status),
     INDEX idx_appointments_created (created_at)
+);
+
+CREATE TABLE IF NOT EXISTS notifications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    recipient_account_id INT NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    is_read TINYINT(1) NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL,
+    FOREIGN KEY (recipient_account_id)
+    REFERENCES accounts(id)
+    ON DELETE RESTRICT,
+    INDEX idx_notifications_recipient_created (
+        recipient_account_id,
+        created_at
+    )
 );
 
 CREATE TABLE IF NOT EXISTS settings (

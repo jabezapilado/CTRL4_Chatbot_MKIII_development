@@ -28,6 +28,11 @@ def chatbot():
     return render_template("chatbot.html")
 
 
+@frontend_bp.get("/case-status")
+def case_status():
+    return render_template("case_status.html")
+
+
 @frontend_bp.get("/appointment")
 def appointment():
     return render_template("appointment.html")
@@ -36,6 +41,11 @@ def appointment():
 @frontend_bp.get("/dashboard")
 def dashboard():
     return render_template("dashboard.html")
+
+
+@frontend_bp.get("/admin")
+def admin_accounts():
+    return render_template("admin.html")
 
 
 @frontend_bp.get("/chatbot_admin")
@@ -70,9 +80,18 @@ def require_login_for_private_routes():
         return redirect("/login?reason=session-required")
 
     role = str(user.get("role", ROLE_STUDENT)).lower()
-    if path in {"/chatbot", "/appointment"} and role in {ROLE_STAFF, ROLE_ADMIN}:
+    if path in {"/chatbot", "/appointment", "/case-status"} and role in {
+        ROLE_STAFF,
+        ROLE_ADMIN,
+    }:
         return redirect("/dashboard")
+    if path == "/dashboard" and role == ROLE_ADMIN:
+        return redirect("/admin")
+    if path == "/chatbot_admin" and role != ROLE_STAFF:
+        return redirect(role_landing_path(user))
     if path in {"/dashboard", "/chatbot_admin"} and role == ROLE_STUDENT:
         return redirect("/chatbot")
+    if path == "/admin" and role != ROLE_ADMIN:
+        return redirect(role_landing_path(user))
 
     return None

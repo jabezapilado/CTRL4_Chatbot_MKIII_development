@@ -305,6 +305,144 @@
   font-weight: 700;
 }
 
+/* ===========================
+   APPOINTMENT CALENDAR
+=========================== */
+
+.appointment-calendar-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.appointment-calendar-controls strong {
+  min-width: 150px;
+  text-align: center;
+  color: var(--gray-900);
+  font-size: 13px;
+}
+
+.appointment-calendar-subtitle {
+  padding: 0 20px 16px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--gray-400);
+}
+
+.appointment-calendar-scroll {
+  overflow-x: auto;
+  border-top: 1px solid var(--gray-200);
+}
+
+.appointment-calendar-weekdays,
+.appointment-calendar-grid {
+  min-width: 910px;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(130px, 1fr));
+}
+
+.appointment-calendar-weekdays {
+  background: var(--gray-50);
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.appointment-calendar-weekdays span {
+  padding: 10px 12px;
+  color: var(--gray-400);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.appointment-calendar-day {
+  min-height: 172px;
+  padding: 10px;
+  border-right: 1px solid var(--gray-200);
+  border-bottom: 1px solid var(--gray-200);
+  background: var(--white);
+}
+
+.appointment-calendar-day:nth-child(7n) {
+  border-right: none;
+}
+
+.appointment-calendar-day.is-outside-month {
+  background: var(--gray-50);
+}
+
+.appointment-calendar-day-number {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--gray-700);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.appointment-calendar-events {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.appointment-calendar-event {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-sm);
+  background: var(--gray-50);
+  color: var(--gray-900);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.appointment-calendar-event:hover,
+.appointment-calendar-event:focus-visible {
+  border-color: var(--orange);
+  box-shadow: var(--shadow-sm);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.appointment-calendar-event-student {
+  width: 100%;
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.appointment-calendar-event-student-number,
+.appointment-calendar-event-date,
+.appointment-calendar-event-time {
+  color: var(--gray-500);
+  font-size: 10.5px;
+}
+
+.appointment-calendar-event-status {
+  margin-top: 2px;
+}
+
+.appointment-calendar-event-status .badge {
+  font-size: 10px;
+  padding: 2px 7px;
+}
+
+.appointment-calendar-event-status .badge::before {
+  width: 5px;
+  height: 5px;
+}
+
 .filter-tabs {
   display: flex;
   gap: 6px;
@@ -970,6 +1108,279 @@ table.inquiry-table {
   font-size: 13.5px;
   font-weight: 700;
 }
+
+.case-notes-list {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.case-note-entry {
+  border-top: 1px solid var(--gray-200);
+  padding-top: 10px;
+}
+
+.case-note-text {
+  margin: 0 0 8px;
+  white-space: pre-wrap;
+}
+
+.case-note-footer {
+  align-items: center;
+  color: var(--gray-500);
+  display: flex;
+  font-size: 12px;
+  justify-content: space-between;
+}
+
+.referrals-card {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.referrals-card h4 {
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.referrals-card .notes-sub {
+  color: var(--orange);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  margin: 10px 0 6px;
+  text-transform: uppercase;
+}
+
+.referrals-card select,
+.referrals-card textarea {
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  padding: 10px;
+  width: 100%;
+}
+
+.referrals-card textarea {
+  min-height: 76px;
+  resize: vertical;
+}
+
+.referral-field-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  margin: 12px 0 6px;
+}
+
+.referrals-list {
+  display: grid;
+  gap: 14px;
+  margin: 12px 0;
+  max-height: 520px;
+  overflow-y: auto;
+}
+
+.referral-entry {
+  border-top: 1px solid var(--gray-200);
+  padding-top: 12px;
+}
+
+.referral-entry-header,
+.referral-entry-footer {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.referral-entry-header h5 {
+  font-size: 13px;
+  margin: 0;
+}
+
+.referral-entry p {
+  margin: 8px 0;
+  white-space: pre-wrap;
+}
+
+.referral-entry-footer {
+  color: var(--gray-500);
+  font-size: 12px;
+}
+
+.referral-status-control {
+  margin: 10px 0;
+}
+
+.referral-history,
+.referral-notes-history {
+  color: var(--gray-500);
+  font-size: 12px;
+  margin: 10px 0;
+  padding-left: 18px;
+}
+
+.referral-note-editor {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.case-confidentiality-card {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.case-confidentiality-card h4 {
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.case-confidentiality-card .notes-sub {
+  color: var(--orange);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  margin: 10px 0 6px;
+  text-transform: uppercase;
+}
+
+.case-confidentiality-card textarea {
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  min-height: 76px;
+  padding: 10px;
+  resize: vertical;
+  width: 100%;
+}
+
+.case-confidentiality-current {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.case-confidentiality-current p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.case-confidentiality-history {
+  color: var(--gray-500);
+  font-size: 12px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.confidentiality-field-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  margin: 12px 0 6px;
+}
+
+.interventions-card {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.interventions-card h4 {
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.interventions-card .notes-sub {
+  color: var(--orange);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  margin: 10px 0 6px;
+  text-transform: uppercase;
+}
+
+.interventions-card select,
+.interventions-card textarea {
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  padding: 10px;
+  width: 100%;
+}
+
+.interventions-card textarea {
+  min-height: 76px;
+  resize: vertical;
+}
+
+.intervention-field-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  margin: 12px 0 6px;
+}
+
+.interventions-list {
+  display: grid;
+  gap: 14px;
+  margin: 12px 0;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.intervention-entry {
+  border-top: 1px solid var(--gray-200);
+  padding-top: 12px;
+}
+
+.intervention-entry-header,
+.intervention-entry-footer {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.intervention-entry-header h5 {
+  font-size: 13px;
+  margin: 0;
+}
+
+.intervention-entry p {
+  margin: 8px 0;
+  white-space: pre-wrap;
+}
+
+.intervention-entry-footer {
+  color: var(--gray-500);
+  font-size: 12px;
+}
+
+.intervention-progress-control,
+.intervention-outcome-editor {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.intervention-history {
+  color: var(--gray-500);
+  font-size: 12px;
+  margin: 10px 0;
+  padding-left: 18px;
+}
 .staff-notes-card .notes-sub {
   font-size: 11px;
   font-weight: 700;
@@ -1423,6 +1834,13 @@ table.inquiry-table {
   }
   .stat-card .stat-value {
     font-size: 26px;
+  }
+  .appointment-calendar-controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .appointment-calendar-controls strong {
+    min-width: 0;
   }
 }
 

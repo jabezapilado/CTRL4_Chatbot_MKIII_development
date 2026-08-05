@@ -1,7 +1,7 @@
 """
 AI Service
 
-Main AI orchestration service for CTRL4 Chatbot MK2.
+Main AI orchestration service for CTRL4 Chatbot MK III.
 
 Responsibilities
 
@@ -12,7 +12,7 @@ Responsibilities
 - Prompt Construction
 - LLM Response Generation
 
-CTRL4 Chatbot MK2
+CTRL4 Chatbot MK III
 
 Authors:
 - Apilado, Jabez Timothy E.
@@ -33,9 +33,13 @@ from .rag_service import RAGService
 from .prompt_builder import PromptBuilder, PromptInput
 from .llm_service import LLMService
 from .safety_service import SafetyService
+from .intent_service import IntentService
+from .topic_service import TopicService
+from .metadata_service import MetadataExtractionService
 from .conversation_state import ConversationState
 from .conversation_topic import ConversationTopic
 from .response_validator import ResponseValidator
+from .response_safety_service import ResponseSafetyService
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +66,14 @@ class ChatResponse:
 
     confidence: float
 
+    intent: str
+
+    normalized_emotion: str | None
+
+    normalized_topic: str | None
+
+    metadata: dict[str, str | None] | None
+
 
 class AIService:
 
@@ -73,6 +85,10 @@ class AIService:
         rag: RAGService | None = None,
         prompt_builder: PromptBuilder | None = None,
         llm: LLMService | None = None,
+        intent: IntentService | None = None,
+        topic_classifier: TopicService | None = None,
+        metadata_extractor: MetadataExtractionService | None = None,
+        response_safety: ResponseSafetyService | None = None,
     ):
 
         self.safety = safety or SafetyService()
@@ -86,8 +102,18 @@ class AIService:
         self.prompt_builder = prompt_builder or PromptBuilder()
 
         self.llm = llm or LLMService()
+
+        self.intent = intent or IntentService()
+
+        self.topic_classifier = topic_classifier or TopicService()
+
+        self.metadata_extractor = (
+            metadata_extractor or MetadataExtractionService()
+        )
         
         self.response_validator = ResponseValidator()
+
+        self.response_safety = response_safety or ResponseSafetyService()
     
     def generate_text(
         self,
@@ -456,12 +482,27 @@ class AIService:
         try:
 
             # -----------------------------------------
+            # Language Detection
+            # -----------------------------------------
+
+            language_start = time.perf_counter()
+            language = self.language.detect(message)
+            language_time = time.perf_counter() - language_start
+
+            # -----------------------------------------
             # Safety Validation
             # -----------------------------------------
 
             safety_start = time.perf_counter()
-            safety = self.safety.check(message)
+            safety = self.safety.check(
+                message,
+                language=language.language,
+            )
             safety_time = time.perf_counter() - safety_start
+
+            intent = self.intent.detect(message)
+            normalized_topic = self.topic_classifier.classify(message)
+            metadata = self.metadata_extractor.extract(message)
 
             if safety.response:
 
@@ -470,20 +511,18 @@ class AIService:
                     response=safety.response,
                     emotion="Unknown",
                     sentiment="Unknown",
-                    language="Unknown",
+                    language=language.language,
                     topic="Unknown",
                     state="Unknown",
                     escalated=safety.should_escalate,
                     confidence=0.0,
+                    intent=intent,
+                    normalized_emotion=(
+                        "crisis" if safety.should_escalate else None
+                    ),
+                    normalized_topic=normalized_topic,
+                    metadata=metadata.to_dict(),
                 )
-
-            # -----------------------------------------
-            # Language Detection
-            # -----------------------------------------
-
-            language_start = time.perf_counter()
-            language = self.language.detect(message)
-            language_time = time.perf_counter() - language_start
 
             # -----------------------------------------
             # Emotion Detection
@@ -511,10 +550,9 @@ class AIService:
             )
             
             logger.debug(
-                "Conversation classified | state=%s topic=%s message=%r",
+                "Conversation classified | state=%s topic=%s",
                 conversation_state.value,
                 conversation_topic.value,
-                message,
             )
 
             # -----------------------------------------
@@ -550,6 +588,14 @@ class AIService:
                     conversation_state=conversation_state.value,
                     
                     conversation_topic=conversation_topic.value,
+
+                    intent=intent,
+
+                    normalized_emotion=emotion.normalized_emotion,
+
+                    normalized_topic=normalized_topic,
+
+                    metadata=metadata.to_dict(),
 
                     documents=documents,
                 )
@@ -614,6 +660,17 @@ class AIService:
                         "I don't want to make assumptions about what you're going through. "
                         "Could you share a little more so I can respond more appropriately?"
                     )
+
+            response_safety = self.response_safety.validate(
+                llm_text,
+                documents,
+            )
+            if not response_safety.allowed:
+                logger.warning(
+                    "Generated response replaced by safety validation (category=%s).",
+                    response_safety.category,
+                )
+                llm_text = response_safety.replacement or llm_text
             
             # -----------------------------------------
             # Final Response
@@ -638,12 +695,16 @@ class AIService:
                 ),
 
                 confidence=emotion.confidence,
+                intent=intent,
+                normalized_emotion=emotion.normalized_emotion,
+                normalized_topic=normalized_topic,
+                metadata=metadata.to_dict(),
             )
 
-        except Exception:
-            logger.exception(
-                "AIService failed while processing message: %r",
-                message,
+        except Exception as exc:
+            logger.error(
+                "AIService chat processing failed (exception_type=%s).",
+                type(exc).__name__,
             )
 
             return ChatResponse(
@@ -659,8 +720,11 @@ class AIService:
                 state="Unknown",
                 escalated=False,
                 confidence=0.0,
+                intent="unknown",
+                normalized_emotion=None,
+                normalized_topic=None,
+                metadata=None,
             )
         
         finally:
             print_pipeline_metrics()
-        

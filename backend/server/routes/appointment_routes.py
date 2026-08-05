@@ -9,11 +9,6 @@ from ..request_validation import (
     require_role,
 )
 
-from ..db import (
-    list_student_appointments,
-    list_staff_appointments,
-)
-
 from ..services.appointment_service import (
     create_student_appointment,
     cancel_student_appointment,
@@ -22,6 +17,8 @@ from ..services.appointment_service import (
     update_appointment_status_service,
     update_counselor_notes_service,
     get_appointment_details_service,
+    list_staff_appointments_service,
+    list_student_appointments_service,
 )
 
 
@@ -40,7 +37,7 @@ def list_staff_appointments_route():
     if error:
         return error
 
-    items = list_staff_appointments(user["id"])
+    items = list_staff_appointments_service(user)
 
     return jsonify(
         {
@@ -111,7 +108,7 @@ def my_appointments():
     if error:
         return error
 
-    items = list_student_appointments(user["id"])
+    items = list_student_appointments_service(user)
     return jsonify(
         {
             "success": True,

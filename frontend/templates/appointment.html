@@ -12,6 +12,7 @@
     </title>
     <link rel="stylesheet" href="/static/css/base.css" />
     <link rel="stylesheet" href="/static/css/appointment.css" />
+    <link rel="stylesheet" href="/static/css/notifications.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -44,6 +45,58 @@
         </p>
         <p class="modal-ref">Reference ID: <strong id="refId"></strong></p>
         <button id="modalClose" class="btn-primary">Done</button>
+      </div>
+    </div>
+    <div
+      id="rescheduleModal"
+      class="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="rescheduleModalTitle"
+    >
+      <div class="modal-box reschedule-modal-box">
+        <h2 id="rescheduleModalTitle">Reschedule Appointment</h2>
+        <p id="rescheduleAppointmentSummary"></p>
+        <form id="rescheduleForm" novalidate>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="rescheduleDate">
+                New Preferred Date
+              </label>
+              <input
+                type="date"
+                id="rescheduleDate"
+                class="form-input"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="rescheduleTime">
+                New Preferred Time Slot
+              </label>
+              <select
+                id="rescheduleTime"
+                class="form-input form-select"
+                required
+              ></select>
+            </div>
+          </div>
+          <p
+            class="student-appointment-message"
+            id="rescheduleMessage"
+            role="status"
+            aria-live="polite"
+            hidden
+          ></p>
+          <div class="form-actions">
+            <button type="button" id="rescheduleClose" class="btn-secondary">
+              Cancel
+            </button>
+            <button type="submit" id="rescheduleSubmit" class="btn-primary">
+              Submit Reschedule Request
+            </button>
+          </div>
+        </form>
       </div>
     </div>
     <div class="page-wrapper">
@@ -280,9 +333,39 @@
               </button>
             </div>
           </form>
+          <section
+            class="student-appointments"
+            aria-labelledby="studentAppointmentsTitle"
+          >
+            <div class="student-appointments-header">
+              <div>
+                <h2 id="studentAppointmentsTitle">My Appointments</h2>
+                <p>
+                  View your appointment requests and manage eligible pending
+                  appointments.
+                </p>
+              </div>
+              <button
+                type="button"
+                id="refreshStudentAppointments"
+                class="btn-secondary"
+              >
+                Refresh
+              </button>
+            </div>
+            <p
+              class="student-appointment-message"
+              id="studentAppointmentsMessage"
+              role="status"
+              aria-live="polite"
+              hidden
+            ></p>
+            <div id="studentAppointmentsList" class="student-appointments-list"></div>
+          </section>
         </div>
       </main>
     </div>
+    <script src="/static/js/notifications.js"></script>
     <script src="/static/js/appointment.js"></script>
   </body>
 </html>

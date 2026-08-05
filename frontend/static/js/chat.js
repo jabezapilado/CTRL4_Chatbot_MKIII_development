@@ -16,6 +16,16 @@ let currentFlagged = false;
 
 let inactivityTimer = null;
 const INACTIVITY_TIMEOUT = 5 * 60 * 1000;
+const legacyProtectedStorageKeys = [
+  "hau_escalations",
+  "hau_escalation_event",
+  "hau_escalation_staff_msg",
+  "hau_escalation_user_msg",
+  "hau_takeover_case",
+];
+
+legacyProtectedStorageKeys.forEach((key) => localStorage.removeItem(key));
+sessionStorage.removeItem("current_escalation");
 
 // ── DOM References ──
 const chatArea = document.getElementById("chat-area");
@@ -23,10 +33,6 @@ const chatArea = document.getElementById("chat-area");
 const input = document.getElementById("msg-input");
 const qrBar = document.getElementById("quick-replies");
 const API_BASE = window.location.origin;
-
-// Escalation / takeover state
-let currentEscalationId = sessionStorage.getItem("current_escalation") || null;
-let isEscalated = !!currentEscalationId;
 
 function serializeChat() {
   const rows = Array.from(chatArea.querySelectorAll(".msg-row"));
@@ -59,30 +65,6 @@ function resetInactivityTimer() {
 
 function recordActivity() {
   resetInactivityTimer();
-}
-
-function pushEscalationEvent(evt) {
-  try {
-    localStorage.setItem("hau_escalation_event", JSON.stringify(evt));
-  } catch (e) {
-    console.warn("Escalation event failed", e);
-  }
-}
-
-function pushStaffMessage(obj) {
-  try {
-    localStorage.setItem("hau_escalation_staff_msg", JSON.stringify(obj));
-  } catch (e) {
-    console.warn("Staff msg failed", e);
-  }
-}
-
-function pushUserMessage(obj) {
-  try {
-    localStorage.setItem("hau_escalation_user_msg", JSON.stringify(obj));
-  } catch (e) {
-    console.warn("User msg failed", e);
-  }
 }
 
 function getTime() {
@@ -296,10 +278,6 @@ function sendMessage() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       message: text,
-      user_name:
-        JSON.parse(sessionStorage.getItem("hau_user") || "{}").name || "",
-      user_email:
-        JSON.parse(sessionStorage.getItem("hau_user") || "{}").email || "",
       conversation: serializeChat(),
     }),
   })
@@ -307,61 +285,22 @@ function sendMessage() {
     .then((data) => {
       removeTypingIndicator();
 
-      if (isEscalated && currentEscalationId) {
-        const evt = {
-          id: currentEscalationId,
-          from: "user",
-          text,
-          time: new Date().toISOString(),
-        };
-        pushUserMessage(evt);
-        appendBotMessage(
-          "Your message has been sent to the Guidance Office counselor.",
-          "neutral",
-        );
-        return;
-      }
+      const result = data.data || {};
 
       appendBotMessage(
-        data.response || "Sorry, I could not generate a response.",
-        data.emotion || "",
+        result.response || "Sorry, I could not generate a response.",
+        result.emotion || "",
       );
 
-      currentTopic = data.topic || currentTopic;
-      currentLanguage = data.language || currentLanguage;
-      currentEmotion = data.emotion || currentEmotion;
-      currentFlagged = Boolean(data.escalate);
+      currentTopic = result.topic || currentTopic;
+      currentLanguage = result.language || currentLanguage;
+      currentEmotion = result.emotion || currentEmotion;
+      currentFlagged = Boolean(result.escalated);
 
       recordActivity();
 
-      if (data.escalate) {
-        const user = JSON.parse(sessionStorage.getItem("hau_user") || "{}");
-        const escId = Date.now().toString();
-        const esc = {
-          id: escId,
-          userEmail: user.email || "unknown",
-          userName: user.name || user.email || "Unknown",
-          time: new Date().toISOString(),
-          status: "open",
-          conversation: serializeChat(),
-        };
-        const listRaw = localStorage.getItem("hau_escalations");
-        const list = listRaw ? JSON.parse(listRaw) : [];
-        list.push(esc);
-        localStorage.setItem("hau_escalations", JSON.stringify(list));
-        pushEscalationEvent({
-          type: "new",
-          id: escId,
-          userEmail: esc.userEmail,
-          userName: esc.userName,
-          time: esc.time,
-        });
-        currentEscalationId = escId;
-        sessionStorage.setItem("current_escalation", escId);
-        isEscalated = true;
+      if (result.escalated) {
         setTimeout(appendEscalationNotice, 400);
-        input.placeholder =
-          "A staff member will join shortly — your messages will be sent to staff.";
       }
     })
     .catch(() => {
@@ -410,19 +349,6 @@ function sendQuick(text) {
   sendMessage();
 }
 
-function appendStaffMessage(text) {
-  const row = document.createElement("div");
-  row.className = "msg-row bot";
-  row.innerHTML = `
-    <div class="avatar">S</div>
-    <div class="bubble-wrap">
-      <div class="bubble">${escapeHtml(text)}</div>
-      <span class="bubble-time">${getTime()}</span>
-    </div>`;
-  chatArea.appendChild(row);
-  scrollToBottom();
-}
-
 async function finalizeConversation({ resetUI = true } = {}) {
   const conversation = serializeChat();
 
@@ -452,10 +378,6 @@ async function finalizeConversation({ resetUI = true } = {}) {
     }
 
     clearTimeout(inactivityTimer);
-
-    currentEscalationId = null;
-    isEscalated = false;
-    sessionStorage.removeItem("current_escalation");
 
     currentTopic = "";
     currentLanguage = "";
@@ -492,26 +414,6 @@ const endConversationBtn = document.getElementById("end-conversation-btn");
 if (endConversationBtn) {
   endConversationBtn.remove();
 }
-
-// Listen for storage events so staff messages and escalation events propagate across tabs
-window.addEventListener("storage", (e) => {
-  try {
-    if (!e.key || !e.newValue) return;
-    if (e.key === "hau_escalation_staff_msg") {
-      const msg = JSON.parse(e.newValue);
-      if (msg && msg.id && msg.id === currentEscalationId) {
-        appendStaffMessage(msg.text);
-      }
-    }
-    // If a new escalation is created elsewhere that targets this user, set local state
-    if (e.key === "hau_escalation_event") {
-      const ev = JSON.parse(e.newValue);
-      // no-op for now; dashboard handles listing
-    }
-  } catch (err) {
-    console.warn("storage handler error", err);
-  }
-});
 
 // -----------------------------------------
 // Initial Welcome Message

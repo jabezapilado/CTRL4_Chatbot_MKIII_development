@@ -1,27 +1,37 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta
+import logging
+from collections import Counter
+from datetime import date, datetime, timedelta
 from typing import Final
 
 from ..db import (
     current_time,
+    AppointmentConflictLockError,
+    AppointmentConflictPersistenceError,
     fetch_rows,
     get_staff_by_program,
     get_student_by_id,
     list_appointments_by_date,
     load_settings,
-    save_appointment,
+    save_appointment_if_available,
     get_appointment_by_id,
     list_staff_appointments,
+    list_student_appointments,
+    save_notification,
     update_appointment_status,
     update_counselor_notes,
 )
+
+
+logger = logging.getLogger(__name__)
 
 MODIFICATION_DEADLINE: Final[timedelta] = timedelta(hours=1)
 CONFLICT_BLOCKING_STATUSES: Final[frozenset[str]] = frozenset(
     {"pending", "confirmed"}
 )
+CONFLICT_ERROR_MESSAGE: Final[str] = "This schedule is already taken."
 CONSULTATION_SCHEDULE_FIELDS: Final[frozenset[str]] = frozenset(
     {"room", "days", "time"}
 )
@@ -62,12 +72,50 @@ APPOINTMENT_STATES: Final[frozenset[str]] = frozenset(
         "completed",
     }
 )
+APPOINTMENT_STATUS_ORDER: Final[tuple[str, ...]] = (
+    "pending",
+    "confirmed",
+    "cancelled",
+    "rejected",
+    "completed",
+)
 ALLOWED_STATUS_TRANSITIONS: Final[dict[str, frozenset[str]]] = {
     "pending": frozenset({"confirmed", "rejected", "cancelled"}),
     "confirmed": frozenset({"completed", "cancelled"}),
     "cancelled": frozenset(),
     "rejected": frozenset(),
     "completed": frozenset(),
+}
+STAFF_NOTIFICATION_TEMPLATES: Final[dict[str, tuple[str, str]]] = {
+    "appointment_request": (
+        "New appointment request",
+        "{student_name} requested an appointment on {preferred_date} at {preferred_time_slot}.",
+    ),
+    "appointment_cancelled": (
+        "Appointment cancelled",
+        "{student_name} cancelled an appointment on {preferred_date} at {preferred_time_slot}.",
+    ),
+    "appointment_rescheduled": (
+        "Appointment rescheduled",
+        "{student_name} rescheduled an appointment to {preferred_date} at {preferred_time_slot}.",
+    ),
+}
+STUDENT_NOTIFICATION_TEMPLATES: Final[dict[str, tuple[str, str, str]]] = {
+    "confirmed": (
+        "appointment_confirmed",
+        "Appointment confirmed",
+        "Your appointment on {preferred_date} at {preferred_time_slot} has been confirmed.",
+    ),
+    "rejected": (
+        "appointment_rejected",
+        "Appointment rejected",
+        "Your appointment on {preferred_date} at {preferred_time_slot} has been rejected.",
+    ),
+    "cancelled": (
+        "appointment_cancelled",
+        "Appointment cancelled",
+        "Your appointment on {preferred_date} at {preferred_time_slot} has been cancelled.",
+    ),
 }
 
 # Helper: students may only modify appointments at least 1 hour before scheduled time
@@ -94,6 +142,130 @@ def _require_staff_assignment(staff_account: dict, appointment_id: int) -> None:
     }
     if appointment_id not in allowed:
         raise LookupError("Appointment not found.")
+
+
+def list_student_appointments_service(
+    student_account: dict,
+) -> list[dict]:
+    appointments = list_student_appointments(student_account["id"])
+
+    return [
+        {
+            field: value
+            for field, value in appointment.items()
+            if field != "counselor_notes"
+        }
+        for appointment in appointments
+    ]
+
+
+def list_staff_appointments_service(
+    staff_account: dict,
+) -> list[dict]:
+    return list_staff_appointments(staff_account["id"])
+
+
+def _parse_analytics_filter_date(
+    value: object,
+    field_name: str,
+) -> date | None:
+    if value is None or not str(value).strip():
+        return None
+
+    try:
+        return date.fromisoformat(str(value).strip())
+    except ValueError as exc:
+        raise ValueError(f"Invalid {field_name}.") from exc
+
+
+def _appointment_date_value(value: object) -> date:
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    return date.fromisoformat(str(value))
+
+
+def get_appointment_analytics_service(
+    staff_account: dict,
+    *,
+    start_date: object = None,
+    end_date: object = None,
+) -> dict:
+    """Return read-only analytics for the staff member's authorized programs."""
+    start = _parse_analytics_filter_date(start_date, "start date")
+    end = _parse_analytics_filter_date(end_date, "end date")
+
+    if start and end and start > end:
+        raise ValueError("Start date must not be after end date.")
+
+    appointments = list_staff_appointments_service(staff_account)
+    filtered_appointments: list[tuple[dict, date]] = []
+
+    for appointment in appointments:
+        appointment_date = _appointment_date_value(appointment["preferred_date"])
+        if start and appointment_date < start:
+            continue
+        if end and appointment_date > end:
+            continue
+        filtered_appointments.append((appointment, appointment_date))
+
+    status_counts = Counter(
+        str(appointment.get("status", "")).lower()
+        for appointment, _ in filtered_appointments
+    )
+    daily_counts: Counter[str] = Counter()
+    weekly_counts: Counter[str] = Counter()
+    monthly_counts: Counter[str] = Counter()
+    program_counts: Counter[str] = Counter()
+    counselor_counts: Counter[str] = Counter()
+    counselor_by_program: dict[str, str | None] = {}
+
+    for appointment, appointment_date in filtered_appointments:
+        daily_counts[appointment_date.isoformat()] += 1
+        iso_year, iso_week, _ = appointment_date.isocalendar()
+        weekly_counts[f"{iso_year}-W{iso_week:02d}"] += 1
+        monthly_counts[appointment_date.strftime("%Y-%m")] += 1
+
+        program = str(appointment.get("program") or "").strip()
+        if not program:
+            continue
+
+        program_counts[program] += 1
+        if program not in counselor_by_program:
+            counselor = get_staff_by_program(program)
+            counselor_by_program[program] = (
+                str(counselor.get("full_name") or "").strip()
+                if counselor
+                else None
+            )
+
+        counselor_name = counselor_by_program[program]
+        if counselor_name:
+            counselor_counts[counselor_name] += 1
+
+    def count_rows(counter: Counter[str], key: str) -> list[dict]:
+        return [
+            {key: label, "count": count}
+            for label, count in sorted(counter.items())
+        ]
+
+    return {
+        "filters": {
+            "start_date": start.isoformat() if start else None,
+            "end_date": end.isoformat() if end else None,
+        },
+        "total_appointments": len(filtered_appointments),
+        "status_distribution": [
+            {"status": status, "count": status_counts[status]}
+            for status in APPOINTMENT_STATUS_ORDER
+        ],
+        "daily_trends": count_rows(daily_counts, "date"),
+        "weekly_trends": count_rows(weekly_counts, "week"),
+        "monthly_trends": count_rows(monthly_counts, "month"),
+        "counselor_counts": count_rows(counselor_counts, "counselor_name"),
+        "program_statistics": count_rows(program_counts, "program"),
+    }
 
 
 def _normalize_preferred_time_slot(value: object) -> str:
@@ -127,6 +299,40 @@ def _has_appointment_conflict(
             return True
 
     return False
+
+
+def _equivalent_stored_time_slots(value: object) -> tuple[str, ...]:
+    """Return stored text forms equivalent under the existing normalization."""
+    time_slot = str(value).strip()
+    normalized_time_slot = _normalize_preferred_time_slot(time_slot)
+
+    try:
+        datetime.strptime(time_slot, "%I:%M %p")
+    except ValueError:
+        return (normalized_time_slot,)
+
+    unpadded_hour = str(int(normalized_time_slot[:2]))
+    unpadded_time_slot = f"{unpadded_hour}{normalized_time_slot[2:]}"
+    return tuple(dict.fromkeys((normalized_time_slot, unpadded_time_slot)))
+
+
+def _save_appointment_with_atomic_conflict_check(payload: dict) -> int:
+    """Persist after service validation with a final database-owned recheck."""
+    try:
+        return save_appointment_if_available(
+            payload,
+            normalized_time_slot=_normalize_preferred_time_slot(
+                payload["preferred_time_slot"]
+            ),
+            equivalent_time_slots=_equivalent_stored_time_slots(
+                payload["preferred_time_slot"]
+            ),
+        )
+    except (
+        AppointmentConflictPersistenceError,
+        AppointmentConflictLockError,
+    ) as exc:
+        raise RuntimeError(CONFLICT_ERROR_MESSAGE) from exc
 
 
 def _decode_consultation_metadata_list(value: object) -> list[object] | None:
@@ -508,6 +714,106 @@ def _validate_booking_constraints(
     )
 
 
+def _save_appointment_notification_safely(
+    recipient_account_id: int,
+    title: str,
+    message: str,
+    notification_type: str,
+) -> None:
+    try:
+        save_notification(
+            {
+                "recipient_account_id": recipient_account_id,
+                "title": title,
+                "message": message,
+                "type": notification_type,
+                "created_at": current_time(),
+            }
+        )
+    except Exception:
+        logger.exception(
+            "Failed to persist appointment notification type '%s'.",
+            notification_type,
+        )
+
+
+def _notify_routed_staff(
+    counselor: dict,
+    student: dict,
+    preferred_date: object,
+    preferred_time_slot: object,
+    notification_type: str,
+) -> None:
+    try:
+        title, message_template = STAFF_NOTIFICATION_TEMPLATES[notification_type]
+        _save_appointment_notification_safely(
+            int(counselor["id"]),
+            title,
+            message_template.format(
+                student_name=student["full_name"],
+                preferred_date=preferred_date,
+                preferred_time_slot=preferred_time_slot,
+            ),
+            notification_type,
+        )
+    except Exception:
+        logger.exception(
+            "Failed to prepare appointment notification type '%s'.",
+            notification_type,
+        )
+
+
+def _notify_currently_routed_staff(
+    student_account_id: int,
+    preferred_date: object,
+    preferred_time_slot: object,
+    notification_type: str,
+) -> None:
+    try:
+        student, counselor = _resolve_student_and_counselor(
+            student_account_id,
+            "No counselor is currently assigned to the student's program.",
+        )
+        _notify_routed_staff(
+            counselor,
+            student,
+            preferred_date,
+            preferred_time_slot,
+            notification_type,
+        )
+    except Exception:
+        logger.exception(
+            "Failed to resolve recipient for appointment notification type '%s'.",
+            notification_type,
+        )
+
+
+def _notify_student_of_status_change(
+    appointment: dict,
+    status: str,
+) -> None:
+    notification = STUDENT_NOTIFICATION_TEMPLATES.get(status)
+    if notification is None:
+        return
+
+    try:
+        notification_type, title, message_template = notification
+        _save_appointment_notification_safely(
+            int(appointment["account_id"]),
+            title,
+            message_template.format(
+                preferred_date=appointment["preferred_date"],
+                preferred_time_slot=appointment["preferred_time_slot"],
+            ),
+            notification_type,
+        )
+    except Exception:
+        logger.exception(
+            "Failed to prepare appointment notification for status '%s'.",
+            status,
+        )
+
+
 def create_student_appointment(student_account: dict, payload: dict) -> int:
     required_fields = [
         "contact_number",
@@ -524,9 +830,9 @@ def create_student_appointment(student_account: dict, payload: dict) -> int:
         payload["preferred_date"],
         payload["preferred_time_slot"],
     ):
-        raise RuntimeError("This schedule is already taken.")
+        raise RuntimeError(CONFLICT_ERROR_MESSAGE)
 
-    _student, counselor = _resolve_student_and_counselor(
+    student, counselor = _resolve_student_and_counselor(
         student_account["id"],
         "No counselor is currently assigned to your program. "
         "Please contact the Guidance Office.",
@@ -538,7 +844,7 @@ def create_student_appointment(student_account: dict, payload: dict) -> int:
         payload["preferred_time_slot"],
     )
 
-    return save_appointment(
+    appointment_id = _save_appointment_with_atomic_conflict_check(
         {
             "account_id": student_account["id"],
             "contact_number": payload["contact_number"],
@@ -554,6 +860,14 @@ def create_student_appointment(student_account: dict, payload: dict) -> int:
             "updated_at": current_time(),
         }
     )
+    _notify_routed_staff(
+        counselor,
+        student,
+        payload["preferred_date"],
+        payload["preferred_time_slot"],
+        "appointment_request",
+    )
+    return appointment_id
 
 
 def cancel_student_appointment(student_account: dict, appointment_id: int) -> None:
@@ -573,6 +887,12 @@ def cancel_student_appointment(student_account: dict, appointment_id: int) -> No
         raise ValueError("Only pending appointments may be cancelled.")
 
     update_appointment_status(appointment_id, "cancelled")
+    _notify_currently_routed_staff(
+        student_account["id"],
+        appointment["preferred_date"],
+        appointment["preferred_time_slot"],
+        "appointment_cancelled",
+    )
 
 
 def reschedule_student_appointment(
@@ -606,9 +926,9 @@ def reschedule_student_appointment(
         payload["preferred_date"],
         payload["preferred_time_slot"],
     ):
-        raise RuntimeError("This schedule is already taken.")
+        raise RuntimeError(CONFLICT_ERROR_MESSAGE)
 
-    _student, counselor = _resolve_student_and_counselor(
+    student, counselor = _resolve_student_and_counselor(
         student_account["id"],
         "No counselor is currently assigned to your program. "
         "Please contact the Guidance Office.",
@@ -620,7 +940,7 @@ def reschedule_student_appointment(
         payload["preferred_time_slot"],
     )
 
-    new_id = save_appointment(
+    new_id = _save_appointment_with_atomic_conflict_check(
         {
             "account_id": appointment["account_id"],
             "contact_number": appointment["contact_number"],
@@ -638,6 +958,13 @@ def reschedule_student_appointment(
     )
 
     update_appointment_status(appointment_id, "cancelled")
+    _notify_routed_staff(
+        counselor,
+        student,
+        payload["preferred_date"],
+        payload["preferred_time_slot"],
+        "appointment_rescheduled",
+    )
     return new_id
 
 
@@ -672,7 +999,7 @@ def create_manual_appointment(staff_account: dict, payload: dict) -> int:
         payload["preferred_date"],
         payload["preferred_time_slot"],
     ):
-        raise RuntimeError("This schedule is already taken.")
+        raise RuntimeError(CONFLICT_ERROR_MESSAGE)
 
     _validate_booking_constraints(
         counselor,
@@ -680,7 +1007,7 @@ def create_manual_appointment(staff_account: dict, payload: dict) -> int:
         payload["preferred_time_slot"],
     )
 
-    return save_appointment(
+    return _save_appointment_with_atomic_conflict_check(
         {
             "account_id": payload["account_id"],
             "contact_number": student.get("contact_number") or "",
@@ -728,6 +1055,7 @@ def update_appointment_status_service(
         )
 
     update_appointment_status(appointment_id, status)
+    _notify_student_of_status_change(appointment, status)
 
 
 def update_counselor_notes_service(

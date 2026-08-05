@@ -4,7 +4,7 @@ Base LLM Provider
 Defines the interface that every Large Language Model provider
 (Gemini, Ollama, OpenRouter, etc.) must implement.
 
-CTRL4 Chatbot MK II
+CTRL4 Chatbot MK III
 
 Authors:
 - Apilado, Jabez Timothy E.

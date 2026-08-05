@@ -4,7 +4,7 @@ Emotion Service
 Loads and performs inference using the English Emotion
 Recognition Model (EERM).
 
-CTRL4 Chatbot MK2
+CTRL4 Chatbot MK III
 
 Authors:
 - Apilado, Jabez Timothy E.
@@ -22,6 +22,8 @@ import torch
 
 from ai_engine.core.models.model_loader import load_model
 from ai_engine.core.tokenizers.tokenizer import load_tokenizer
+
+from .safety_service import SafetyService
 
 
 def _load_labels() -> dict[int, str]:
@@ -53,17 +55,56 @@ NEUTRAL_EMOTIONS: Final = {
     "Neutral",
 }
 
+DISTRESSED_FEAR_KEYWORDS: Final[tuple[str, ...]] = (
+    "stress",
+    "stressed",
+    "pressure",
+    "burnout",
+    "burned out",
+    "overwhelmed",
+    "exhausted",
+    "drained",
+    "mentally exhausted",
+    "anxiety",
+    "anxious",
+    "panic",
+    "nervous",
+    "worried",
+    "restless",
+    "uneasy",
+    "can't relax",
+)
+
+DISTRESSED_SADNESS_KEYWORDS: Final[tuple[str, ...]] = (
+    "alone",
+    "lonely",
+    "isolated",
+    "left out",
+    "abandoned",
+    "no one understands me",
+)
+
+DISTRESSED_KEYWORDS: Final[tuple[str, ...]] = (
+    DISTRESSED_FEAR_KEYWORDS + DISTRESSED_SADNESS_KEYWORDS
+)
+
 @dataclass
 class EmotionPrediction:
     emotion: str
     sentiment: str
     confidence: float
     is_negative: bool
+    normalized_emotion: str
 
 
 class EmotionService:
 
-    def __init__(self):
+    def __init__(
+        self,
+        safety: SafetyService | None = None,
+    ):
+
+        self.safety = safety or SafetyService()
 
         self.tokenizer = load_tokenizer("english")
         self.model = load_model("english")
@@ -80,45 +121,38 @@ class EmotionService:
 
         # Keep all outputs in the model's five-class taxonomy.
         # Stress/anxiety indicators are normalized to Fear.
-        if any(word in text for word in [
-            "stress",
-            "stressed",
-            "pressure",
-            "burnout",
-            "burned out",
-            "overwhelmed",
-            "exhausted",
-            "drained",
-            "mentally exhausted",
-        ]):
-            return "Fear"
-
-        # Anxiety-related keywords
-        if any(word in text for word in [
-            "anxiety",
-            "anxious",
-            "panic",
-            "nervous",
-            "worried",
-            "restless",
-            "uneasy",
-            "can't relax",
-        ]):
+        if any(word in text for word in DISTRESSED_FEAR_KEYWORDS):
             return "Fear"
 
         # Loneliness-related keywords are normalized to Sadness.
-        if any(word in text for word in [
-            "alone",
-            "lonely",
-            "isolated",
-            "left out",
-            "abandoned",
-            "no one understands me",
-        ]):
+        if any(word in text for word in DISTRESSED_SADNESS_KEYWORDS):
             return "Sadness"
 
         # Keep original model prediction
         return emotion
+
+    def normalize_conversation_emotion(
+        self,
+        text: str,
+        emotion: str,
+    ) -> str:
+        """Map model output to the Sprint 6 conversation-intelligence taxonomy."""
+
+        normalized_text = text.lower()
+
+        if self.safety.check(normalized_text).should_escalate:
+            return "crisis"
+
+        if any(word in normalized_text for word in DISTRESSED_KEYWORDS):
+            return "distressed"
+
+        if emotion in POSITIVE_EMOTIONS:
+            return "positive"
+
+        if emotion in NEUTRAL_EMOTIONS:
+            return "neutral"
+
+        return "negative"
     
     def predict(self, text: str) -> EmotionPrediction:
 
@@ -179,4 +213,8 @@ class EmotionService:
             sentiment=sentiment,
             confidence=confidence,
             is_negative=is_negative,
+            normalized_emotion=self.normalize_conversation_emotion(
+                text,
+                emotion,
+            ),
         )

@@ -3,7 +3,7 @@ Service Registry
 
 Initializes all AI services once during application startup.
 
-CTRL4 Chatbot MK II
+CTRL4 Chatbot MK III
 
 Authors:
 - Apilado, Jabez Timothy E.
@@ -22,6 +22,10 @@ from .rag_service import RAGService
 from .prompt_builder import PromptBuilder
 from .llm_service import LLMService
 from .safety_service import SafetyService
+from .intent_service import IntentService
+from .topic_service import TopicService
+from .metadata_service import MetadataExtractionService
+from .response_safety_service import ResponseSafetyService
 from .ai_service import AIService
 from .summary_service import SummaryService
 
@@ -35,12 +39,16 @@ try:
     # Core AI Services
     # --------------------------------------------------
 
-    emotion_service = EmotionService()
+    safety_service = SafetyService()
+    emotion_service = EmotionService(safety=safety_service)
     language_service = LanguageService()
     rag_service = RAGService()
     prompt_builder = PromptBuilder()
     llm_service = LLMService()
-    safety_service = SafetyService()
+    intent_service = IntentService()
+    topic_service = TopicService()
+    metadata_service = MetadataExtractionService()
+    response_safety_service = ResponseSafetyService()
 
     # --------------------------------------------------
     # Main AI Orchestrator
@@ -49,6 +57,10 @@ try:
     ai_service = AIService(
 
         safety=safety_service,
+        intent=intent_service,
+        topic_classifier=topic_service,
+        metadata_extractor=metadata_service,
+        response_safety=response_safety_service,
         language=language_service,
         emotion=emotion_service,
         rag=rag_service,
@@ -112,7 +124,7 @@ def get_service_status() -> dict[str, object]:
             "llm_model": llm_status.get("model"),
         },
 
-        "version": "CTRL4 Chatbot MK II",
+        "version": "CTRL4 Chatbot MK III",
 
     }
 
@@ -124,6 +136,10 @@ __all__ = [
     "prompt_builder",
     "llm_service",
     "safety_service",
+    "intent_service",
+    "topic_service",
+    "metadata_service",
+    "response_safety_service",
     "ai_service",
     "summary_service",
     "get_service_status",

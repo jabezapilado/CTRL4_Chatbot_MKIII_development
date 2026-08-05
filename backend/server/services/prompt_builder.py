@@ -1,13 +1,16 @@
 """
 Prompt Builder
 
-Builds grounded prompts for the CTRL4 Chatbot MK2.
+Builds grounded prompts for the CTRL4 Chatbot MK III.
 
 Combines:
 
 - Student Message
 - Conversation History
+- Intent
 - Emotion Prediction
+- Topic
+- Extracted Metadata
 - Language Detection
 - Retrieved Guidance Documents
 
@@ -19,16 +22,12 @@ Authors:
 """
 
 from __future__ import annotations
-import logging
 from dataclasses import dataclass
 from typing import Final
 
 from .emotion_service import EmotionPrediction
 from .language_service import LanguagePrediction
 from .rag_service import RetrievedDocument
-
-logger = logging.getLogger(__name__)
-
 
 @dataclass
 class PromptInput:
@@ -44,6 +43,14 @@ class PromptInput:
     conversation_state: str
     
     conversation_topic: str
+
+    intent: str
+
+    normalized_emotion: str | None
+
+    normalized_topic: str
+
+    metadata: dict[str, str | None]
 
     documents: list[RetrievedDocument]
 
@@ -457,21 +464,21 @@ class PromptBuilder:
 
     • Do not require students to explain their entire situation before receiving general advice.
     """
+
+    @staticmethod
+    def _format_metadata(metadata: dict[str, str | None]) -> str:
+        values = [
+            f"- {field}: {value}"
+            for field, value in metadata.items()
+            if value is not None
+        ]
+        return "\n".join(values) if values else "None explicitly provided."
     
     def build(
         self,
         data: PromptInput,
     ) -> str:
 
-        logger.debug("=" * 60)
-        logger.debug("Conversation Debug")
-        logger.debug("=" * 60)
-
-        for item in data.conversation:
-            logger.debug(item)
-
-        logger.debug("=" * 60)
-        
         history = "\n".join(
             f"{message.get('role', 'user').title()}: {message.get('content', '')}"
             for message in data.conversation
@@ -671,6 +678,8 @@ class PromptBuilder:
                 "say so honestly."
             )
 
+        extracted_metadata = self._format_metadata(data.metadata)
+
         prompt = f"""
 {self.SYSTEM_PROMPT}
 
@@ -711,6 +720,23 @@ If the predicted emotion appears inconsistent with the student's message, trust 
 
 Never exaggerate or dismiss the student's emotional state based solely on the prediction.
 
+Conversation Intelligence Context
+
+Detected Intent
+
+{data.intent}
+
+Normalized Emotion
+
+{data.normalized_emotion or "unknown"}
+
+Normalized Topic
+
+{data.normalized_topic}
+
+Extracted Metadata
+
+{extracted_metadata}
 
 {conversation_memory}
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+from hashlib import sha256
 from datetime import date, datetime, time, timedelta
 from typing import Any
 
@@ -57,6 +58,11 @@ APPOINTMENT_STATUSES: Final[tuple[str, ...]] = (
     "rejected",
     "completed",
 )
+APPOINTMENT_CONFLICT_LOCK_TIMEOUT_SECONDS: Final[int] = 5
+APPOINTMENT_CONFLICT_BLOCKING_STATUSES: Final[tuple[str, ...]] = (
+    "pending",
+    "confirmed",
+)
 _MIGRATION_LEGACY_APPOINTMENT_STATUSES: Final[tuple[str, ...]] = (
     "approved",
     "done",
@@ -65,6 +71,14 @@ _MIGRATION_LEGACY_APPOINTMENT_STATUSES: Final[tuple[str, ...]] = (
 _MIGRATION_KNOWN_APPOINTMENT_STATUSES: Final[frozenset[str]] = frozenset(
     APPOINTMENT_STATUSES + _MIGRATION_LEGACY_APPOINTMENT_STATUSES
 )
+
+
+class AppointmentConflictPersistenceError(Exception):
+    """A transaction recheck found a blocking appointment for the slot."""
+
+
+class AppointmentConflictLockError(Exception):
+    """The database could not reserve the slot's advisory lock in time."""
 
 
 def _connection_kwargs(database: str | None = None) -> dict[str, Any]:
@@ -391,6 +405,46 @@ def _migrate_appointment_status_enum(cursor: Any) -> None:
     )
 
 
+def _column_exists(cursor: Any, table_name: str, column_name: str) -> bool:
+    cursor.execute(
+        """
+        SELECT 1
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = %s
+          AND TABLE_NAME = %s
+          AND COLUMN_NAME = %s
+        """,
+        (config.DB_NAME, table_name, column_name),
+    )
+    return cursor.fetchone() is not None
+
+
+def _migrate_conversation_management_schema(cursor: Any) -> None:
+    if _column_exists(cursor, "conversation_summaries", "transcript_json"):
+        cursor.execute(
+            """
+            ALTER TABLE conversation_summaries
+            DROP COLUMN transcript_json
+            """
+        )
+
+    if not _column_exists(cursor, "escalations", "escalation_reason"):
+        cursor.execute(
+            """
+            ALTER TABLE escalations
+            ADD COLUMN escalation_reason VARCHAR(255) NULL
+            """
+        )
+
+    if not _column_exists(cursor, "escalations", "reviewed_at"):
+        cursor.execute(
+            """
+            ALTER TABLE escalations
+            ADD COLUMN reviewed_at DATETIME NULL
+            """
+        )
+
+
 def initialize_database() -> None:
     with _server_connection() as connection:
         with connection.cursor() as cursor:
@@ -480,9 +534,11 @@ def initialize_database() -> None:
                     account_id INT NULL,
                     summary_id INT NULL,
                     status VARCHAR(50) NOT NULL DEFAULT 'pending',
+                    escalation_reason VARCHAR(255) NULL,
                     intervention_notes TEXT NULL,
                     created_at DATETIME NOT NULL,
                     resolved_at DATETIME NULL,
+                    reviewed_at DATETIME NULL,
                     FOREIGN KEY (account_id)
                     REFERENCES accounts(id)
                     ON DELETE SET NULL,
@@ -492,6 +548,187 @@ def initialize_database() -> None:
                 )
                 """
             )
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS case_notes (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    conversation_summary_id INT NOT NULL,
+                    staff_account_id INT NOT NULL,
+                    note_text TEXT NOT NULL,
+                    created_at DATETIME NOT NULL,
+                    updated_at DATETIME NOT NULL,
+                    FOREIGN KEY (conversation_summary_id)
+                    REFERENCES conversation_summaries(id)
+                    ON DELETE RESTRICT,
+                    FOREIGN KEY (staff_account_id)
+                    REFERENCES accounts(id)
+                    ON DELETE RESTRICT,
+                    INDEX idx_case_notes_summary_created (
+                        conversation_summary_id,
+                        created_at
+                    ),
+                    INDEX idx_case_notes_staff (staff_account_id)
+                )
+                """
+            )
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS referrals (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    conversation_summary_id INT NOT NULL,
+                    staff_account_id INT NOT NULL,
+                    destination VARCHAR(100) NOT NULL,
+                    referral_reason TEXT NOT NULL,
+                    status VARCHAR(50) NOT NULL DEFAULT 'pending',
+                    created_at DATETIME NOT NULL,
+                    updated_at DATETIME NOT NULL,
+                    FOREIGN KEY (conversation_summary_id)
+                    REFERENCES conversation_summaries(id)
+                    ON DELETE RESTRICT,
+                    FOREIGN KEY (staff_account_id)
+                    REFERENCES accounts(id)
+                    ON DELETE RESTRICT,
+                    INDEX idx_referrals_summary_created (
+                        conversation_summary_id,
+                        created_at
+                    ),
+                    INDEX idx_referrals_status (status)
+                )
+                """
+            )
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS referral_status_history (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    referral_id INT NOT NULL,
+                    staff_account_id INT NOT NULL,
+                    status VARCHAR(50) NOT NULL,
+                    created_at DATETIME NOT NULL,
+                    FOREIGN KEY (referral_id)
+                    REFERENCES referrals(id)
+                    ON DELETE RESTRICT,
+                    FOREIGN KEY (staff_account_id)
+                    REFERENCES accounts(id)
+                    ON DELETE RESTRICT,
+                    INDEX idx_referral_status_history_referral_created (
+                        referral_id,
+                        created_at
+                    )
+                )
+                """
+            )
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS referral_notes (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    referral_id INT NOT NULL,
+                    staff_account_id INT NOT NULL,
+                    note_text TEXT NOT NULL,
+                    created_at DATETIME NOT NULL,
+                    FOREIGN KEY (referral_id)
+                    REFERENCES referrals(id)
+                    ON DELETE RESTRICT,
+                    FOREIGN KEY (staff_account_id)
+                    REFERENCES accounts(id)
+                    ON DELETE RESTRICT,
+                    INDEX idx_referral_notes_referral_created (
+                        referral_id,
+                        created_at
+                    )
+                )
+                """
+            )
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS interventions (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    conversation_summary_id INT NOT NULL,
+                    staff_account_id INT NOT NULL,
+                    intervention_type VARCHAR(100) NOT NULL,
+                    objective TEXT NOT NULL,
+                    progress_status VARCHAR(50) NOT NULL DEFAULT 'planned',
+                    outcome TEXT NULL,
+                    created_at DATETIME NOT NULL,
+                    updated_at DATETIME NOT NULL,
+                    FOREIGN KEY (conversation_summary_id)
+                    REFERENCES conversation_summaries(id)
+                    ON DELETE RESTRICT,
+                    FOREIGN KEY (staff_account_id)
+                    REFERENCES accounts(id)
+                    ON DELETE RESTRICT,
+                    INDEX idx_interventions_summary_created (
+                        conversation_summary_id,
+                        created_at
+                    ),
+                    INDEX idx_interventions_progress_status (progress_status)
+                )
+                """
+            )
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS intervention_history (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    intervention_id INT NOT NULL,
+                    staff_account_id INT NOT NULL,
+                    progress_status VARCHAR(50) NOT NULL,
+                    outcome TEXT NULL,
+                    created_at DATETIME NOT NULL,
+                    FOREIGN KEY (intervention_id)
+                    REFERENCES interventions(id)
+                    ON DELETE RESTRICT,
+                    FOREIGN KEY (staff_account_id)
+                    REFERENCES accounts(id)
+                    ON DELETE RESTRICT,
+                    INDEX idx_intervention_history_intervention_created (
+                        intervention_id,
+                        created_at
+                    )
+                )
+                """
+            )
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS case_confidentiality (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    conversation_summary_id INT NOT NULL UNIQUE,
+                    staff_account_id INT NOT NULL,
+                    confidentiality_status VARCHAR(50) NOT NULL,
+                    confidentiality_reason TEXT NULL,
+                    created_at DATETIME NOT NULL,
+                    updated_at DATETIME NOT NULL,
+                    FOREIGN KEY (conversation_summary_id)
+                    REFERENCES conversation_summaries(id)
+                    ON DELETE RESTRICT,
+                    FOREIGN KEY (staff_account_id)
+                    REFERENCES accounts(id)
+                    ON DELETE RESTRICT,
+                    INDEX idx_case_confidentiality_status (confidentiality_status)
+                )
+                """
+            )
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS case_confidentiality_history (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    case_confidentiality_id INT NOT NULL,
+                    staff_account_id INT NOT NULL,
+                    confidentiality_status VARCHAR(50) NOT NULL,
+                    confidentiality_reason TEXT NULL,
+                    created_at DATETIME NOT NULL,
+                    FOREIGN KEY (case_confidentiality_id)
+                    REFERENCES case_confidentiality(id)
+                    ON DELETE RESTRICT,
+                    FOREIGN KEY (staff_account_id)
+                    REFERENCES accounts(id)
+                    ON DELETE RESTRICT,
+                    INDEX idx_case_confidentiality_history_record_created (
+                        case_confidentiality_id,
+                        created_at
+                    )
+                )
+                """
+            )
+            _migrate_conversation_management_schema(cursor)
             cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS appointments (
@@ -524,6 +761,26 @@ def initialize_database() -> None:
                     FOREIGN KEY (account_id)
                     REFERENCES accounts(id)
                     ON DELETE RESTRICT
+                )
+                """
+            )
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS notifications (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    recipient_account_id INT NOT NULL,
+                    title VARCHAR(255) NOT NULL,
+                    message TEXT NOT NULL,
+                    type VARCHAR(50) NOT NULL,
+                    is_read TINYINT(1) NOT NULL DEFAULT 0,
+                    created_at DATETIME NOT NULL,
+                    FOREIGN KEY (recipient_account_id)
+                    REFERENCES accounts(id)
+                    ON DELETE RESTRICT,
+                    INDEX idx_notifications_recipient_created (
+                        recipient_account_id,
+                        created_at
+                    )
                 )
                 """
             )
@@ -580,16 +837,18 @@ def save_escalation(payload: dict[str, Any]) -> int:
                     account_id,
                     summary_id,
                     status,
+                    escalation_reason,
                     intervention_notes,
                     created_at,
                     resolved_at
                 )
-                VALUES (%s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """,
                 (
                     payload.get("account_id"),
                     payload.get("summary_id"),
                     payload.get("status", "pending"),
+                    payload.get("escalation_reason"),
                     payload.get("intervention_notes"),
                     payload.get("created_at", current_time()),
                     payload.get("resolved_at"),
@@ -600,46 +859,127 @@ def save_escalation(payload: dict[str, Any]) -> int:
         return int(escalation_id)
 
 
-def save_appointment(payload: dict[str, Any]) -> int:
-    initialize_database()
+def _insert_appointment_row(cursor: Any, payload: dict[str, Any]) -> int:
+    """Insert one already-validated appointment using the active connection."""
+    cursor.execute(
+        """
+        INSERT INTO appointments (
+            account_id,
+            contact_number,
+            appointment_category,
+            appointment_mode,
+            preferred_date,
+            preferred_time_slot,
+            reason,
+            status,
+            counselor_notes,
+            appointment_source,
+            created_at,
+            updated_at
+        )
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """,
+        (
+            payload["account_id"],
+            payload["contact_number"],
+            payload["appointment_category"],
+            payload["appointment_mode"],
+            payload["preferred_date"],
+            payload["preferred_time_slot"],
+            payload["reason"],
+            payload.get("status", "pending"),
+            payload.get("counselor_notes"),
+            payload["appointment_source"],
+            payload.get("created_at", current_time()),
+            payload.get("updated_at", current_time()),
+        ),
+    )
+    return int(cursor.lastrowid)
+
+
+def _appointment_conflict_lock_name(
+    preferred_date: object,
+    normalized_time_slot: object,
+) -> str:
+    """Return a bounded, non-sensitive advisory-lock identifier for one slot."""
+    key_material = (
+        f"{config.DB_NAME}|{preferred_date}|{normalized_time_slot}"
+    ).encode("utf-8")
+    return f"ctrl4:{sha256(key_material).hexdigest()[:58]}"
+
+
+def save_appointment_if_available(
+    payload: dict[str, Any],
+    *,
+    normalized_time_slot: str,
+    equivalent_time_slots: tuple[str, ...],
+) -> int:
+    """Atomically reserve a start-time slot and persist an appointment.
+
+    The service supplies the already-normalized slot and equivalent stored
+    representations.  This helper intentionally does not parse appointment
+    times or decide booking policy; it serializes one persistence key, applies
+    the final blocking-status recheck, and writes only when the slot is free.
+    """
+    if not equivalent_time_slots:
+        raise ValueError("Equivalent appointment time slots are required.")
+
+    lock_name = _appointment_conflict_lock_name(
+        payload["preferred_date"],
+        normalized_time_slot,
+    )
+    lock_acquired = False
+
     with _database_connection() as connection:
-        with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                INSERT INTO appointments (
-                    account_id,
-                    contact_number,
-                    appointment_category,
-                    appointment_mode,
-                    preferred_date,
-                    preferred_time_slot,
-                    reason,
-                    status,
-                    counselor_notes,
-                    appointment_source,
-                    created_at,
-                    updated_at
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT GET_LOCK(%s, %s)",
+                    (lock_name, APPOINTMENT_CONFLICT_LOCK_TIMEOUT_SECONDS),
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                """,
-                (
-                    payload["account_id"],
-                    payload["contact_number"],
-                    payload["appointment_category"],
-                    payload["appointment_mode"],
-                    payload["preferred_date"],
-                    payload["preferred_time_slot"],
-                    payload["reason"],
-                    payload.get("status", "pending"),
-                    payload.get("counselor_notes"),
-                    payload["appointment_source"],
-                    payload.get("created_at", current_time()),
-                    payload.get("updated_at", current_time()),
-                ),
-            )
-            appointment_id = cursor.lastrowid
-        connection.commit()
-        return int(appointment_id)
+                lock_result = cursor.fetchone()
+                lock_acquired = bool(lock_result and lock_result[0] == 1)
+                if not lock_acquired:
+                    raise AppointmentConflictLockError()
+
+            # Advisory locks are connection-scoped, not transaction-scoped.
+            # End the lock-acquisition read before the write transaction starts.
+            connection.commit()
+            connection.start_transaction()
+            with connection.cursor() as cursor:
+                slot_placeholders = ", ".join(["%s"] * len(equivalent_time_slots))
+                status_placeholders = ", ".join(
+                    ["%s"] * len(APPOINTMENT_CONFLICT_BLOCKING_STATUSES)
+                )
+                cursor.execute(
+                    f"""
+                    SELECT 1
+                    FROM appointments
+                    WHERE preferred_date = %s
+                      AND status IN ({status_placeholders})
+                      AND TRIM(preferred_time_slot) IN ({slot_placeholders})
+                    LIMIT 1
+                    """,
+                    (
+                        payload["preferred_date"],
+                        *APPOINTMENT_CONFLICT_BLOCKING_STATUSES,
+                        *equivalent_time_slots,
+                    ),
+                )
+                if cursor.fetchone() is not None:
+                    raise AppointmentConflictPersistenceError()
+
+                appointment_id = _insert_appointment_row(cursor, payload)
+            connection.commit()
+            return appointment_id
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            if lock_acquired:
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT RELEASE_LOCK(%s)", (lock_name,))
+                    cursor.fetchone()
 
 def list_appointments_by_date(
     preferred_date: str,
@@ -652,6 +992,93 @@ def list_appointments_by_date(
         """,
         (preferred_date,),
     )
+
+
+def save_notification(payload: dict[str, Any]) -> int:
+    initialize_database()
+
+    with _database_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO notifications (
+                    recipient_account_id,
+                    title,
+                    message,
+                    type,
+                    is_read,
+                    created_at
+                )
+                VALUES (%s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    payload["recipient_account_id"],
+                    payload["title"],
+                    payload["message"],
+                    payload["type"],
+                    1 if payload.get("is_read") else 0,
+                    payload.get("created_at", current_time()),
+                ),
+            )
+            notification_id = cursor.lastrowid
+        connection.commit()
+
+    return int(notification_id)
+
+
+def list_notifications_for_recipient(
+    recipient_account_id: int,
+) -> list[dict[str, Any]]:
+    return fetch_rows(
+        """
+        SELECT
+            id,
+            title,
+            message,
+            type,
+            is_read,
+            created_at
+        FROM notifications
+        WHERE recipient_account_id = %s
+        ORDER BY created_at DESC, id DESC
+        """,
+        (recipient_account_id,),
+    )
+
+
+def mark_notification_read(
+    notification_id: int,
+    recipient_account_id: int,
+) -> bool:
+    initialize_database()
+
+    with _database_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT id
+                FROM notifications
+                WHERE id = %s
+                  AND recipient_account_id = %s
+                LIMIT 1
+                """,
+                (notification_id, recipient_account_id),
+            )
+            if not cursor.fetchone():
+                return False
+
+            cursor.execute(
+                """
+                UPDATE notifications
+                SET is_read = 1
+                WHERE id = %s
+                  AND recipient_account_id = %s
+                """,
+                (notification_id, recipient_account_id),
+            )
+        connection.commit()
+
+    return True
 
 def save_conversation_summary(payload: dict[str, Any]) -> int:
     initialize_database()
@@ -707,6 +1134,1047 @@ def list_conversation_summaries() -> list[dict[str, Any]]:
         FROM conversation_summaries
         ORDER BY created_at DESC
         """
+    )
+
+
+def list_inquiries() -> list[dict[str, Any]]:
+    """Return inquiry records for service-owned privacy filtering."""
+    initialize_database()
+
+    return fetch_rows(
+        """
+        SELECT *
+        FROM inquiries
+        ORDER BY id DESC
+        LIMIT 100
+        """
+    )
+
+
+def list_escalations() -> list[dict[str, Any]]:
+    """Return escalation records for service-owned privacy filtering."""
+    initialize_database()
+
+    return fetch_rows(
+        """
+        SELECT *
+        FROM escalations
+        ORDER BY id DESC
+        LIMIT 100
+        """
+    )
+
+
+def list_chatbot_inquiries_for_analytics(
+    start_at: datetime | None,
+    end_at: datetime | None,
+) -> list[dict[str, Any]]:
+    """Return only the persisted fields needed for chatbot-message analytics."""
+    return fetch_rows(
+        """
+        SELECT created_at, emotion_result
+        FROM inquiries
+        WHERE inquiry_type = 'ai_chat'
+          AND (%s IS NULL OR created_at >= %s)
+          AND (%s IS NULL OR created_at < %s)
+        ORDER BY created_at ASC
+        """,
+        (start_at, start_at, end_at, end_at),
+    )
+
+
+def list_conversation_finalizations_for_analytics(
+    start_at: datetime | None,
+    end_at: datetime | None,
+) -> list[dict[str, Any]]:
+    """Return only finalized-conversation aggregate input fields."""
+    return fetch_rows(
+        """
+        SELECT created_at, total_messages
+        FROM conversation_summaries
+        WHERE (%s IS NULL OR created_at >= %s)
+          AND (%s IS NULL OR created_at < %s)
+        ORDER BY created_at ASC
+        """,
+        (start_at, start_at, end_at, end_at),
+    )
+
+
+def list_escalations_for_analytics(
+    start_at: datetime | None,
+    end_at: datetime | None,
+) -> list[dict[str, Any]]:
+    """Return only escalation timestamps needed for aggregate analytics."""
+    return fetch_rows(
+        """
+        SELECT created_at
+        FROM escalations
+        WHERE (%s IS NULL OR created_at >= %s)
+          AND (%s IS NULL OR created_at < %s)
+        ORDER BY created_at ASC
+        """,
+        (start_at, start_at, end_at, end_at),
+    )
+
+
+def list_flagged_case_statuses_for_analytics(
+    start_at: datetime | None,
+    end_at: datetime | None,
+) -> list[dict[str, Any]]:
+    """Return persisted status values for flagged cases created in a range."""
+    return fetch_rows(
+        """
+        SELECT escalations.status, conversation_summaries.created_at
+        FROM conversation_summaries
+        INNER JOIN escalations
+            ON escalations.summary_id = conversation_summaries.id
+        WHERE conversation_summaries.flagged_status = 1
+          AND (%s IS NULL OR conversation_summaries.created_at >= %s)
+          AND (%s IS NULL OR conversation_summaries.created_at < %s)
+        ORDER BY conversation_summaries.created_at ASC
+        """,
+        (start_at, start_at, end_at, end_at),
+    )
+
+
+def list_flagged_case_referrals_for_analytics(
+    start_at: datetime | None,
+    end_at: datetime | None,
+) -> list[dict[str, Any]]:
+    """Return timestamps for referrals attached to flagged cases."""
+    return fetch_rows(
+        """
+        SELECT referrals.created_at
+        FROM referrals
+        INNER JOIN conversation_summaries
+            ON conversation_summaries.id = referrals.conversation_summary_id
+        WHERE conversation_summaries.flagged_status = 1
+          AND (%s IS NULL OR referrals.created_at >= %s)
+          AND (%s IS NULL OR referrals.created_at < %s)
+        ORDER BY referrals.created_at ASC
+        """,
+        (start_at, start_at, end_at, end_at),
+    )
+
+
+def list_flagged_case_interventions_for_analytics(
+    start_at: datetime | None,
+    end_at: datetime | None,
+) -> list[dict[str, Any]]:
+    """Return timestamps for interventions attached to flagged cases."""
+    return fetch_rows(
+        """
+        SELECT interventions.created_at
+        FROM interventions
+        INNER JOIN conversation_summaries
+            ON conversation_summaries.id = interventions.conversation_summary_id
+        WHERE conversation_summaries.flagged_status = 1
+          AND (%s IS NULL OR interventions.created_at >= %s)
+          AND (%s IS NULL OR interventions.created_at < %s)
+        ORDER BY interventions.created_at ASC
+        """,
+        (start_at, start_at, end_at, end_at),
+    )
+
+
+def list_flagged_case_confidentiality_for_analytics(
+    start_at: datetime | None,
+    end_at: datetime | None,
+) -> list[dict[str, Any]]:
+    """Return current confidentiality states for flagged-case records."""
+    return fetch_rows(
+        """
+        SELECT case_confidentiality.confidentiality_status,
+               case_confidentiality.created_at
+        FROM case_confidentiality
+        INNER JOIN conversation_summaries
+            ON conversation_summaries.id =
+               case_confidentiality.conversation_summary_id
+        WHERE conversation_summaries.flagged_status = 1
+          AND (%s IS NULL OR case_confidentiality.created_at >= %s)
+          AND (%s IS NULL OR case_confidentiality.created_at < %s)
+        ORDER BY case_confidentiality.created_at ASC
+        """,
+        (start_at, start_at, end_at, end_at),
+    )
+
+
+def list_flagged_case_escalations_for_analytics(
+    start_at: datetime | None,
+    end_at: datetime | None,
+) -> list[dict[str, Any]]:
+    """Return escalation timestamps for flagged cases."""
+    return fetch_rows(
+        """
+        SELECT escalations.created_at
+        FROM escalations
+        INNER JOIN conversation_summaries
+            ON conversation_summaries.id = escalations.summary_id
+        WHERE conversation_summaries.flagged_status = 1
+          AND (%s IS NULL OR escalations.created_at >= %s)
+          AND (%s IS NULL OR escalations.created_at < %s)
+        ORDER BY escalations.created_at ASC
+        """,
+        (start_at, start_at, end_at, end_at),
+    )
+
+
+def list_staff_referrals_for_workload_analytics(
+    staff_account_id: int,
+    start_at: datetime | None,
+    end_at: datetime | None,
+) -> list[dict[str, Any]]:
+    """Return aggregate input for referrals owned by one staff account."""
+    return fetch_rows(
+        """
+        SELECT status, created_at
+        FROM referrals
+        WHERE staff_account_id = %s
+          AND (%s IS NULL OR created_at >= %s)
+          AND (%s IS NULL OR created_at < %s)
+        ORDER BY created_at ASC
+        """,
+        (staff_account_id, start_at, start_at, end_at, end_at),
+    )
+
+
+def list_staff_interventions_for_workload_analytics(
+    staff_account_id: int,
+    start_at: datetime | None,
+    end_at: datetime | None,
+) -> list[dict[str, Any]]:
+    """Return aggregate input for interventions owned by one staff account."""
+    return fetch_rows(
+        """
+        SELECT progress_status, created_at
+        FROM interventions
+        WHERE staff_account_id = %s
+          AND (%s IS NULL OR created_at >= %s)
+          AND (%s IS NULL OR created_at < %s)
+        ORDER BY created_at ASC
+        """,
+        (staff_account_id, start_at, start_at, end_at, end_at),
+    )
+
+
+def list_flagged_conversations() -> list[dict[str, Any]]:
+    """Return flagged conversation records without account linkage fields."""
+    initialize_database()
+
+    return fetch_rows(
+        """
+        SELECT
+            conversation_summaries.id,
+            conversation_summaries.primary_concern,
+            conversation_summaries.conversation_type,
+            conversation_summaries.emotion_results,
+            conversation_summaries.appointment_recommendation,
+            conversation_summaries.recommendations,
+            conversation_summaries.suggested_intervention,
+            conversation_summaries.language_used,
+            conversation_summaries.total_messages,
+            conversation_summaries.summary,
+            conversation_summaries.created_at,
+            escalations.status AS escalation_status,
+            escalations.escalation_reason,
+            escalations.reviewed_at
+        FROM conversation_summaries
+        INNER JOIN escalations
+            ON escalations.summary_id = conversation_summaries.id
+        WHERE conversation_summaries.flagged_status = 1
+        ORDER BY conversation_summaries.created_at DESC
+        """
+    )
+
+
+def fetch_flagged_conversation(summary_id: int) -> dict[str, Any] | None:
+    """Return one flagged conversation summary and escalation record."""
+    initialize_database()
+
+    rows = fetch_rows(
+        """
+        SELECT
+            conversation_summaries.id,
+            conversation_summaries.primary_concern,
+            conversation_summaries.conversation_type,
+            conversation_summaries.emotion_results,
+            conversation_summaries.appointment_recommendation,
+            conversation_summaries.recommendations,
+            conversation_summaries.suggested_intervention,
+            conversation_summaries.language_used,
+            conversation_summaries.total_messages,
+            conversation_summaries.summary,
+            conversation_summaries.created_at,
+            escalations.status AS escalation_status,
+            escalations.escalation_reason,
+            escalations.reviewed_at
+        FROM conversation_summaries
+        INNER JOIN escalations
+            ON escalations.summary_id = conversation_summaries.id
+        WHERE conversation_summaries.id = %s
+          AND conversation_summaries.flagged_status = 1
+        LIMIT 1
+        """,
+        (summary_id,),
+    )
+    return rows[0] if rows else None
+
+
+def list_student_case_statuses(account_id: int) -> list[dict[str, Any]]:
+    """Return the current status and timestamps for one student's flagged cases."""
+    initialize_database()
+
+    return fetch_rows(
+        """
+        SELECT
+            escalations.status AS escalation_status,
+            conversation_summaries.created_at AS submitted_at,
+            COALESCE(escalations.reviewed_at, escalations.created_at) AS updated_at
+        FROM conversation_summaries
+        INNER JOIN escalations
+            ON escalations.summary_id = conversation_summaries.id
+        WHERE conversation_summaries.account_id = %s
+          AND conversation_summaries.flagged_status = 1
+        ORDER BY conversation_summaries.created_at DESC,
+                 escalations.id DESC
+        """,
+        (account_id,),
+    )
+
+
+def mark_escalation_reviewed(summary_id: int) -> bool:
+    """Mark a pending escalation as reviewed without replacing its record."""
+    initialize_database()
+
+    with _database_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE escalations
+                SET status = 'reviewed',
+                    reviewed_at = %s
+                WHERE summary_id = %s
+                  AND status = 'pending'
+                """,
+                (current_time(), summary_id),
+            )
+            updated = cursor.rowcount == 1
+        connection.commit()
+
+    return updated
+
+
+def create_case_note(payload: dict[str, Any]) -> int:
+    initialize_database()
+
+    with _database_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO case_notes (
+                    conversation_summary_id,
+                    staff_account_id,
+                    note_text,
+                    created_at,
+                    updated_at
+                )
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (
+                    payload["conversation_summary_id"],
+                    payload["staff_account_id"],
+                    payload["note_text"],
+                    payload.get("created_at", current_time()),
+                    payload.get("updated_at", current_time()),
+                ),
+            )
+            note_id = cursor.lastrowid
+        connection.commit()
+
+    return int(note_id)
+
+
+def list_case_notes(conversation_summary_id: int) -> list[dict[str, Any]]:
+    initialize_database()
+
+    return fetch_rows(
+        """
+        SELECT id, note_text, created_at, updated_at
+        FROM case_notes
+        WHERE conversation_summary_id = %s
+        ORDER BY created_at ASC, id ASC
+        """,
+        (conversation_summary_id,),
+    )
+
+
+def fetch_case_note(
+    note_id: int,
+    conversation_summary_id: int,
+) -> dict[str, Any] | None:
+    initialize_database()
+
+    rows = fetch_rows(
+        """
+        SELECT id, note_text, created_at, updated_at
+        FROM case_notes
+        WHERE id = %s
+          AND conversation_summary_id = %s
+        LIMIT 1
+        """,
+        (note_id, conversation_summary_id),
+    )
+    return rows[0] if rows else None
+
+
+def update_case_note(
+    note_id: int,
+    conversation_summary_id: int,
+    note_text: str,
+) -> bool:
+    initialize_database()
+
+    with _database_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE case_notes
+                SET note_text = %s,
+                    updated_at = %s
+                WHERE id = %s
+                  AND conversation_summary_id = %s
+                """,
+                (
+                    note_text,
+                    current_time(),
+                    note_id,
+                    conversation_summary_id,
+                ),
+            )
+            updated = cursor.rowcount == 1
+        connection.commit()
+
+    return updated
+
+
+def create_referral(payload: dict[str, Any]) -> int:
+    """Create a referral and its initial history records atomically."""
+    initialize_database()
+
+    with _database_connection() as connection:
+        with connection.cursor() as cursor:
+            timestamp = payload.get("created_at", current_time())
+            cursor.execute(
+                """
+                INSERT INTO referrals (
+                    conversation_summary_id,
+                    staff_account_id,
+                    destination,
+                    referral_reason,
+                    status,
+                    created_at,
+                    updated_at
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    payload["conversation_summary_id"],
+                    payload["staff_account_id"],
+                    payload["destination"],
+                    payload["referral_reason"],
+                    payload["status"],
+                    timestamp,
+                    payload.get("updated_at", timestamp),
+                ),
+            )
+            referral_id = int(cursor.lastrowid)
+            cursor.execute(
+                """
+                INSERT INTO referral_status_history (
+                    referral_id,
+                    staff_account_id,
+                    status,
+                    created_at
+                )
+                VALUES (%s, %s, %s, %s)
+                """,
+                (
+                    referral_id,
+                    payload["staff_account_id"],
+                    payload["status"],
+                    timestamp,
+                ),
+            )
+            initial_note = payload.get("initial_note")
+            if initial_note:
+                cursor.execute(
+                    """
+                    INSERT INTO referral_notes (
+                        referral_id,
+                        staff_account_id,
+                        note_text,
+                        created_at
+                    )
+                    VALUES (%s, %s, %s, %s)
+                    """,
+                    (
+                        referral_id,
+                        payload["staff_account_id"],
+                        initial_note,
+                        timestamp,
+                    ),
+                )
+        connection.commit()
+
+    return referral_id
+
+
+def list_referrals(conversation_summary_id: int) -> list[dict[str, Any]]:
+    initialize_database()
+
+    return fetch_rows(
+        """
+        SELECT
+            id,
+            destination,
+            referral_reason,
+            status,
+            created_at,
+            updated_at
+        FROM referrals
+        WHERE conversation_summary_id = %s
+        ORDER BY created_at ASC, id ASC
+        """,
+        (conversation_summary_id,),
+    )
+
+
+def fetch_referral(
+    referral_id: int,
+    conversation_summary_id: int,
+) -> dict[str, Any] | None:
+    initialize_database()
+
+    rows = fetch_rows(
+        """
+        SELECT
+            id,
+            destination,
+            referral_reason,
+            status,
+            created_at,
+            updated_at
+        FROM referrals
+        WHERE id = %s
+          AND conversation_summary_id = %s
+        LIMIT 1
+        """,
+        (referral_id, conversation_summary_id),
+    )
+    return rows[0] if rows else None
+
+
+def update_referral_status(
+    referral_id: int,
+    conversation_summary_id: int,
+    staff_account_id: int,
+    status: str,
+) -> bool:
+    """Update the current status and append the status history atomically."""
+    initialize_database()
+
+    with _database_connection() as connection:
+        with connection.cursor() as cursor:
+            timestamp = current_time()
+            cursor.execute(
+                """
+                UPDATE referrals
+                SET status = %s,
+                    updated_at = %s
+                WHERE id = %s
+                  AND conversation_summary_id = %s
+                """,
+                (status, timestamp, referral_id, conversation_summary_id),
+            )
+            if cursor.rowcount != 1:
+                connection.rollback()
+                return False
+            cursor.execute(
+                """
+                INSERT INTO referral_status_history (
+                    referral_id,
+                    staff_account_id,
+                    status,
+                    created_at
+                )
+                VALUES (%s, %s, %s, %s)
+                """,
+                (referral_id, staff_account_id, status, timestamp),
+            )
+        connection.commit()
+
+    return True
+
+
+def create_referral_note(payload: dict[str, Any]) -> int:
+    initialize_database()
+
+    with _database_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO referral_notes (
+                    referral_id,
+                    staff_account_id,
+                    note_text,
+                    created_at
+                )
+                VALUES (%s, %s, %s, %s)
+                """,
+                (
+                    payload["referral_id"],
+                    payload["staff_account_id"],
+                    payload["note_text"],
+                    payload.get("created_at", current_time()),
+                ),
+            )
+            note_id = int(cursor.lastrowid)
+        connection.commit()
+
+    return note_id
+
+
+def list_referral_status_history(
+    referral_id: int,
+    conversation_summary_id: int,
+) -> list[dict[str, Any]]:
+    initialize_database()
+
+    return fetch_rows(
+        """
+        SELECT referral_status_history.status, referral_status_history.created_at
+        FROM referral_status_history
+        INNER JOIN referrals ON referrals.id = referral_status_history.referral_id
+        WHERE referral_status_history.referral_id = %s
+          AND referrals.conversation_summary_id = %s
+        ORDER BY referral_status_history.created_at ASC,
+                 referral_status_history.id ASC
+        """,
+        (referral_id, conversation_summary_id),
+    )
+
+
+def list_referral_notes(
+    referral_id: int,
+    conversation_summary_id: int,
+) -> list[dict[str, Any]]:
+    initialize_database()
+
+    return fetch_rows(
+        """
+        SELECT referral_notes.id, referral_notes.note_text, referral_notes.created_at
+        FROM referral_notes
+        INNER JOIN referrals ON referrals.id = referral_notes.referral_id
+        WHERE referral_notes.referral_id = %s
+          AND referrals.conversation_summary_id = %s
+        ORDER BY referral_notes.created_at ASC, referral_notes.id ASC
+        """,
+        (referral_id, conversation_summary_id),
+    )
+
+
+def create_intervention(payload: dict[str, Any]) -> int:
+    """Create an intervention and initial planned-history record atomically."""
+    initialize_database()
+
+    with _database_connection() as connection:
+        with connection.cursor() as cursor:
+            timestamp = payload.get("created_at", current_time())
+            cursor.execute(
+                """
+                INSERT INTO interventions (
+                    conversation_summary_id,
+                    staff_account_id,
+                    intervention_type,
+                    objective,
+                    progress_status,
+                    outcome,
+                    created_at,
+                    updated_at
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    payload["conversation_summary_id"],
+                    payload["staff_account_id"],
+                    payload["intervention_type"],
+                    payload["objective"],
+                    payload["progress_status"],
+                    None,
+                    timestamp,
+                    payload.get("updated_at", timestamp),
+                ),
+            )
+            intervention_id = int(cursor.lastrowid)
+            cursor.execute(
+                """
+                INSERT INTO intervention_history (
+                    intervention_id,
+                    staff_account_id,
+                    progress_status,
+                    outcome,
+                    created_at
+                )
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (
+                    intervention_id,
+                    payload["staff_account_id"],
+                    payload["progress_status"],
+                    None,
+                    timestamp,
+                ),
+            )
+        connection.commit()
+
+    return intervention_id
+
+
+def list_interventions(conversation_summary_id: int) -> list[dict[str, Any]]:
+    initialize_database()
+
+    return fetch_rows(
+        """
+        SELECT
+            id,
+            intervention_type,
+            objective,
+            progress_status,
+            outcome,
+            created_at,
+            updated_at
+        FROM interventions
+        WHERE conversation_summary_id = %s
+        ORDER BY created_at ASC, id ASC
+        """,
+        (conversation_summary_id,),
+    )
+
+
+def fetch_intervention(
+    intervention_id: int,
+    conversation_summary_id: int,
+) -> dict[str, Any] | None:
+    initialize_database()
+
+    rows = fetch_rows(
+        """
+        SELECT
+            id,
+            intervention_type,
+            objective,
+            progress_status,
+            outcome,
+            created_at,
+            updated_at
+        FROM interventions
+        WHERE id = %s
+          AND conversation_summary_id = %s
+        LIMIT 1
+        """,
+        (intervention_id, conversation_summary_id),
+    )
+    return rows[0] if rows else None
+
+
+def update_intervention_progress(
+    intervention_id: int,
+    conversation_summary_id: int,
+    staff_account_id: int,
+    progress_status: str,
+) -> bool:
+    """Update current progress and append a progress-history record atomically."""
+    initialize_database()
+
+    with _database_connection() as connection:
+        with connection.cursor() as cursor:
+            timestamp = current_time()
+            cursor.execute(
+                """
+                UPDATE interventions
+                SET progress_status = %s,
+                    updated_at = %s
+                WHERE id = %s
+                  AND conversation_summary_id = %s
+                  AND outcome IS NULL
+                """,
+                (
+                    progress_status,
+                    timestamp,
+                    intervention_id,
+                    conversation_summary_id,
+                ),
+            )
+            if cursor.rowcount != 1:
+                connection.rollback()
+                return False
+            cursor.execute(
+                """
+                INSERT INTO intervention_history (
+                    intervention_id,
+                    staff_account_id,
+                    progress_status,
+                    outcome,
+                    created_at
+                )
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (
+                    intervention_id,
+                    staff_account_id,
+                    progress_status,
+                    None,
+                    timestamp,
+                ),
+            )
+        connection.commit()
+
+    return True
+
+
+def record_intervention_outcome(
+    intervention_id: int,
+    conversation_summary_id: int,
+    staff_account_id: int,
+    progress_status: str,
+    outcome: str,
+) -> bool:
+    """Store one terminal outcome and append it to intervention history atomically."""
+    initialize_database()
+
+    with _database_connection() as connection:
+        with connection.cursor() as cursor:
+            timestamp = current_time()
+            cursor.execute(
+                """
+                UPDATE interventions
+                SET outcome = %s,
+                    updated_at = %s
+                WHERE id = %s
+                  AND conversation_summary_id = %s
+                  AND outcome IS NULL
+                """,
+                (
+                    outcome,
+                    timestamp,
+                    intervention_id,
+                    conversation_summary_id,
+                ),
+            )
+            if cursor.rowcount != 1:
+                connection.rollback()
+                return False
+            cursor.execute(
+                """
+                INSERT INTO intervention_history (
+                    intervention_id,
+                    staff_account_id,
+                    progress_status,
+                    outcome,
+                    created_at
+                )
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (
+                    intervention_id,
+                    staff_account_id,
+                    progress_status,
+                    outcome,
+                    timestamp,
+                ),
+            )
+        connection.commit()
+
+    return True
+
+
+def list_intervention_history(
+    intervention_id: int,
+    conversation_summary_id: int,
+) -> list[dict[str, Any]]:
+    initialize_database()
+
+    return fetch_rows(
+        """
+        SELECT
+            intervention_history.progress_status,
+            intervention_history.outcome,
+            intervention_history.created_at
+        FROM intervention_history
+        INNER JOIN interventions
+            ON interventions.id = intervention_history.intervention_id
+        WHERE intervention_history.intervention_id = %s
+          AND interventions.conversation_summary_id = %s
+        ORDER BY intervention_history.created_at ASC,
+                 intervention_history.id ASC
+        """,
+        (intervention_id, conversation_summary_id),
+    )
+
+
+def create_case_confidentiality(payload: dict[str, Any]) -> int:
+    """Create current confidentiality state and its first history entry atomically."""
+    initialize_database()
+
+    with _database_connection() as connection:
+        with connection.cursor() as cursor:
+            timestamp = payload.get("created_at", current_time())
+            cursor.execute(
+                """
+                INSERT INTO case_confidentiality (
+                    conversation_summary_id,
+                    staff_account_id,
+                    confidentiality_status,
+                    confidentiality_reason,
+                    created_at,
+                    updated_at
+                )
+                VALUES (%s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    payload["conversation_summary_id"],
+                    payload["staff_account_id"],
+                    payload["confidentiality_status"],
+                    payload.get("confidentiality_reason"),
+                    timestamp,
+                    payload.get("updated_at", timestamp),
+                ),
+            )
+            confidentiality_id = int(cursor.lastrowid)
+            cursor.execute(
+                """
+                INSERT INTO case_confidentiality_history (
+                    case_confidentiality_id,
+                    staff_account_id,
+                    confidentiality_status,
+                    confidentiality_reason,
+                    created_at
+                )
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (
+                    confidentiality_id,
+                    payload["staff_account_id"],
+                    payload["confidentiality_status"],
+                    payload.get("confidentiality_reason"),
+                    timestamp,
+                ),
+            )
+        connection.commit()
+
+    return confidentiality_id
+
+
+def fetch_case_confidentiality(
+    conversation_summary_id: int,
+) -> dict[str, Any] | None:
+    initialize_database()
+
+    rows = fetch_rows(
+        """
+        SELECT
+            id,
+            confidentiality_status,
+            confidentiality_reason,
+            created_at,
+            updated_at
+        FROM case_confidentiality
+        WHERE conversation_summary_id = %s
+        LIMIT 1
+        """,
+        (conversation_summary_id,),
+    )
+    return rows[0] if rows else None
+
+
+def update_case_confidentiality(
+    conversation_summary_id: int,
+    staff_account_id: int,
+    confidentiality_status: str,
+    confidentiality_reason: str | None,
+) -> bool:
+    """Update the current state and append a confidentiality history entry."""
+    initialize_database()
+
+    with _database_connection() as connection:
+        with connection.cursor() as cursor:
+            timestamp = current_time()
+            cursor.execute(
+                """
+                UPDATE case_confidentiality
+                SET staff_account_id = %s,
+                    confidentiality_status = %s,
+                    confidentiality_reason = %s,
+                    updated_at = %s
+                WHERE conversation_summary_id = %s
+                """,
+                (
+                    staff_account_id,
+                    confidentiality_status,
+                    confidentiality_reason,
+                    timestamp,
+                    conversation_summary_id,
+                ),
+            )
+            if cursor.rowcount != 1:
+                connection.rollback()
+                return False
+            cursor.execute(
+                """
+                INSERT INTO case_confidentiality_history (
+                    case_confidentiality_id,
+                    staff_account_id,
+                    confidentiality_status,
+                    confidentiality_reason,
+                    created_at
+                )
+                SELECT id, %s, %s, %s, %s
+                FROM case_confidentiality
+                WHERE conversation_summary_id = %s
+                """,
+                (
+                    staff_account_id,
+                    confidentiality_status,
+                    confidentiality_reason,
+                    timestamp,
+                    conversation_summary_id,
+                ),
+            )
+        connection.commit()
+
+    return True
+
+
+def list_case_confidentiality_history(
+    conversation_summary_id: int,
+) -> list[dict[str, Any]]:
+    initialize_database()
+
+    return fetch_rows(
+        """
+        SELECT
+            case_confidentiality_history.confidentiality_status,
+            case_confidentiality_history.confidentiality_reason,
+            case_confidentiality_history.created_at
+        FROM case_confidentiality_history
+        INNER JOIN case_confidentiality
+            ON case_confidentiality.id =
+               case_confidentiality_history.case_confidentiality_id
+        WHERE case_confidentiality.conversation_summary_id = %s
+        ORDER BY case_confidentiality_history.created_at ASC,
+                 case_confidentiality_history.id ASC
+        """,
+        (conversation_summary_id,),
     )
 
 def fetch_account_by_email(email: str) -> dict[str, Any] | None:
@@ -1078,6 +2546,7 @@ def get_student_by_id(
         """
         SELECT
             id,
+            full_name,
             program
         FROM accounts
         WHERE id = %s
