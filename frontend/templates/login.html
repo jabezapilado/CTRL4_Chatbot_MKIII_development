@@ -208,21 +208,11 @@
         notice.hidden = false;
       }
 
-      // Already logged in
-      const session = sessionStorage.getItem("hau_user");
-
-      if (session) {
-        const user = JSON.parse(session);
-
-        if (user.role === "staff") {
-          redirectToPage("/dashboard");
-        } else if (user.role === "admin") {
-          redirectToPage("/admin");
-        } else {
-          redirectToPage("/chatbot");
-        }
-      }
-
+      // Server-side CacheLib session state is authoritative. If this page was
+      // rendered, the frontend route has already established that no valid
+      // server session exists. Remove an outdated convenience copy so it
+      // cannot redirect this login page back to a protected route.
+      sessionStorage.removeItem("hau_user");
       showLoginNotice();
     </script>
   </body>
