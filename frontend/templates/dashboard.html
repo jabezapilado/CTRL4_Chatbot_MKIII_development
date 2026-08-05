@@ -974,111 +974,75 @@
           <div class="view" id="view-settings">
             <div class="settings-grid">
               <div class="settings-panel">
-                <h3>Guidance Office Information</h3>
+                <h3>Office Information</h3>
                 <p class="sub">
                   These details appear in chatbot responses for office-related
                   inquiries.
                 </p>
                 <div class="field-grid-2">
                   <div class="field-group">
-                    <label>Office Hours</label>
-                    <input value="Monday to Friday, 8:00 AM - 5:00 PM" />
+                    <label for="settings-office-hours">Office Hours</label>
+                    <input id="settings-office-hours" autocomplete="off" />
                   </div>
                   <div class="field-group">
-                    <label>Office Email</label>
-                    <input value="guidance@hau.edu.ph" />
+                    <label for="settings-office-email">Office Email</label>
+                    <input id="settings-office-email" type="email" autocomplete="email" />
                   </div>
                   <div class="field-group">
-                    <label>Contact Number</label>
-                    <input value="(045) 123-4567" />
+                    <label for="settings-contact-number">Contact Number</label>
+                    <input id="settings-contact-number" autocomplete="tel" />
                   </div>
                   <div class="field-group">
-                    <label>Office Location</label>
-                    <input value="SOC Guidance Office, Holy Angel University" />
+                    <label for="settings-office-location">Office Location</label>
+                    <input id="settings-office-location" autocomplete="off" />
                   </div>
                 </div>
               </div>
 
               <div class="settings-panel">
-                <h3>Escalation Settings</h3>
+                <h3>Appointment Availability</h3>
                 <p class="sub">
-                  Configure what happens when negative emotion is detected.
+                  Configure the office availability used for student and manual appointment requests.
                 </p>
                 <div class="toggle-row">
-                  <span>Auto-flag negative emotion</span>
-                  <input type="checkbox" checked />
+                  <label for="settings-booking-enabled">Appointment booking enabled</label>
+                  <input id="settings-booking-enabled" type="checkbox" />
                 </div>
-                <div class="toggle-row">
-                  <span>Show supportive message</span>
-                  <input type="checkbox" />
+                <div class="settings-list-section">
+                  <div class="settings-list-heading">
+                    <h4>Available Weekdays and Times</h4>
+                    <button class="btn btn-outline btn-sm" id="add-availability-window-btn" type="button">Add availability</button>
+                  </div>
+                  <div id="appointment-availability-windows"></div>
                 </div>
-                <div class="field-group" style="margin-top: 14px">
-                  <label>Escalation Message</label>
-                  <textarea>
-Your concern may need further attention from Guidance Office personnel. Please wait for proper assistance or contact the office directly if urgent.</textarea
-                  >
+                <div class="settings-list-section">
+                  <div class="settings-list-heading">
+                    <h4>Unavailable Dates</h4>
+                    <button class="btn btn-outline btn-sm" id="add-unavailable-date-btn" type="button">Add date</button>
+                  </div>
+                  <div id="appointment-unavailable-dates"></div>
+                </div>
+                <div class="field-group">
+                  <label for="settings-appointment-categories">Appointment Categories</label>
+                  <textarea id="settings-appointment-categories" rows="4" placeholder="One category per line"></textarea>
+                </div>
+                <div class="field-group">
+                  <label for="settings-consultation-modes">Consultation Modes</label>
+                  <textarea id="settings-consultation-modes" rows="3" placeholder="One mode per line"></textarea>
                 </div>
               </div>
             </div>
 
             <div class="settings-panel" style="margin-bottom: 18px">
-              <div
-                style="
-                  display: flex;
-                  align-items: center;
-                  justify-content: space-between;
-                  margin-bottom: 16px;
-                "
-              >
-                <div>
-                  <h3>FAQ Responses</h3>
-                  <p class="sub" style="margin-bottom: 0">
-                    Edit common inquiry responses used by the chatbot.
-                  </p>
-                </div>
-                <button
-                  class="btn btn-primary btn-sm"
-                  id="add-faq-btn"
-                  type="button"
-                >
-                  Add FAQ
-                </button>
-              </div>
-              <div class="faq-list">
-                <div class="faq-block">
-                  <div class="faq-block-header">
-                    <div class="faq-title">Office Hours</div>
-                    <div class="faq-q">What are your office hours?</div>
-                  </div>
-                  <div class="faq-block-body">
-                    <textarea>
-The SOC Guidance Office is open from Monday to Friday, 8:00 AM to 5:00 PM.</textarea
-                    >
-                  </div>
-                </div>
-                <div class="faq-block">
-                  <div class="faq-block-header">
-                    <div class="faq-title">Book Appointment</div>
-                    <div class="faq-q">How can I book an appointment?</div>
-                  </div>
-                  <div class="faq-block-body">
-                    <textarea>
-You may book an appointment by selecting the Book Appointment option and submitting your preferred date and reason for appointment.</textarea
-                    >
-                  </div>
-                </div>
-                <div class="faq-block">
-                  <div class="faq-block-header">
-                    <div class="faq-title">Counseling Services</div>
-                    <div class="faq-q">Can I speak with a counselor?</div>
-                  </div>
-                  <div class="faq-block-body">
-                    <textarea>
-Yes, you may request counseling assistance through the chatbot or visit the SOC Guidance Office during office hours.</textarea
-                    >
-                  </div>
-                </div>
-              </div>
+              <h3>Chatbot / FAQ Settings</h3>
+              <p class="sub">
+                Office information above is used for live operational answers. FAQ, safety, flagging, and escalation behavior are not staff-configurable.
+              </p>
+            </div>
+
+            <p id="settings-status" class="settings-status" role="status" aria-live="polite" hidden></p>
+            <div class="settings-actions">
+              <button class="btn btn-primary" id="save-settings-btn" type="button">Save Settings</button>
             </div>
 
             <div
@@ -1086,7 +1050,7 @@ Yes, you may request counseling assistance through the chatbot or visit the SOC 
               id="student-password-panel"
               style="margin-top: 18px"
             >
-              <h3>Change Password</h3>
+              <h3>Account Security</h3>
               <p class="sub">
                 Staff users can change only their own password. Account creation
                 and management remain administrator-only.

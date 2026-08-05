@@ -729,6 +729,61 @@ table.inquiry-table .table-empty-state {
   outline: none;
   transition: border-color 0.15s;
 }
+
+.settings-list-section {
+  margin-top: 18px;
+}
+
+.settings-list-heading,
+.appointment-availability-window,
+.appointment-unavailable-date,
+.settings-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-list-heading {
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.settings-list-heading h4 {
+  font-size: 12px;
+  color: var(--gray-700);
+}
+
+.appointment-availability-window,
+.appointment-unavailable-date {
+  margin-bottom: 8px;
+}
+
+.appointment-availability-window select,
+.appointment-availability-window input,
+.appointment-unavailable-date input {
+  min-width: 0;
+  flex: 1 1 180px;
+}
+
+.settings-status {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--gray-100);
+  color: var(--gray-700);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.settings-status.error {
+  background: #fff1f1;
+  color: #a61b1b;
+}
+
+.settings-status.success {
+  background: #effaf1;
+  color: #236a35;
+}
 .field-group input:focus,
 .field-group select:focus,
 .field-group textarea:focus {
@@ -1847,6 +1902,17 @@ table.inquiry-table .table-empty-state {
   }
   .appointment-calendar-event {
     padding: 6px;
+  }
+  .appointment-availability-window,
+  .appointment-unavailable-date,
+  .settings-list-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .appointment-availability-window .btn,
+  .appointment-unavailable-date .btn,
+  .settings-list-heading .btn {
+    width: 100%;
   }
 }
 

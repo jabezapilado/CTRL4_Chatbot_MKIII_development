@@ -528,6 +528,13 @@ body {
   color: #236a35;
 }
 
+.form-input:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+  background: #f4f1eb;
+  color: var(--text-muted);
+}
+
 .student-appointments-list {
   display: flex;
   flex-direction: column;

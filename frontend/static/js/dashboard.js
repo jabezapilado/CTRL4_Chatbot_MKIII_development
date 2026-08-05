@@ -24,54 +24,14 @@ let appointmentCalendarMonth = new Date(
 
 const views = document.querySelectorAll(".view");
 
-const settingsStorageKey = "hau_dashboard_settings";
-const defaultSettings = {
-  officeHours: "Monday to Friday, 8:00 AM - 5:00 PM",
-  officeEmail: "guidance@hau.edu.ph",
-  contactNumber: "(045) 123-4567",
-  officeLocation: "SOC Guidance Office, Holy Angel University",
-  autoFlag: true,
-  showSupport: false,
-  escalationMessage:
-    "Your concern may need further attention from Guidance Office personnel. Please wait for proper assistance or contact the office directly if urgent.",
-  faqs: [
-    {
-      title: "Office Hours",
-      question: "What are your office hours?",
-      answer:
-        "The SOC Guidance Office is open from Monday to Friday, 8:00 AM to 5:00 PM.",
-    },
-    {
-      title: "Book Appointment",
-      question: "How can I book an appointment?",
-      answer:
-        "You may book an appointment by selecting the Book Appointment option and submitting your preferred date and reason for appointment.",
-    },
-    {
-      title: "Counseling Services",
-      question: "Can I speak with a counselor?",
-      answer:
-        "Yes, you may request counseling assistance through the chatbot or visit the SOC Guidance Office during office hours.",
-    },
-  ],
-};
-
-function loadSettings() {
-  try {
-    const raw = localStorage.getItem(settingsStorageKey);
-    if (!raw) return { ...defaultSettings };
-    return { ...defaultSettings, ...JSON.parse(raw) };
-  } catch (error) {
-    console.error(error);
-    return { ...defaultSettings };
-  }
-}
+let persistedSettings = null;
+let appointmentBookingOptions = { state: "loading", bookingEnabled: false };
 
 async function fetchJson(url, options) {
   const response = await fetch(url, options);
   const data = await response.json();
   if (!response.ok) {
-    throw new Error(data.error || "Request failed");
+    throw new Error(data.message || data.error || "Request failed");
   }
   return data;
 }
@@ -253,6 +213,21 @@ function escapeHtml(value) {
 
 function escapeAppointmentText(value) {
   return escapeHtml(value);
+}
+
+function createFaqBlock(title, question, answer) {
+  const container = document.createElement("div");
+  container.className = "faq-block";
+  container.innerHTML = `
+    <div class="faq-block-header">
+      <div class="faq-title">${escapeHtml(title)}</div>
+      <div class="faq-q">${escapeHtml(question)}</div>
+    </div>
+    <div class="faq-block-body">
+      <textarea>${escapeHtml(answer || "")}</textarea>
+    </div>
+  `;
+  return container;
 }
 
 function getAppointmentCardText(appointment) {
@@ -1111,6 +1086,124 @@ function renderFlaggedAppointmentCases() {
   });
 }
 
+function humanizeAppointmentChoice(value) {
+  return String(value || "")
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function addChoiceOptions(select, choices, placeholder) {
+  if (!select) return;
+  select.replaceChildren();
+  const prompt = document.createElement("option");
+  prompt.value = "";
+  prompt.disabled = true;
+  prompt.selected = true;
+  prompt.textContent = placeholder;
+  select.appendChild(prompt);
+  choices.forEach((choice) => {
+    const option = document.createElement("option");
+    option.value = choice;
+    option.textContent = humanizeAppointmentChoice(choice);
+    select.appendChild(option);
+  });
+}
+
+function bookingOptionsAreAvailable(options) {
+  return options?.state === "available" && options.bookingEnabled === true;
+}
+
+function parseBookingTime(value) {
+  const match = String(value || "")
+    .trim()
+    .match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return null;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (hour < 1 || hour > 12 || minute > 59) return null;
+  return (hour % 12 + (match[3].toUpperCase() === "PM" ? 12 : 0)) * 60 + minute;
+}
+
+function dateMatchesBookingWindow(dateValue, window) {
+  const selectedDate = new Date(`${dateValue}T00:00:00`);
+  if (Number.isNaN(selectedDate.getTime())) return false;
+  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const selectedDay = days[selectedDate.getDay()];
+  const range = String(window.days || "").split(" to ");
+  if (range.length === 1) return range[0] === selectedDay;
+  const start = days.indexOf(range[0]);
+  const end = days.indexOf(range[1]);
+  const current = days.indexOf(selectedDay);
+  return start >= 0 && end >= start && current >= start && current <= end;
+}
+
+function isManualBookingSelectionAvailable(dateValue, timeValue, options) {
+  if (
+    !bookingOptionsAreAvailable(options) ||
+    options.unavailableDates?.includes(dateValue)
+  ) {
+    return false;
+  }
+  const requestedTime = parseBookingTime(timeValue);
+  if (requestedTime === null) return false;
+  return options.officeAvailability?.some((window) => {
+    if (!dateMatchesBookingWindow(dateValue, window)) return false;
+    const [start, end] = String(window.time || "").split(" - ");
+    const startTime = parseBookingTime(start);
+    const endTime = parseBookingTime(end);
+    return (
+      startTime !== null &&
+      endTime !== null &&
+      requestedTime >= startTime &&
+      requestedTime < endTime
+    );
+  });
+}
+
+async function refreshAppointmentBookingOptions() {
+  const response = await fetchJson(`${API_BASE}/api/appointments/booking-options`);
+  appointmentBookingOptions = response.data || {
+    state: "unconfigured",
+    bookingEnabled: false,
+  };
+  return appointmentBookingOptions;
+}
+
+function renderManualAppointmentOptions(container) {
+  const available = bookingOptionsAreAvailable(appointmentBookingOptions);
+  const date = container.querySelector("#manual-appointment-date");
+  const time = container.querySelector("#manual-appointment-time");
+  const mode = container.querySelector("#manual-appointment-mode");
+  const category = container.querySelector("#manual-appointment-category");
+  const status = container.querySelector("#manual-appointment-options-status");
+  const windows = appointmentBookingOptions.officeAvailability || [];
+
+  addChoiceOptions(
+    mode,
+    available ? appointmentBookingOptions.consultationModes || [] : [],
+    available ? "Select a consultation mode" : "Appointment configuration unavailable",
+  );
+  addChoiceOptions(
+    category,
+    available ? appointmentBookingOptions.appointmentCategories || [] : [],
+    available ? "Select an appointment category" : "Appointment configuration unavailable",
+  );
+  [date, time, mode, category].forEach((input) => {
+    if (input) input.disabled = !available;
+  });
+  if (time) {
+    time.placeholder = available
+      ? `Available: ${windows.map((window) => `${window.days}, ${window.time}`).join("; ")}`
+      : "Appointment configuration unavailable";
+  }
+  if (status) {
+    status.textContent = available
+      ? "Current appointment options loaded."
+      : "Appointment configuration is unavailable. Manual appointment creation is disabled.";
+    status.classList.toggle("error", !available);
+  }
+}
+
 function renderManualAppointmentEntry() {
   const container = document.getElementById(
     "manual-appointment-entry-container",
@@ -1187,40 +1280,22 @@ function renderManualAppointmentEntry() {
 
         <div class="field-group manual-entry-spaced">
           <label for="manual-appointment-time">Preferred Time</label>
-          <select id="manual-appointment-time">
-            <option value="">Select a preferred time slot</option>
-            <option value="8:00 AM">8:00 AM</option>
-            <option value="9:00 AM">9:00 AM</option>
-            <option value="10:00 AM">10:00 AM</option>
-            <option value="1:00 PM">1:00 PM</option>
-            <option value="2:00 PM">2:00 PM</option>
-            <option value="3:00 PM">3:00 PM</option>
-          </select>
+          <input id="manual-appointment-time" type="text" />
         </div>
 
         <div class="field-grid-2 manual-entry-spaced">
           <div class="field-group">
             <label for="manual-appointment-mode">Mode</label>
-            <select id="manual-appointment-mode">
-              <option value="onsite">Onsite</option>
-              <option value="online">Online</option>
-            </select>
+            <select id="manual-appointment-mode"></select>
           </div>
 
           <div class="field-group">
             <label for="manual-appointment-category">Category</label>
-            <select id="manual-appointment-category">
-              <option value="career_schooling">Career / Schooling</option>
-              <option value="home_family">Home and Family</option>
-              <option value="personality_development">Personality Development</option>
-              <option value="relationships">Relationships</option>
-              <option value="religion_spiritual">Religion / Spiritual Development</option>
-              <option value="health_recreation">Health and Recreation</option>
-              <option value="employment">Employment</option>
-              <option value="others">Others</option>
-            </select>
+            <select id="manual-appointment-category"></select>
           </div>
         </div>
+
+        <p id="manual-appointment-options-status" class="settings-status" role="status"></p>
 
         <div class="field-group manual-entry-spaced">
           <label for="manual-appointment-reason">Reason</label>
@@ -1341,10 +1416,15 @@ function renderManualAppointmentEntry() {
   const appointmentReasonInput = container.querySelector(
     "#manual-appointment-reason",
   );
+  renderManualAppointmentOptions(container);
 
   container
     .querySelector("#create-manual-appointment-btn")
     ?.addEventListener("click", () => {
+      if (!bookingOptionsAreAvailable(appointmentBookingOptions)) {
+        createToast("Appointment configuration is unavailable.", "info");
+        return;
+      }
       if (!selectedStudent) {
         createToast(
           "Select an existing student account before continuing.",
@@ -1368,6 +1448,18 @@ function renderManualAppointmentEntry() {
   container
     .querySelector("#save-manual-appointment-btn")
     ?.addEventListener("click", async () => {
+      let currentOptions;
+      try {
+        currentOptions = await refreshAppointmentBookingOptions();
+      } catch (error) {
+        createToast("Unable to load current appointment options.", "info");
+        return;
+      }
+      if (!bookingOptionsAreAvailable(currentOptions)) {
+        renderManualAppointmentOptions(container);
+        createToast("Appointment configuration is unavailable.", "info");
+        return;
+      }
       if (!appointmentDateInput.value) {
         createToast("Please select an appointment date.", "info");
         appointmentDateInput.focus();
@@ -1377,6 +1469,31 @@ function renderManualAppointmentEntry() {
       if (!appointmentTimeInput.value) {
         createToast("Please select an appointment time.", "info");
         appointmentTimeInput.focus();
+        return;
+      }
+
+      if (
+        !isManualBookingSelectionAvailable(
+          appointmentDateInput.value,
+          appointmentTimeInput.value,
+          currentOptions,
+        )
+      ) {
+        createToast(
+          "Select a date and time within the current appointment availability.",
+          "info",
+        );
+        return;
+      }
+
+      if (
+        !currentOptions.appointmentCategories.includes(
+          appointmentCategorySelect.value,
+        ) ||
+        !currentOptions.consultationModes.includes(appointmentModeSelect.value)
+      ) {
+        renderManualAppointmentOptions(container);
+        createToast("Appointment options changed. Select the current options.", "info");
         return;
       }
 
@@ -1633,130 +1750,179 @@ function createFlaggedAppointmentCaseCard(summary) {
   return card;
 }
 
-function createFaqBlock(title, question, answer) {
-  const container = document.createElement("div");
-  container.className = "faq-block";
-  container.innerHTML = `
-    <div class="faq-block-header">
-      <div class="faq-title">${escapeHtml(title)}</div>
-      <div class="faq-q">${escapeHtml(question)}</div>
-    </div>
-    <div class="faq-block-body">
-      <textarea>${escapeHtml(answer || "")}</textarea>
-    </div>
-  `;
-  return container;
+const AVAILABILITY_DAY_OPTIONS = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+  "Monday to Friday",
+  "Monday to Saturday",
+];
+
+function setSettingsStatus(message, type = "") {
+  const status = document.getElementById("settings-status");
+  if (!status) return;
+  status.textContent = message || "";
+  status.hidden = !message;
+  status.classList.remove("error", "success");
+  if (type) status.classList.add(type);
 }
 
-function getFaqPanel() {
-  const panel = Array.from(
-    document.querySelectorAll("#view-settings .settings-panel"),
-  ).find((panelEl) => {
-    const heading = panelEl.querySelector("h3");
-    return heading && heading.textContent.includes("FAQ Responses");
+function createAvailabilityWindow(window = {}) {
+  const row = document.createElement("div");
+  const days = document.createElement("select");
+  const time = document.createElement("input");
+  const remove = document.createElement("button");
+
+  row.className = "appointment-availability-window";
+  days.className = "form-control";
+  days.setAttribute("aria-label", "Available weekdays");
+  AVAILABILITY_DAY_OPTIONS.forEach((day) => {
+    const option = document.createElement("option");
+    option.value = day;
+    option.textContent = day;
+    days.appendChild(option);
   });
-  return panel || document.querySelector("#view-settings");
+  days.value = window.days || "Monday to Friday";
+  time.type = "text";
+  time.className = "form-control";
+  time.placeholder = "9:00 AM - 5:00 PM";
+  time.value = window.time || "";
+  time.setAttribute("aria-label", "Available time range");
+  remove.type = "button";
+  remove.className = "btn btn-outline btn-sm";
+  remove.dataset.removeAvailabilityWindow = "true";
+  remove.textContent = "Remove";
+  row.append(days, time, remove);
+  return row;
 }
 
-function getFaqListContainer(panel = getFaqPanel()) {
-  if (!panel) return null;
-  return panel.querySelector(".faq-list") || panel;
+function createUnavailableDate(value = "") {
+  const row = document.createElement("div");
+  const input = document.createElement("input");
+  const remove = document.createElement("button");
+
+  row.className = "appointment-unavailable-date";
+  input.type = "date";
+  input.className = "form-control";
+  input.value = value;
+  input.setAttribute("aria-label", "Unavailable appointment date");
+  remove.type = "button";
+  remove.className = "btn btn-outline btn-sm";
+  remove.dataset.removeUnavailableDate = "true";
+  remove.textContent = "Remove";
+  row.append(input, remove);
+  return row;
 }
 
-function appendFaqBlock(block, panel = getFaqPanel()) {
-  const list = getFaqListContainer(panel);
-  if (!block || !list) return false;
-  list.appendChild(block);
-  return true;
+function renderAvailabilityConfiguration(availability) {
+  const windows = document.getElementById("appointment-availability-windows");
+  const unavailableDates = document.getElementById("appointment-unavailable-dates");
+  if (!windows || !unavailableDates) return;
+
+  windows.replaceChildren();
+  unavailableDates.replaceChildren();
+  (availability?.officeAvailability || []).forEach((window) => {
+    windows.appendChild(createAvailabilityWindow(window));
+  });
+  const excludedDates = new Set([
+    ...(availability?.holidays || []),
+    ...(availability?.academicCalendarExclusions || []),
+    ...(availability?.unavailableDates || []),
+  ]);
+  [...excludedDates].sort().forEach((value) => {
+    unavailableDates.appendChild(createUnavailableDate(value));
+  });
+}
+
+function settingsChoices(id) {
+  return String(document.getElementById(id)?.value || "")
+    .split("\n")
+    .map((value) => value.trim())
+    .filter(Boolean);
 }
 
 function getSettingsSnapshot() {
-  const root = document.getElementById("view-settings");
-  if (!root) return { ...defaultSettings };
-
-  const inputs = root.querySelectorAll(".field-grid-2 .field-group input");
-  const toggles = root.querySelectorAll(".toggle-row input[type=checkbox]");
-  const escalationPanel = Array.from(
-    root.querySelectorAll(".settings-panel"),
-  ).find((panel) => {
-    const heading = panel.querySelector("h3");
-    return heading && heading.textContent.includes("Escalation");
-  });
+  const availabilityWindows = Array.from(
+    document.querySelectorAll(".appointment-availability-window"),
+    (row) => ({
+      days: row.querySelector("select")?.value || "",
+      time: row.querySelector("input")?.value || "",
+    }),
+  );
+  const unavailableDates = Array.from(
+    document.querySelectorAll(".appointment-unavailable-date input"),
+    (input) => input.value,
+  ).filter(Boolean);
 
   return {
-    officeHours: inputs[0]?.value || "",
-    officeEmail: inputs[1]?.value || "",
-    contactNumber: inputs[2]?.value || "",
-    officeLocation: inputs[3]?.value || "",
-    autoFlag: toggles[0]?.checked || false,
-    showSupport: toggles[1]?.checked || false,
-    escalationMessage:
-      escalationPanel?.querySelector("textarea")?.value ||
-      defaultSettings.escalationMessage,
-    faqs: Array.from(root.querySelectorAll(".faq-block")).map((block) => ({
-      title: block.querySelector(".faq-title")?.textContent?.trim() || "",
-      question: block.querySelector(".faq-q")?.textContent?.trim() || "",
-      answer: block.querySelector(".faq-block-body textarea")?.value || "",
-    })),
+    officeHours: document.getElementById("settings-office-hours")?.value || "",
+    officeEmail: document.getElementById("settings-office-email")?.value || "",
+    contactNumber: document.getElementById("settings-contact-number")?.value || "",
+    officeLocation: document.getElementById("settings-office-location")?.value || "",
+    appointmentAvailability: {
+      bookingEnabled: Boolean(
+        document.getElementById("settings-booking-enabled")?.checked,
+      ),
+      officeAvailability: availabilityWindows,
+      holidays: [],
+      academicCalendarExclusions: [],
+      unavailableDates,
+      appointmentCategories: settingsChoices("settings-appointment-categories"),
+      consultationModes: settingsChoices("settings-consultation-modes"),
+    },
   };
 }
 
-function saveSettingsToStorage(settings = getSettingsSnapshot(), toast = true) {
-  try {
-    localStorage.setItem(settingsStorageKey, JSON.stringify(settings));
-    fetch(`${API_BASE}/api/settings`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(settings),
-    }).catch((error) => console.error(error));
-    if (toast) createToast("Settings saved", "success");
-    return true;
-  } catch (error) {
-    console.error(error);
-    if (toast) createToast("Unable to save settings locally", "info");
-    return false;
-  }
+function renderPersistedSettings(settings) {
+  persistedSettings = settings || null;
+  const availability = settings?.appointmentAvailability || null;
+  const fields = {
+    "settings-office-hours": settings?.officeHours || "",
+    "settings-office-email": settings?.officeEmail || "",
+    "settings-contact-number": settings?.contactNumber || "",
+    "settings-office-location": settings?.officeLocation || "",
+    "settings-appointment-categories": (availability?.appointmentCategories || []).join("\n"),
+    "settings-consultation-modes": (availability?.consultationModes || []).join("\n"),
+  };
+  Object.entries(fields).forEach(([id, value]) => {
+    const input = document.getElementById(id);
+    if (input) input.value = value;
+  });
+  const bookingEnabled = document.getElementById("settings-booking-enabled");
+  if (bookingEnabled) bookingEnabled.checked = Boolean(availability?.bookingEnabled);
+  renderAvailabilityConfiguration(availability);
+  setSettingsStatus(
+    settings?.appointmentConfigurationState === "configured"
+      ? "Persisted settings loaded."
+      : "Appointment configuration is unconfigured. Booking is unavailable until it is saved with availability, categories, and modes.",
+    settings?.appointmentConfigurationState === "configured" ? "success" : "error",
+  );
 }
 
-function renderSettingsFromStorage() {
-  const root = document.getElementById("view-settings");
-  if (!root) return;
+async function loadPersistedSettings() {
+  const response = await fetchJson(`${API_BASE}/api/settings`);
+  renderPersistedSettings(response.data);
+}
 
-  const settings = loadSettings();
-  const inputs = root.querySelectorAll(".field-grid-2 .field-group input");
-  const toggles = root.querySelectorAll(".toggle-row input[type=checkbox]");
-  const escalationPanel = Array.from(
-    root.querySelectorAll(".settings-panel"),
-  ).find((panel) => {
-    const heading = panel.querySelector("h3");
-    return heading && heading.textContent.includes("Escalation");
-  });
-
-  if (inputs[0]) inputs[0].value = settings.officeHours;
-  if (inputs[1]) inputs[1].value = settings.officeEmail;
-  if (inputs[2]) inputs[2].value = settings.contactNumber;
-  if (inputs[3]) inputs[3].value = settings.officeLocation;
-
-  if (toggles[0]) toggles[0].checked = Boolean(settings.autoFlag);
-  if (toggles[1]) toggles[1].checked = Boolean(settings.showSupport);
-
-  if (escalationPanel) {
-    const textarea = escalationPanel.querySelector("textarea");
-    if (textarea) textarea.value = settings.escalationMessage;
-  }
-
-  const faqPanel = getFaqPanel();
-  if (faqPanel) {
-    const faqList = getFaqListContainer(faqPanel);
-    if (faqList) {
-      faqList.querySelectorAll(".faq-block").forEach((block) => block.remove());
-    }
-    settings.faqs.forEach((faq) => {
-      appendFaqBlock(
-        createFaqBlock(faq.title, faq.question, faq.answer),
-        faqPanel,
-      );
+async function saveSettingsToApi() {
+  setSettingsStatus("Saving settings...");
+  try {
+    const response = await fetchJson(`${API_BASE}/api/settings`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(getSettingsSnapshot()),
     });
+    await loadPersistedSettings();
+    setSettingsStatus(response.message || "Settings saved.", "success");
+    createToast("Settings saved", "success");
+    return true;
+  } catch (error) {
+    setSettingsStatus(error.message || "Unable to save settings.", "error");
+    return false;
   }
 }
 
@@ -1765,18 +1931,18 @@ function bindSettingsInteractions() {
   if (!root) return;
 
   root.addEventListener("click", (event) => {
-    const remove = event.target.closest(".chip-remove");
-    if (remove) {
-      const chip = remove.closest(".chip");
-      chip?.remove();
-      saveSettingsToStorage(undefined, false);
+    if (event.target.closest("#add-availability-window-btn")) {
+      document
+        .getElementById("appointment-availability-windows")
+        ?.appendChild(createAvailabilityWindow());
     }
-  });
-
-  root.addEventListener("input", (event) => {
-    if (event.target.matches("input, textarea, select")) {
-      saveSettingsToStorage(undefined, false);
+    if (event.target.closest("#add-unavailable-date-btn")) {
+      document
+        .getElementById("appointment-unavailable-dates")
+        ?.appendChild(createUnavailableDate());
     }
+    event.target.closest("[data-remove-availability-window]")?.parentElement?.remove();
+    event.target.closest("[data-remove-unavailable-date]")?.parentElement?.remove();
   });
 }
 
@@ -1996,7 +2162,7 @@ function goBack() {
 }
 
 async function saveSettings() {
-  return saveSettingsToStorage(getSettingsSnapshot());
+  return saveSettingsToApi();
 }
 
 function showDashboardSection(viewId, sectionId) {
@@ -3865,16 +4031,29 @@ async function loadBackendData() {
   }
 
   try {
-    const settings = await fetchJson(`${API_BASE}/api/settings`);
-    localStorage.setItem(settingsStorageKey, JSON.stringify(settings));
+    await loadPersistedSettings();
   } catch (error) {
     console.error(error);
+    renderPersistedSettings(null);
+    setSettingsStatus("Unable to load persisted settings.", "error");
+  }
+
+  try {
+    const bookingOptions = await fetchJson(
+      `${API_BASE}/api/appointments/booking-options`,
+    );
+    appointmentBookingOptions = bookingOptions.data || {
+      state: "unconfigured",
+      bookingEnabled: false,
+    };
+  } catch (error) {
+    console.error(error);
+    appointmentBookingOptions = { state: "unconfigured", bookingEnabled: false };
   }
 
   renderAllTables();
   updateFlaggedCount();
   renderConversationSummaries();
-  renderSettingsFromStorage();
   renderReports();
   renderAppointmentDashboard();
 }
@@ -3907,33 +4086,6 @@ bindDashboardOverviewNavigation();
 bindDashboardSectionNavigation();
 loadBackendData();
 
-async function addFaqFromButton() {
-  const title = await showPrompt(
-    "FAQ Title",
-    "Short title (e.g. Office Hours)",
-  );
-  if (!title) return;
-  const question = await showPrompt(
-    "FAQ Question",
-    "Example: What are your office hours?",
-  );
-  if (!question) return;
-  const answer = await showPrompt("FAQ Answer", "Answer text", true);
-  const container = createFaqBlock(title, question, answer);
-  const faqPanel = getFaqPanel();
-  if (appendFaqBlock(container, faqPanel)) {
-    createToast("FAQ added", "success");
-    saveSettingsToStorage(undefined, false);
-  } else {
-    createToast("Unable to add FAQ right now", "info");
-  }
-}
-
-// Add FAQ button
-document
-  .getElementById("add-faq-btn")
-  ?.addEventListener("click", addFaqFromButton);
-
 // Save settings button in the UI
 document
   .getElementById("save-settings-btn")
@@ -3942,4 +4094,3 @@ document
 window.saveSettings = saveSettings;
 window.goBack = goBack;
 window.logout = window.logout || logout;
-window.addFaqFromButton = addFaqFromButton;

@@ -74,11 +74,13 @@
               <label class="form-label" for="rescheduleTime">
                 New Preferred Time Slot
               </label>
-              <select
+              <input
+                type="text"
                 id="rescheduleTime"
                 class="form-input form-select"
+                placeholder="Choose a time within the configured availability"
                 required
-              ></select>
+              />
             </div>
           </div>
           <p
@@ -157,12 +159,6 @@
             </div>
 
             <!-- Row 3: Preferred Date + Time -->
-            <!--
-          Temporary hardcoded values.
-
-          These values shall eventually be loaded dynamically
-          from Staff Appointment Settings (Sprint 8).
-          -->
             <div class="form-row">
               <div class="form-group">
                 <label class="form-label" for="prefDate">Preferred Date</label>
@@ -180,38 +176,19 @@
                   Preferred Time Slot
                 </label>
 
-                <select
+                <input
+                  type="text"
                   id="prefTime"
                   name="prefTime"
                   class="form-input form-select"
+                  placeholder="Loading appointment availability..."
                   aria-required="true"
-                >
-                  <option value="" disabled selected>
-                    Select a preferred time slot
-                  </option>
-
-                  <option value="08:00 AM">8:00 AM</option>
-
-                  <option value="09:00 AM">9:00 AM</option>
-
-                  <option value="10:00 AM">10:00 AM</option>
-
-                  <option value="01:00 PM">1:00 PM</option>
-
-                  <option value="02:00 PM">2:00 PM</option>
-
-                  <option value="03:00 PM">3:00 PM</option>
-                </select>
+                  disabled
+                />
                 <span class="error-msg" id="prefTime-error"> </span>
               </div>
             </div>
             <!-- Appointment Category -->
-            <!--
-          Temporary hardcoded values.
-
-          These values shall eventually be loaded dynamically
-          from Staff Appointment Settings (Sprint 8).
-          -->
 
             <div class="form-group full-width">
               <label class="form-label" for="appointmentCategory">
@@ -225,39 +202,14 @@
                 aria-required="true"
               >
                 <option value="" disabled selected>
-                  Select appointment category
+                  Loading appointment categories...
                 </option>
-
-                <option value="home_family">Home and Family</option>
-
-                <option value="relationships">
-                  Relationships with Peers/Opposite Sex
-                </option>
-
-                <option value="personality">Personality Development</option>
-
-                <option value="career_schooling">Career/Schooling</option>
-
-                <option value="religion">Religion/Spiritual Development</option>
-
-                <option value="health">Health and Recreation</option>
-
-                <option value="employment">Employment</option>
-
-                <option value="others">Others</option>
               </select>
 
               <span class="error-msg" id="appointmentCategory-error"> </span>
             </div>
 
             <!-- Appointment Mode -->
-            <!--
-          Temporary hardcoded values.
-
-          These values shall eventually be loaded dynamically
-          from Staff Appointment Settings (Sprint 8).
-          -->
-
             <div class="form-group full-width">
               <label class="form-label" for="appointmentMode">
                 Appointment Mode
@@ -270,12 +222,8 @@
                 aria-required="true"
               >
                 <option value="" disabled selected>
-                  Select appointment mode
+                  Loading consultation modes...
                 </option>
-
-                <option value="online">Online</option>
-
-                <option value="onsite">Onsite</option>
               </select>
 
               <span class="error-msg" id="appointmentMode-error"> </span>
@@ -296,6 +244,13 @@
               ></textarea>
               <span class="error-msg" id="reason-error"></span>
             </div>
+            <p
+              class="student-appointment-message"
+              id="bookingOptionsMessage"
+              role="status"
+              aria-live="polite"
+              hidden
+            ></p>
             <!-- Reminder Banner -->
             <div class="reminder-banner" role="note">
               <span class="reminder-dot"></span>
