@@ -43,6 +43,7 @@ from .conversation_topic import ConversationTopic
 from .response_validator import ResponseValidator
 from .response_safety_service import ResponseSafetyService
 from .conversation_history import normalize_conversation_history
+from .operational_guidance_service import OperationalGuidanceService
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +97,7 @@ class AIService:
         topic_classifier: TopicService | None = None,
         metadata_extractor: MetadataExtractionService | None = None,
         response_safety: ResponseSafetyService | None = None,
+        operational_guidance: OperationalGuidanceService | None = None,
     ):
 
         self.safety = safety or SafetyService()
@@ -121,6 +123,8 @@ class AIService:
         self.response_validator = ResponseValidator()
 
         self.response_safety = response_safety or ResponseSafetyService()
+
+        self.operational_guidance = operational_guidance or OperationalGuidanceService()
     
     def generate_text(
         self,
@@ -459,6 +463,7 @@ class AIService:
         self,
         message: str,
         conversation: list[dict] | None = None,
+        user: dict | None = None,
     ) -> ChatResponse:
 
         if conversation is None:
@@ -567,6 +572,39 @@ class AIService:
                 conversation_state.value,
                 conversation_topic.value,
             )
+
+            # Live operational answers are source-owned configuration, not RAG
+            # context or provider prior knowledge. Safety remains active before
+            # the deterministic response is returned.
+            operational_answer = self.operational_guidance.answer(message, user)
+            if operational_answer is not None:
+                response_safety = self.response_safety.validate(
+                    operational_answer.response,
+                    [operational_answer],
+                )
+                response = (
+                    response_safety.replacement
+                    if not response_safety.allowed and response_safety.replacement
+                    else operational_answer.response
+                )
+                return ChatResponse(
+                    success=True,
+                    response=response,
+                    emotion=emotion.emotion,
+                    sentiment=emotion.sentiment,
+                    language=language.language,
+                    topic=conversation_topic.value,
+                    state=conversation_state.value,
+                    escalated=(
+                        safety.should_escalate
+                        or emotion.normalized_emotion in {"crisis", "distressed"}
+                    ),
+                    confidence=emotion.confidence,
+                    intent=intent,
+                    normalized_emotion=emotion.normalized_emotion,
+                    normalized_topic=normalized_topic,
+                    metadata=metadata.to_dict(),
+                )
 
             # -----------------------------------------
             # Knowledge Retrieval

@@ -1,12 +1,7 @@
 /* ─────────────────────────────────────────
    chat.js — SOC Guidance Office Chatbot
-   Frontend logic: messaging, rule-based
-   responses, emotion badges, escalation.
-
-   NOTE: Replace the local response simulation with a POST
-   call to your Flask `/chat` route. That route should load and
-   run your local model, returning JSON with response text,
-   emotion classification, and escalation status.
+   Frontend logic: messaging, bounded server-owned continuity,
+   emotion badges, and escalation display.
 ───────────────────────────────────────── */
 
 let currentTopic = "";
@@ -31,7 +26,6 @@ sessionStorage.removeItem("current_escalation");
 const chatArea = document.getElementById("chat-area");
 
 const input = document.getElementById("msg-input");
-const qrBar = document.getElementById("quick-replies");
 const API_BASE = window.location.origin;
 
 function serializeChat() {
@@ -183,73 +177,6 @@ function removeTypingIndicator() {
   if (el) el.remove();
 }
 
-const rules = [
-  {
-    pattern: /office hour|open|schedule|when|time/i,
-    response:
-      "The SOC Guidance Office is open <strong>Monday to Friday, 8:00 AM – 5:00 PM</strong>. We are closed on weekends and public holidays.",
-    emotion: "neutral",
-  },
-  {
-    pattern: /appoint|book|schedule a meet|consult|visit/i,
-    response:
-      "To book an appointment, you may visit the SOC Guidance Office personally or send an email to <strong>soc.guidance@hau.edu.ph</strong>. Walk-in consultations are also welcome during office hours.",
-    emotion: "neutral",
-  },
-  {
-    pattern:
-      /counsel|therapy|mental health|stress|anxious|anxiety|depress|sad|overwhelm|hopeless/i,
-    response:
-      "We're here for you. Our counselors provide a safe and confidential space to talk about what you're going through.",
-    emotion: "negative",
-    escalate: true,
-  },
-  {
-    pattern: /bully|harass|abuse|threat|hurt|unsafe|scared|afraid|danger/i,
-    response:
-      "Thank you for reaching out. Your safety and wellbeing matter to us. Please know you are not alone.",
-    emotion: "negative",
-    escalate: true,
-  },
-  {
-    pattern: /document|clearance|certification|record|form/i,
-    response:
-      "For document requests, please visit the SOC Guidance Office and fill out the appropriate request form. Processing typically takes <strong>3–5 working days</strong>.",
-    emotion: "neutral",
-  },
-  {
-    pattern:
-      /frustrat|disappoint|angry|upset|unfair|no one help|nobody|ignored/i,
-    response:
-      "I'm sorry to hear you're feeling this way. Let me connect you with one of our counselors who can give you the proper attention you deserve.",
-    emotion: "negative",
-    escalate: true,
-  },
-  {
-    pattern: /contact|email|phone|reach|how to/i,
-    response:
-      "You may reach the SOC Guidance Office at <strong>soc.guidance@hau.edu.ph</strong> or visit us at the School of Computing building during office hours.",
-    emotion: "neutral",
-  },
-  {
-    pattern: /classmate|friend|concern|report|problem with/i,
-    response:
-      "Thank you for bringing this to our attention. Please provide more details about your concern so we can assist you better.",
-    emotion: "neutral",
-  },
-];
-
-function getResponse(text) {
-  for (const rule of rules) {
-    if (rule.pattern.test(text)) return rule;
-  }
-  return {
-    response:
-      "Thank you for reaching out to the SOC Guidance Office. Your message has been received. For specific concerns, you may also visit us during office hours or email <strong>soc.guidance@hau.edu.ph</strong>.",
-    emotion: "neutral",
-  };
-}
-
 // ─────────────────────────────
 // SEND MESSAGE
 // ─────────────────────────────
@@ -261,9 +188,6 @@ function sendMessage() {
   // Clear input
   input.value = "";
   input.style.height = "auto";
-
-  // Hide quick replies after first message
-  qrBar.style.display = "none";
 
   // Show user message
   appendUserMessage(text);
@@ -385,12 +309,13 @@ async function finalizeConversation({ resetUI = true } = {}) {
     currentFlagged = false;
 
     if (resetUI) {
-      chatArea.innerHTML = "";
+      chatArea.innerHTML = `
+        <div class="date-divider">
+          <span>Today</span>
+        </div>`;
       input.value = "";
       input.style.height = "auto";
       input.placeholder = "Type your message here...";
-
-      qrBar.style.removeProperty("display");
 
       initializeChat();
       resetInactivityTimer();
@@ -427,8 +352,40 @@ const WELCOME_MESSAGE = `Hello, ${firstName}! Welcome to CTRL4.
 I'm your AI Guidance Assistant, here to support you with personal concerns, academic challenges, and questions about Guidance Office services.
 Take your time—what would you like to talk about today?`;
 
-function initializeChat() {
+function loadActiveChat() {
+  try {
+    const state = document.getElementById("active-chat-state");
+    const items = state ? JSON.parse(state.textContent || "[]") : [];
+    return Array.isArray(items) ? items : [];
+  } catch (_) {
+    // The server remains authoritative. Malformed page state starts a new
+    // visible exchange without writing protected content to browser storage.
+    return [];
+  }
+}
+
+function restoreVisibleChat(items) {
+  items.forEach((item) => {
+    if (!item || typeof item.text !== "string") return;
+    if (item.from === "user") {
+      appendUserMessage(item.text);
+    } else if (item.from === "bot") {
+      appendBotMessage(item.text);
+    }
+  });
+}
+
+async function initializeChat() {
   input.disabled = true;
+
+  const activeChat = loadActiveChat();
+  if (activeChat.length > 0) {
+    restoreVisibleChat(activeChat);
+    input.disabled = false;
+    input.focus();
+    resetInactivityTimer();
+    return;
+  }
 
   // Show typing indicator
   showTypingIndicator();
@@ -445,7 +402,14 @@ function initializeChat() {
   }, typingDelay);
 }
 
-document.addEventListener("DOMContentLoaded", initializeChat);
+document.querySelectorAll("[data-quick-message]").forEach((button) => {
+  button.addEventListener("click", () => sendQuick(button.dataset.quickMessage || ""));
+});
+document.getElementById("send-message")?.addEventListener("click", sendMessage);
+
+window.sendMessage = sendMessage;
+window.sendQuick = sendQuick;
+document.addEventListener("DOMContentLoaded", initializeChat, { once: true });
 window.addEventListener("beforeunload", () => {
   clearTimeout(inactivityTimer);
 });

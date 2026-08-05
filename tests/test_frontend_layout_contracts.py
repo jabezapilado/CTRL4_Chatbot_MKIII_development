@@ -61,6 +61,7 @@ class FrontendLayoutContractTests(unittest.TestCase):
 
     def test_chat_message_pane_keeps_footer_controls_in_the_flex_layout(self) -> None:
         template = _read("frontend/templates/chatbot.html")
+        chat = _read("frontend/static/js/chat.js")
         stylesheet = _read("frontend/static/css/chatbot.css")
 
         self.assertIn('id="chat-area"', template)
@@ -69,6 +70,15 @@ class FrontendLayoutContractTests(unittest.TestCase):
         self.assertIn(".chat-area {\n  flex: 1;\n  min-height: 0;", stylesheet)
         self.assertIn(".quick-replies {\n  display: flex;", stylesheet)
         self.assertIn("height: 100dvh;", stylesheet)
+        self.assertIn("data-quick-message", template)
+        self.assertNotIn("qrBar.style.display", chat)
+        self.assertIn('id="active-chat-state"', template)
+        self.assertIn('document.getElementById("active-chat-state")', chat)
+        self.assertIn("restoreVisibleChat(activeChat)", chat)
+        self.assertNotIn("localStorage.setItem", chat)
+        self.assertNotIn("sessionStorage.setItem", chat)
+        self.assertIn('transient_chat_service.clear(getattr(session, "sid", ""), user.get("id"))', _read("backend/server/auth.py"))
+        self.assertIn('response.headers["Cache-Control"] = "no-store"', _read("backend/server/routes/frontend_routes.py"))
 
 
 if __name__ == "__main__":

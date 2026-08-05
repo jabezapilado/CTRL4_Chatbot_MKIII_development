@@ -4,7 +4,7 @@ import json
 import re
 from hashlib import sha256
 from datetime import date, datetime, time, timedelta
-from typing import Any
+from typing import Any, Iterable
 
 from typing import Final
 
@@ -2896,6 +2896,40 @@ def load_settings() -> dict[str, Any]:
             settings[key] = value
 
     return settings
+
+
+def load_persisted_settings(setting_keys: Iterable[str]) -> dict[str, Any]:
+    """Return only explicitly persisted setting values for internal services."""
+
+    keys = tuple(
+        dict.fromkeys(
+            str(key).strip()
+            for key in setting_keys
+            if str(key).strip()
+        )
+    )
+    if not keys:
+        return {}
+
+    initialize_database()
+    placeholders = ", ".join(["%s"] * len(keys))
+    with _database_connection() as connection:
+        with connection.cursor(dictionary=True) as cursor:
+            cursor.execute(
+                f"""
+                SELECT setting_key, setting_value
+                FROM settings
+                WHERE setting_key IN ({placeholders})
+                """,
+                keys,
+            )
+            rows = cursor.fetchall()
+
+    return {
+        str(row["setting_key"]): row["setting_value"]
+        for row in rows
+        if row.get("setting_key") is not None
+    }
 
 
 def save_settings(settings: dict[str, Any]) -> None:

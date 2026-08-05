@@ -36,3 +36,5 @@ async function logout() {
 window.getLoginUrl = getLoginUrl;
 window.requireAuth = requireAuth;
 window.logout = logout;
+
+document.getElementById("chat-logout-btn")?.addEventListener("click", logout);

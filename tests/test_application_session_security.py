@@ -100,6 +100,50 @@ class ApplicationSessionSecurityTests(unittest.TestCase):
             302,
         )
 
+    def test_logout_clears_server_owned_active_chat_before_session_invalidation(self) -> None:
+        from backend.server import auth
+
+        with self.client.session_transaction() as browser_session:
+            browser_session["hau_user"] = {
+                "id": 72,
+                "email": "student72@example.test",
+                "role": "student",
+            }
+
+        with patch.object(auth.transient_chat_service, "clear") as clear_active_chat:
+            response = self.client.post("/auth/logout", base_url="https://localhost")
+
+        self.assertEqual(response.status_code, 200)
+        clear_active_chat.assert_called_once()
+        self.assertEqual(clear_active_chat.call_args.args[1], 72)
+        self.assertEqual(
+            self.client.get("/chatbot", base_url="https://localhost").status_code,
+            302,
+        )
+
+    def test_student_chat_page_reads_only_bounded_server_owned_state_without_browser_cache(self) -> None:
+        from backend.server.routes import frontend_routes
+
+        with self.client.session_transaction() as browser_session:
+            browser_session["hau_user"] = {
+                "id": 73,
+                "email": "student73@example.test",
+                "role": "student",
+            }
+
+        with patch.object(
+            frontend_routes.transient_chat_service,
+            "get_visible_history",
+            return_value=[{"from": "user", "text": "Current session message"}],
+        ) as get_visible_history:
+            response = self.client.get("/chatbot", base_url="https://localhost")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers.get("Cache-Control"), "no-store")
+        self.assertIn(b'id="active-chat-state"', response.data)
+        self.assertIn(b"Current session message", response.data)
+        self.assertEqual(get_visible_history.call_args.args[1], 73)
+
 
 if __name__ == "__main__":
     unittest.main()

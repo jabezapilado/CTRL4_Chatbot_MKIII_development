@@ -4,7 +4,7 @@ from flask import Blueprint, jsonify, request, session
 
 from ..request_validation import require_login
 
-from ..services import ai_service
+from ..services import ai_service, transient_chat_service
 from ..services.conversation_service import (
     determine_escalation_reason,
     finalize_conversation,
@@ -16,6 +16,12 @@ logger = logging.getLogger(__name__)
 
 _ESCALATION_SESSION_KEY = "conversation_escalated"
 _ESCALATION_REASON_SESSION_KEY = "conversation_escalation_reason"
+
+
+def _opaque_session_id() -> str:
+    """Return the server-side session identifier without exposing it to clients."""
+
+    return str(getattr(session, "sid", "") or "").strip()
 
 chatbot_bp = Blueprint(
     "chatbot",
@@ -49,12 +55,16 @@ def chat():
         ), 400
 
     try:
+        prior_history = transient_chat_service.prior_history(
+            _opaque_session_id(),
+            user.get("id"),
+            payload.get("conversation", []),
+            message,
+        )
         result = ai_service.respond(
             message=message,
-            conversation=payload.get(
-                "conversation",
-                [],
-            ),
+            conversation=prior_history,
+            user=user,
         )
 
         logger.info(
@@ -80,6 +90,13 @@ def chat():
             account_id=user["id"],
             emotion=result.emotion,
             escalated=result.escalated,
+        )
+        transient_chat_service.record_exchange(
+            _opaque_session_id(),
+            user.get("id"),
+            prior_history,
+            message,
+            result.response,
         )
 
         should_escalate = should_escalate_conversation(
@@ -139,7 +156,10 @@ def finalize_chat():
             }
         ), 401
 
-    conversation = payload.get("conversation", [])
+    conversation = transient_chat_service.get_visible_history(
+        _opaque_session_id(),
+        user.get("id"),
+    ) or payload.get("conversation", [])
 
     if not conversation:
         return jsonify(
@@ -162,6 +182,7 @@ def finalize_chat():
         )
         session.pop(_ESCALATION_SESSION_KEY, None)
         session.pop(_ESCALATION_REASON_SESSION_KEY, None)
+        transient_chat_service.clear(_opaque_session_id(), user.get("id"))
 
         return jsonify(
             {

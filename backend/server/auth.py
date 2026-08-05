@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 
 from flask import Blueprint, current_app, jsonify, request, session
+from .services import transient_chat_service
 from .services.account_service import login_service
 
 
@@ -95,6 +96,10 @@ def logout():
                 "errors": None,
             }
         ), 401
+    # The visible exchange is deliberately server-owned and tied to the opaque
+    # session identifier. Remove it before clearing the session so a new login
+    # cannot recover a prior authenticated session's chat.
+    transient_chat_service.clear(getattr(session, "sid", ""), user.get("id"))
     session.clear()
     if user:
         logger.info("Authenticated session cleared.")

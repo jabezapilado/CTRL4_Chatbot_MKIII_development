@@ -1,5 +1,14 @@
 import logging
-from flask import Blueprint, current_app, render_template, request, jsonify, redirect
+from flask import (
+    Blueprint,
+    current_app,
+    render_template,
+    request,
+    jsonify,
+    redirect,
+    session,
+    make_response,
+)
 
 from ..auth import get_logged_in_user, role_landing_path
 from ..request_validation import (
@@ -7,6 +16,7 @@ from ..request_validation import (
     ROLE_STAFF,
     ROLE_STUDENT,
 )
+from ..services import transient_chat_service
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +35,16 @@ def login():
 
 @frontend_bp.get("/chatbot")
 def chatbot():
-    return render_template("chatbot.html")
+    user = get_logged_in_user() or {}
+    active_chat = []
+    if str(user.get("role", "")).lower() == ROLE_STUDENT:
+        active_chat = transient_chat_service.get_visible_history(
+            getattr(session, "sid", ""),
+            user.get("id"),
+        )
+    response = make_response(render_template("chatbot.html", active_chat=active_chat))
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @frontend_bp.get("/case-status")

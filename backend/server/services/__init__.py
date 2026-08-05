@@ -26,6 +26,8 @@ from .intent_service import IntentService
 from .topic_service import TopicService
 from .metadata_service import MetadataExtractionService
 from .response_safety_service import ResponseSafetyService
+from .operational_guidance_service import OperationalGuidanceService
+from .transient_chat_service import TransientChatService
 from .ai_service import AIService
 from .summary_service import SummaryService
 
@@ -49,6 +51,8 @@ try:
     topic_service = TopicService()
     metadata_service = MetadataExtractionService()
     response_safety_service = ResponseSafetyService()
+    operational_guidance_service = OperationalGuidanceService()
+    transient_chat_service = TransientChatService()
 
     # --------------------------------------------------
     # Main AI Orchestrator
@@ -61,6 +65,7 @@ try:
         topic_classifier=topic_service,
         metadata_extractor=metadata_service,
         response_safety=response_safety_service,
+        operational_guidance=operational_guidance_service,
         language=language_service,
         emotion=emotion_service,
         rag=rag_service,
@@ -140,6 +145,8 @@ __all__ = [
     "topic_service",
     "metadata_service",
     "response_safety_service",
+    "operational_guidance_service",
+    "transient_chat_service",
     "ai_service",
     "summary_service",
     "get_service_status",

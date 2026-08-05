@@ -26,7 +26,7 @@
 
             <a class="btn btn-outline" href="/case-status">Case Status</a>
 
-            <button class="btn btn-outline" type="button" onclick="logout()">
+            <button class="btn btn-outline" type="button" id="chat-logout-btn">
               Logout
             </button>
           </div>
@@ -44,28 +44,19 @@
 
       <!-- QUICK REPLIES -->
       <div class="quick-replies" id="quick-replies">
-        <button
-          class="qr-btn"
-          onclick="sendQuick('What are your office hours?')"
-        >
+        <button class="qr-btn" type="button" data-quick-message="What are your office hours?">
           Office Hours
         </button>
 
-        <button
-          class="qr-btn"
-          onclick="sendQuick('How do I book an appointment?')"
-        >
+        <button class="qr-btn" type="button" data-quick-message="How do I book an appointment?">
           Book Appointment
         </button>
 
-        <button class="qr-btn" onclick="sendQuick('I need counseling support')">
+        <button class="qr-btn" type="button" data-quick-message="I need counseling support">
           Counseling
         </button>
 
-        <button
-          class="qr-btn"
-          onclick="sendQuick('I have a concern about a classmate')"
-        >
+        <button class="qr-btn" type="button" data-quick-message="I have a concern about a classmate">
           Report Concern
         </button>
       </div>
@@ -83,7 +74,7 @@
 
         <button
           class="send-btn"
-          onclick="sendMessage()"
+          id="send-message"
           aria-label="Send message"
         >
           <svg
@@ -106,6 +97,7 @@
     <script src="/static/js/notifications.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
+    <script id="active-chat-state" type="application/json">{{ active_chat|tojson }}</script>
 
     <script src="/static/js/chat.js"></script>
   </body>

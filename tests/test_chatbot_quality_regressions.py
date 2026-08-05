@@ -27,6 +27,10 @@ def _load_service_module(name: str) -> types.ModuleType:
         services_package.__path__ = [str(SERVICES_DIR)]
         config = types.ModuleType("chatbot_quality_test.server.config")
         config.Config = object
+        db = types.ModuleType("chatbot_quality_test.server.db")
+        db.get_staff_by_program = lambda _program: None
+        db.get_student_by_id = lambda _account_id: None
+        db.load_persisted_settings = lambda _keys: {}
         providers = types.ModuleType("chatbot_quality_test.server.llm_providers")
         providers.BaseProvider = object
         providers.GeminiProvider = object
@@ -36,6 +40,7 @@ def _load_service_module(name: str) -> types.ModuleType:
         sys.modules[server_package.__name__] = server_package
         sys.modules[services_package.__name__] = services_package
         sys.modules[config.__name__] = config
+        sys.modules[db.__name__] = db
         sys.modules[providers.__name__] = providers
 
     return importlib.import_module(f"{PACKAGE}.{name}")
@@ -54,6 +59,9 @@ ResponseSafetyService = _load_service_module(
     "response_safety_service"
 ).ResponseSafetyService
 ResponseValidator = _load_service_module("response_validator").ResponseValidator
+OperationalGuidanceService = _load_service_module(
+    "operational_guidance_service"
+).OperationalGuidanceService
 SafetyResult = _load_service_module("safety_service").SafetyResult
 SafetyService = _load_service_module("safety_service").SafetyService
 TopicService = _load_service_module("topic_service").TopicService
@@ -131,6 +139,7 @@ def _service(
     safety: object | None = None,
     rag: object | None = None,
     response_safety: object | None = None,
+    operational_guidance: object | None = None,
 ) -> AIService:
     return AIService(
         safety=safety or _Safety(),
@@ -143,6 +152,7 @@ def _service(
         topic_classifier=TopicService(),
         metadata_extractor=_Metadata(),
         response_safety=response_safety or _AllowResponses(),
+        operational_guidance=operational_guidance,
     )
 
 
@@ -194,6 +204,100 @@ class ResponseValidationRegressionTests(unittest.TestCase):
 
 
 class ConversationHistoryRegressionTests(unittest.TestCase):
+    def test_live_office_hours_bypass_rag_and_provider_prior_knowledge(self) -> None:
+        settings = {"officeHours": "Monday to Friday, 9:00 AM to 4:00 PM"}
+        operational = OperationalGuidanceService(
+            load_settings=lambda _keys: settings,
+            fetch_student=lambda _account_id: {"program": "BSCS"},
+            fetch_staff_for_program=lambda _program: None,
+        )
+        llm = _CapturingLlm(["An unrelated provider answer that must not be used."])
+        rag = _RetrievedRag([SimpleNamespace(source="legacy.md", text="Wrong hours")])
+
+        result = _service(
+            llm,
+            rag=rag,
+            operational_guidance=operational,
+            response_safety=_AllowResponses(),
+        ).respond("What are your office hours?", user={"id": 7, "role": "student"})
+
+        self.assertEqual(
+            result.response,
+            "The current SOC Guidance Office hours are: Monday to Friday, 9:00 AM to 4:00 PM.",
+        )
+        self.assertEqual(llm.prompts, [])
+        self.assertEqual(rag.queries, [])
+
+    def test_missing_live_operational_setting_is_never_filled_by_provider_or_rag(self) -> None:
+        operational = OperationalGuidanceService(
+            load_settings=lambda _keys: {},
+            fetch_student=lambda _account_id: {"program": "BSCS"},
+            fetch_staff_for_program=lambda _program: None,
+        )
+        llm = _CapturingLlm(["Invented office hours."])
+
+        result = _service(
+            llm,
+            operational_guidance=operational,
+            response_safety=_AllowResponses(),
+        ).respond("What are your office hours?", user={"id": 7, "role": "student"})
+
+        self.assertIn("not currently configured", result.response)
+        self.assertIn("confirm it with the SOC Guidance Office", result.response)
+        self.assertEqual(llm.prompts, [])
+
+    def test_live_availability_and_counselor_projection_exclude_internal_staff_fields(self) -> None:
+        operational = OperationalGuidanceService(
+            load_settings=lambda _keys: {
+                "appointmentAvailability": {
+                    "officeAvailability": [{"days": "Monday", "time": "9:00 AM - 12:00 PM"}],
+                    "holidays": [],
+                    "academicCalendarExclusions": [],
+                    "unavailableDates": [],
+                }
+            },
+            fetch_student=lambda _account_id: {"program": "BSCS"},
+            fetch_staff_for_program=lambda _program: {
+                "id": 91,
+                "full_name": "Guidance Staff",
+                "email": "private@example.test",
+                "assigned_programs": ["BSCS"],
+                "office": "Room 101",
+                "consultation_schedules": [
+                    {"room": "Room 101", "days": "Monday", "time": "9:00 AM - 12:00 PM"}
+                ],
+            },
+        )
+
+        availability = operational.answer(
+            "What appointment times are available?", {"id": 7, "role": "student"}
+        )
+        counselor = operational.answer(
+            "Who can I speak with?", {"id": 7, "role": "student"}
+        )
+
+        self.assertIsNotNone(availability)
+        self.assertIn("Monday: 9:00 AM - 12:00 PM", availability.response)
+        self.assertIsNotNone(counselor)
+        self.assertIn("Guidance Staff", counselor.response)
+        self.assertNotIn("91", counselor.response)
+        self.assertNotIn("private@example.test", counselor.response)
+        self.assertNotIn("BSCS", counselor.response)
+
+    def test_unconfigured_appointment_duration_is_not_invented(self) -> None:
+        operational = OperationalGuidanceService(
+            load_settings=lambda _keys: {},
+            fetch_student=lambda _account_id: {"program": "BSCS"},
+            fetch_staff_for_program=lambda _program: None,
+        )
+
+        answer = operational.answer(
+            "How long is a counseling appointment?", {"id": 7, "role": "student"}
+        )
+
+        self.assertIsNotNone(answer)
+        self.assertIn("Appointment duration is not currently configured", answer.response)
+
     def test_office_hours_retrieval_is_injected_and_grounded_in_the_final_response(self) -> None:
         official_chunk = (
             "The SOC Guidance Office is open Monday to Friday, 8:00 AM to 5:00 PM. "
