@@ -55,5 +55,13 @@ def create_app() -> Flask:
     if app.config.get("DATABASE_INITIALIZE_ON_START", True):
         with app.app_context():
             initialize_database()
+            from .services.settings_service import settings_service
+
+            seed_report = settings_service.seed_approved_mk_ii_settings()
+            app.logger.info(
+                "Approved settings seed completed (seeded=%s preserved=%s).",
+                seed_report["seeded"],
+                seed_report["preserved"],
+            )
 
     return app

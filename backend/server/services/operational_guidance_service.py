@@ -12,6 +12,7 @@ from .settings_service import normalize_appointment_availability, settings_servi
 
 
 _OPERATIONAL_SETTING_KEYS: Final[tuple[str, ...]] = (
+    "officeName",
     "officeHours",
     "officeLocation",
     "officeEmail",
@@ -152,16 +153,20 @@ class OperationalGuidanceService:
         return bool(re.search(r"\b(?:book|booking|appointment|mag-book)\b", text))
 
     def _office_hours_answer(self) -> OperationalGuidanceAnswer:
-        value = self._safe_text(self._settings().get("officeHours"))
+        settings = self._settings()
+        value = self._safe_text(settings.get("officeHours"))
         if not value:
             return self._unavailable("Office hours")
-        return self._answer(f"The current SOC Guidance Office hours are: {value}.")
+        office_name = self._safe_text(settings.get("officeName")) or "SOC Guidance Office"
+        return self._answer(f"The current {office_name} hours are: {value}.")
 
     def _office_location_answer(self) -> OperationalGuidanceAnswer:
-        value = self._safe_text(self._settings().get("officeLocation"))
+        settings = self._settings()
+        value = self._safe_text(settings.get("officeLocation"))
         if not value:
             return self._unavailable("The office location")
-        return self._answer(f"The current SOC Guidance Office location is: {value}.")
+        office_name = self._safe_text(settings.get("officeName")) or "SOC Guidance Office"
+        return self._answer(f"The current {office_name} location is: {value}.")
 
     def _contact_answer(self) -> OperationalGuidanceAnswer:
         settings = self._settings()
@@ -175,8 +180,9 @@ class OperationalGuidanceService:
         ]
         if not details:
             return self._unavailable("Current Guidance Office contact details")
+        office_name = self._safe_text(settings.get("officeName")) or "SOC Guidance Office"
         return self._answer(
-            "Current SOC Guidance Office contact details: " + "; ".join(details) + "."
+            f"Current {office_name} contact details: " + "; ".join(details) + "."
         )
 
     def _student_and_counselor(

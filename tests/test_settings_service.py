@@ -6,6 +6,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 from backend.server.services.settings_service import (
+    APPROVED_APPOINTMENT_AVAILABILITY,
+    FAQ_SETTING_KEY,
     SettingsService,
     normalize_appointment_availability,
 )
@@ -26,6 +28,127 @@ def configured_availability() -> dict:
 
 
 class SettingsServiceTests(unittest.TestCase):
+    @staticmethod
+    def _memory_service(initial: dict | None = None) -> tuple[SettingsService, dict, list[dict]]:
+        store = dict(initial or {})
+        writes: list[dict] = []
+
+        def load(keys):  # type: ignore[no-untyped-def]
+            return {key: store[key] for key in keys if key in store}
+
+        def save(updates):  # type: ignore[no-untyped-def]
+            writes.append(dict(updates))
+            store.update(updates)
+
+        return SettingsService(load=load, save=save), store, writes
+
+    def test_clean_installation_seeds_approved_mk_ii_values(self) -> None:
+        service, store, _writes = self._memory_service()
+
+        report = service.seed_approved_mk_ii_settings()
+
+        self.assertIn("officeName", report["seeded"])
+        self.assertEqual(store["officeName"], "SOC Guidance Office")
+        self.assertEqual(store["officeHours"], "Monday to Friday, 7:00 AM to 5:00 PM")
+        self.assertEqual(store["contactNumber"], "")
+        availability = store["appointmentAvailability"]
+        self.assertTrue(availability["bookingEnabled"])
+        self.assertEqual(len(availability["officeAvailability"]), 5)
+        self.assertNotIn(
+            "Sunday",
+            [window["days"] for window in availability["officeAvailability"]],
+        )
+        self.assertEqual(
+            availability["appointmentCategories"],
+            APPROVED_APPOINTMENT_AVAILABILITY["appointmentCategories"],
+        )
+        self.assertEqual(
+            availability["consultationModes"],
+            ["Online", "Onsite"],
+        )
+        self.assertEqual(len(store[FAQ_SETTING_KEY]), 3)
+        options = service.get_student_booking_options()
+        self.assertEqual(options["appointmentCategories"], availability["appointmentCategories"])
+        self.assertEqual(options["consultationModes"], availability["consultationModes"])
+
+    def test_seed_preserves_staff_edits_and_is_idempotent(self) -> None:
+        edited = {
+            "officeHours": "Staff edited hours",
+            "contactNumber": "",
+            "appointmentAvailability": configured_availability(),
+            FAQ_SETTING_KEY: [
+                {
+                    "id": "staff-faq",
+                    "title": "Staff FAQ",
+                    "question": "What changed?",
+                    "answer": "Staff authored answer.",
+                    "active": True,
+                    "order": 1,
+                }
+            ],
+        }
+        service, store, writes = self._memory_service(edited)
+
+        first_report = service.seed_approved_mk_ii_settings()
+        second_report = service.seed_approved_mk_ii_settings()
+
+        self.assertEqual(store["officeHours"], "Staff edited hours")
+        self.assertEqual(store[FAQ_SETTING_KEY][0]["id"], "staff-faq")
+        self.assertIn("appointmentAvailability", first_report["preserved"])
+        self.assertEqual(second_report["seeded"], [])
+        self.assertEqual(len(writes), 1)
+
+    def test_seed_leaves_documented_counselor_rooms_profile_owned(self) -> None:
+        staff_profile = {
+            "consultation_rooms": ["SJH-206", "PGN-105"],
+            "consultation_schedules": [
+                {"room": "SJH-206", "days": "Monday to Friday", "time": "08:00 AM - 05:00 PM"}
+            ],
+        }
+        service, store, _writes = self._memory_service({"staff-profile": staff_profile})
+
+        service.seed_approved_mk_ii_settings()
+
+        self.assertEqual(store["staff-profile"], staff_profile)
+        self.assertNotIn("PGN-105", store["officeLocation"])
+        self.assertNotIn("PGN-109", store["officeLocation"])
+
+    def test_faq_crud_persists_and_ignores_inactive_entries(self) -> None:
+        service, store, _writes = self._memory_service()
+        service.seed_approved_mk_ii_settings()
+
+        created = service.create_faq(
+            {
+                "title": "Custom FAQ",
+                "question": "Where is the custom office?",
+                "answer": "The custom answer.",
+            }
+        )
+        updated = service.update_faq(created["id"], {"active": False})
+
+        self.assertFalse(updated["active"])
+        self.assertEqual(len(service.list_faqs()), 4)
+        self.assertIsNone(
+            service.answer_faq(
+                "Where is the custom office?",
+                {"id": 1, "role": "student"},
+            )
+        )
+        service.remove_faq(created["id"])
+        self.assertEqual(len(store[FAQ_SETTING_KEY]), 3)
+
+    def test_office_hours_faq_uses_current_runtime_setting(self) -> None:
+        service, store, _writes = self._memory_service()
+        service.seed_approved_mk_ii_settings()
+        store["officeHours"] = "Monday to Friday, 8:00 AM to 4:00 PM"
+
+        answer = service.answer_faq(
+            "What are your office hours?",
+            {"id": 1, "role": "student"},
+        )
+
+        self.assertIsNotNone(answer)
+        self.assertIn("8:00 AM to 4:00 PM", answer.response)
     def test_update_normalizes_and_persists_supported_settings(self) -> None:
         saved: list[dict] = []
         service = SettingsService(load=lambda _keys: {}, save=saved.append)
@@ -263,6 +386,35 @@ class SettingsRouteTests(unittest.TestCase):
 
         self.assertIn("settings_service", route_source)
         self.assertNotIn("from ..db", route_source)
+
+    def test_faq_routes_delegate_to_service_and_keep_staff_rbac(self) -> None:
+        from backend.server.routes import settings_routes
+
+        entry = {
+            "id": "faq-1",
+            "title": "Office Hours",
+            "question": "What are your office hours?",
+            "answer": "Current hours.",
+            "active": True,
+            "order": 1,
+        }
+        with patch.object(settings_routes.settings_service, "list_faqs", return_value=[entry]), patch.object(
+            settings_routes.settings_service, "create_faq", return_value=entry
+        ), patch.object(settings_routes.settings_service, "update_faq", return_value=entry), patch.object(
+            settings_routes.settings_service, "remove_faq"
+        ) as remove_faq:
+            self.assertEqual(self._client_for("staff").get("/api/settings/faqs").status_code, 200)
+            self.assertEqual(
+                self._client_for("staff").post("/api/settings/faqs", json=entry).status_code,
+                201,
+            )
+            self.assertEqual(
+                self._client_for("staff").patch("/api/settings/faqs/faq-1", json={"active": False}).status_code,
+                200,
+            )
+            self.assertEqual(self._client_for("staff").delete("/api/settings/faqs/faq-1").status_code, 200)
+            remove_faq.assert_called_once_with("faq-1")
+        self.assertEqual(self._client_for("student").get("/api/settings/faqs").status_code, 403)
 
 
 class AppointmentSettingsIntegrationTests(unittest.TestCase):
