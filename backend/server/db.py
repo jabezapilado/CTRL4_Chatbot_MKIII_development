@@ -2363,10 +2363,19 @@ def list_accounts(
                         OR staff_number LIKE %s
                     )
                 )
+                OR (
+                    role = 'admin'
+                    AND (
+                        full_name LIKE %s
+                        OR email LIKE %s
+                    )
+                )
             )
             """
         )
         params.extend([
+            search_value,
+            search_value,
             search_value,
             search_value,
             search_value,

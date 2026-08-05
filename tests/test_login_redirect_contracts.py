@@ -122,6 +122,21 @@ class LoginRedirectContractTests(unittest.TestCase):
                 self.assertEqual(response.status_code, 302)
                 self.assertEqual(response.headers["Location"], expected_path)
 
+    def test_administrator_portal_is_available_only_to_administrators(self) -> None:
+        for role, expected_status, expected_location in (
+            ("student", 302, "/chatbot"),
+            ("staff", 302, "/dashboard"),
+            ("admin", 200, None),
+        ):
+            with self.subTest(role=role):
+                response = self._client_for(role).get("/admin", follow_redirects=False)
+                self.assertEqual(response.status_code, expected_status)
+                if expected_location:
+                    self.assertEqual(response.headers["Location"], expected_location)
+                else:
+                    self.assertIn(b"Account Management", response.data)
+                    self.assertIn(b'id="admin-programs"', response.data)
+
     def test_invalid_session_payload_remains_on_login(self) -> None:
         client = self._client_for()
         with client.session_transaction() as client_session:

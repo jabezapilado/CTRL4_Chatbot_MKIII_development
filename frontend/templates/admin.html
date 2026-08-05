@@ -9,34 +9,81 @@
     />
     <title>Account Management — CTRL4 Chatbot MK III</title>
     <link rel="stylesheet" href="/static/css/base.css" />
+    <link rel="stylesheet" href="/static/css/admin.css" />
   </head>
-  <body>
-    <main class="page" style="max-width: 1100px; margin: 0 auto; padding: 32px 20px">
-      <header class="header" style="margin-bottom: 24px">
-        <div class="header-inner">
-          <div class="header-text">
-            <div class="header-title">Account Management</div>
-            <div class="header-sub">Administrator-only account listing</div>
-          </div>
-          <button class="btn btn-outline" type="button" id="admin-logout-btn">
-            Logout
-          </button>
+  <body class="admin-page">
+    <main class="admin-shell">
+      <header class="admin-header">
+        <a class="admin-brand" href="/admin" aria-label="Account Management home">
+          <img
+            src="/static/img/soc-logo.png"
+            alt="SOC Guidance Office logo"
+            class="admin-brand-logo"
+          />
+          <span>
+            <strong>SOC Guidance</strong>
+            <small>Administrator Portal</small>
+          </span>
+        </a>
+        <div class="admin-header-copy">
+          <p class="admin-eyebrow">CTRL4 Chatbot MK III</p>
+          <h1>Account Management</h1>
+          <p>
+            Create, update, search, and deactivate accounts. Guidance Office
+            records and workflows are not available to administrators.
+          </p>
         </div>
+        <button class="btn btn-outline" type="button" id="admin-logout-btn">
+          Logout
+        </button>
       </header>
 
-      <section class="card" aria-labelledby="account-list-title">
-        <h1 id="account-list-title">Accounts</h1>
-        <p>
-          This page is limited to the account-management functions available to
-          administrators. Guidance Office records and operations are not shown.
-        </p>
-        <div style="display: flex; flex-wrap: wrap; gap: 12px; margin: 20px 0">
-          <label>
-            Search accounts
-            <input id="account-search" type="search" autocomplete="off" />
+      <section class="admin-summary-grid" aria-label="Displayed account summary">
+        <article class="admin-summary-card">
+          <span>Displayed accounts</span>
+          <strong id="account-summary-total">—</strong>
+        </article>
+        <article class="admin-summary-card">
+          <span>Students</span>
+          <strong id="account-summary-students">—</strong>
+        </article>
+        <article class="admin-summary-card">
+          <span>Guidance staff</span>
+          <strong id="account-summary-staff">—</strong>
+        </article>
+        <article class="admin-summary-card">
+          <span>Administrators</span>
+          <strong id="account-summary-admins">—</strong>
+        </article>
+        <article class="admin-summary-card">
+          <span>Active / disabled</span>
+          <strong id="account-summary-status">—</strong>
+        </article>
+      </section>
+
+      <section class="admin-panel" aria-labelledby="account-list-title">
+        <div class="admin-panel-heading">
+          <div>
+            <p class="admin-eyebrow">Authorized accounts</p>
+            <h2 id="account-list-title">Accounts</h2>
+          </div>
+          <button class="btn btn-primary" type="button" id="create-account-btn">
+            Create account
+          </button>
+        </div>
+
+        <form class="account-toolbar" id="account-filter-form">
+          <label class="account-toolbar-search" for="account-search">
+            <span>Search accounts</span>
+            <input
+              id="account-search"
+              type="search"
+              autocomplete="off"
+              placeholder="Name, email, or account number"
+            />
           </label>
-          <label>
-            Role
+          <label for="account-role-filter">
+            <span>Role</span>
             <select id="account-role-filter">
               <option value="">All roles</option>
               <option value="student">Student</option>
@@ -44,21 +91,26 @@
               <option value="admin">Administrator</option>
             </select>
           </label>
-          <label>
-            Status
+          <label for="account-status-filter">
+            <span>Status</span>
             <select id="account-status-filter">
               <option value="">All statuses</option>
               <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
+              <option value="disabled">Disabled</option>
             </select>
           </label>
-          <button class="btn btn-primary" type="button" id="account-search-btn">
-            Apply
-          </button>
-        </div>
-        <p id="account-list-message" role="status"></p>
-        <div style="overflow-x: auto">
-          <table>
+          <div class="account-toolbar-actions">
+            <button class="btn btn-primary" type="submit">Apply filters</button>
+            <button class="btn btn-outline" type="button" id="account-reset-btn">
+              Reset
+            </button>
+          </div>
+        </form>
+
+        <p id="account-list-message" class="admin-feedback" role="status"></p>
+
+        <div class="admin-table-wrap" tabindex="0">
+          <table class="admin-account-table">
             <thead>
               <tr>
                 <th>Name</th>
@@ -66,6 +118,8 @@
                 <th>Role</th>
                 <th>Status</th>
                 <th>Account number</th>
+                <th>Program / assigned programs</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody id="account-list-body"></tbody>
@@ -74,7 +128,126 @@
       </section>
     </main>
 
+    <dialog class="account-dialog" id="account-dialog" aria-labelledby="account-dialog-title">
+      <form class="account-form" id="account-form" novalidate>
+        <div class="account-dialog-header">
+          <div>
+            <p class="admin-eyebrow" id="account-dialog-kicker">New account</p>
+            <h2 id="account-dialog-title">Create account</h2>
+          </div>
+          <button
+            class="account-dialog-close"
+            type="button"
+            id="account-dialog-close"
+            aria-label="Close account form"
+          >
+            ×
+          </button>
+        </div>
+
+        <p id="account-form-message" class="admin-feedback" role="alert"></p>
+
+        <fieldset class="account-form-section">
+          <legend>Account details</legend>
+          <div class="account-form-grid">
+            <label for="account-full-name">
+              <span>Full name</span>
+              <input id="account-full-name" name="full_name" autocomplete="name" required />
+            </label>
+            <label for="account-email">
+              <span>Email address</span>
+              <input id="account-email" name="email" type="email" autocomplete="email" required />
+            </label>
+            <label for="account-gender">
+              <span>Gender</span>
+              <select id="account-gender" name="gender" required>
+                <option value="">Select gender</option>
+                <option value="Female">Female</option>
+                <option value="Male">Male</option>
+                <option value="Other">Other</option>
+                <option value="Prefer not to say">Prefer not to say</option>
+              </select>
+            </label>
+            <label id="account-role-field" for="account-role">
+              <span>Role</span>
+              <select id="account-role" name="role" required>
+                <option value="student">Student</option>
+                <option value="staff">Guidance staff</option>
+                <option value="admin">Administrator</option>
+              </select>
+            </label>
+            <label id="account-password-field" for="account-password">
+              <span>Temporary password</span>
+              <input
+                id="account-password"
+                name="password"
+                type="password"
+                autocomplete="new-password"
+                minlength="8"
+              />
+              <small>At least eight characters. Passwords are never displayed after creation.</small>
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset class="account-form-section" id="student-profile-fields">
+          <legend>Student profile</legend>
+          <label for="account-program">
+            <span>Program</span>
+            <select id="account-program" name="program"></select>
+          </label>
+        </fieldset>
+
+        <fieldset class="account-form-section" id="staff-profile-fields">
+          <legend>Guidance-staff profile</legend>
+          <p class="account-form-help">
+            These approved account-profile fields support current dynamic program routing and consultation metadata.
+          </p>
+          <div class="account-form-grid">
+            <fieldset class="program-fieldset">
+              <legend>Assigned programs</legend>
+              <div id="account-assigned-programs" class="program-options"></div>
+            </fieldset>
+            <label for="account-office">
+              <span>Office</span>
+              <input id="account-office" name="office" autocomplete="organization" />
+            </label>
+            <label class="account-form-wide" for="account-support-statement">
+              <span>Support statement</span>
+              <textarea id="account-support-statement" name="support_statement" rows="3"></textarea>
+            </label>
+            <label class="account-form-wide" for="account-consultation-rooms">
+              <span>Consultation rooms</span>
+              <input
+                id="account-consultation-rooms"
+                name="consultation_rooms"
+                placeholder="Separate rooms with commas"
+              />
+            </label>
+          </div>
+          <div class="account-schedules-header">
+            <div>
+              <h3>Consultation schedules</h3>
+              <p>Each schedule needs a room, days, and time range.</p>
+            </div>
+            <button class="btn btn-outline btn-sm" type="button" id="add-consultation-schedule">
+              Add schedule
+            </button>
+          </div>
+          <div id="account-consultation-schedules" class="consultation-schedules"></div>
+        </fieldset>
+
+        <div class="account-form-actions">
+          <button class="btn btn-outline" type="button" id="account-form-cancel">Cancel</button>
+          <button class="btn btn-primary" type="submit" id="account-form-submit">
+            Save account
+          </button>
+        </div>
+      </form>
+    </dialog>
+
     <script src="/static/js/auth.js"></script>
+    <script id="admin-programs" type="application/json">{{ programs | tojson }}</script>
     <script src="/static/js/admin.js"></script>
   </body>
 </html>

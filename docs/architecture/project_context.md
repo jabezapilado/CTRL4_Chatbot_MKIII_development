@@ -67,7 +67,7 @@ The account module reuses generic account primitives in `db.py`: `create_account
 - Student updates accept only approved student profile fields and reject unsupported fields.
 - Staff profile metadata includes assigned programs, office, support statement, consultation rooms, and consultation schedules; this metadata alone is not appointment-engine behavior.
 - Administrator accounts cannot store student/staff/counselor metadata or account numbers. Administrators cannot deactivate themselves.
-- The administrative account listing supports optional `q` with existing role/status filters. It searches only name, email, and the appropriate student or staff number.
+- The administrative account listing supports optional `q` with existing role/status filters. It searches names and emails for every account role, plus the appropriate student or staff number where one exists.
 - Duplicate email handling uses both a service pre-check and database uniqueness; persistence collisions map to the existing service-level duplicate-email error.
 
 ## Frozen appointment decisions — Sprint 4

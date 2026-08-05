@@ -7,17 +7,31 @@
 ## Account management
 
 Use the account-management operations documented in
-[API Reference](../architecture/api_reference.md#accounts) to list accounts, apply the
-existing role/status filters, and use the approved identifier search. Create
-student, staff, or administrator accounts using the fields accepted for the
-selected role. Unsupported role-specific fields are rejected rather than
-ignored. The `/admin` landing page provides the existing account-listing
-interface; it is not a Guidance Office dashboard.
+[API Reference](../architecture/api_reference.md#accounts) to list accounts, apply
+the existing role/status filters, and use the approved identifier search. The
+`/admin` landing page provides a responsive account-management portal; it is
+not a Guidance Office dashboard. Its displayed-account summary always reflects
+the accounts returned by the current filters.
+
+The portal supports the approved existing operations:
+
+- create a student, Guidance-staff, or administrator account using the fields
+  accepted for the selected role;
+- update approved role-specific profile fields; and
+- deactivate active accounts using the existing role-specific deactivation
+  operation.
+
+Unsupported role-specific fields are rejected rather than ignored. Account
+roles are selected when creating an account and are not changed by the current
+account-update contract. The current API supports deactivation, not
+reactivation or destructive deletion. Password hashes are never shown, and
+administrators cannot reset another user's password through this portal.
 
 You can update and deactivate student, staff, and administrator accounts using
 their dedicated account operations. Administrator accounts cannot retain
 student, staff, counselor-profile metadata, or account numbers. You cannot
-deactivate your own administrator account.
+deactivate your own administrator account. Users remain responsible for their
+own password updates.
 
 ## Access boundary
 

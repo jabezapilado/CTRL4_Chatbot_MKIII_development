@@ -1,5 +1,5 @@
 import logging
-from flask import Blueprint, render_template, request, jsonify, redirect
+from flask import Blueprint, current_app, render_template, request, jsonify, redirect
 
 from ..auth import get_logged_in_user, role_landing_path
 from ..request_validation import (
@@ -45,7 +45,10 @@ def dashboard():
 
 @frontend_bp.get("/admin")
 def admin_accounts():
-    return render_template("admin.html")
+    return render_template(
+        "admin.html",
+        programs=current_app.config.get("PROGRAMS", ()),
+    )
 
 
 @frontend_bp.get("/chatbot_admin")

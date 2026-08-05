@@ -25,7 +25,7 @@ unauthenticated users to login and enforces the listed role boundary.
 | GET | `/appointment` | Student | Student appointment page |
 | GET | `/case-status` | Student | Student case-status page |
 | GET | `/dashboard` | Guidance staff | Staff dashboard |
-| GET | `/admin` | Administrator | Account-listing page only |
+| GET | `/admin` | Administrator | Account-management portal only |
 | GET | `/chatbot_admin` | Guidance staff | Legacy staff compatibility page; it has no persisted takeover workflow |
 
 ## Authentication and health
