@@ -1,142 +1,53 @@
 [
   {
     "id": "EC001",
-
-    "topic": "University Guidance Center",
-
-    "category": "Emergency Contacts",
-
+    "topic": "Holy Angel University Guidance Services",
+    "category": "Campus Guidance Contact",
     "keywords": [
       "guidance office",
       "guidance counselor",
-      "counselor",
+      "university guidance services",
       "contact guidance"
     ],
-
     "question_variations": [
-      "How do I contact the Guidance Office?",
-      "I need to talk to a Guidance Counselor.",
+      "How do I contact University Guidance Services?",
+      "I need to talk to a guidance counselor.",
       "How can I reach the Guidance Office?"
     ],
-
-    "response": "The University Guidance Center is available to support students experiencing academic, personal, emotional, social, or career concerns. You may visit the office during office hours or contact your assigned counselor through their official Facebook pages.",
-
+    "response": "For non-immediate campus concerns, contact Holy Angel University University Guidance Services through the official university channels or visit during its published office hours. If there is immediate danger, contact emergency services first.",
     "contact_information": {
-      "office": "University Guidance Center",
-      "office_hours": "Monday–Friday",
-      "facebook": "https://www.facebook.com/hauguidanceoffice"
+      "organization": "Holy Angel University University Guidance Services",
+      "university_trunklines": [
+        "(045) 625-9620",
+        "(045) 625-9619",
+        "(045) 624-6648"
+      ],
+      "guidance_services_local": "1102",
+      "availability": "This record does not claim emergency or 24/7 availability. Consult the official university page for current office hours."
     },
-
     "related_emotions": [
       "Neutral",
-      "Stress",
-      "Anxiety"
+      "Fear",
+      "Sadness"
     ],
-
     "risk_level": "LOW",
-
-    "source_document": "Official Guidance Office Information",
-
-    "page_numbers": []
-  },
-
-  {
-    "id": "EC002",
-
-    "topic": "School of Computing Counselor - Sir Ryan",
-
-    "category": "Emergency Contacts",
-
-    "keywords": [
-      "sir ryan",
-      "computer science",
-      "emc",
-      "soc counselor"
-    ],
-
-    "question_variations": [
-      "How do I contact Sir Ryan?",
-      "Who is the Computer Science counselor?",
-      "I need Sir Ryan."
-    ],
-
-    "response": "Sir Ryan serves as the School of Computing Guidance Counselor for BS Computer Science and BS Entertainment and Multimedia Computing (Digital Animation).",
-
-    "contact_information": {
-      "assigned_programs": [
-        "BS Computer Science",
-        "BS Entertainment and Multimedia Computing"
-      ],
-      "room_1": "SJH-206",
-      "schedule_1": "Monday–Friday | 7:00 AM – 5:00 PM",
-      "room_2": "PGN-105",
-      "schedule_2": "Monday–Friday | 7:00 AM – 9:00 PM",
-      "facebook": "https://www.facebook.com/hauguidance.soccounselor"
+    "source_document": "Holy Angel University Student Affairs and University Guidance Services page",
+    "provenance": {
+      "verified_on": "2026-08-05",
+      "sources": [
+        {
+          "name": "Holy Angel University — Student Affairs",
+          "url": "https://www.hau.edu.ph/campuslife/student-affairs",
+          "scope": "Official University Guidance Services contact routing and published trunklines."
+        }
+      ]
     },
-
-    "related_emotions": [
-      "Neutral"
-    ],
-
-    "risk_level": "LOW",
-
-    "source_document": "School of Computing Counselor Assignment",
-
     "page_numbers": []
   },
-
-  {
-    "id": "EC003",
-
-    "topic": "School of Computing Counselor - Ma'am Hannah",
-
-    "category": "Emergency Contacts",
-
-    "keywords": [
-      "ma'am hannah",
-      "bsit",
-      "cybersecurity",
-      "soc counselor"
-    ],
-
-    "question_variations": [
-      "How do I contact Ma'am Hannah?",
-      "Who is the BSIT counselor?",
-      "I need Ma'am Hannah."
-    ],
-
-    "response": "Ma'am Hannah serves as the School of Computing Guidance Counselor for BS Information Technology and BS Cybersecurity.",
-
-    "contact_information": {
-      "assigned_programs": [
-        "BS Information Technology",
-        "BS Cybersecurity"
-      ],
-      "room_1": "SJH-206",
-      "schedule_1": "Monday–Friday | 8:00 AM – 5:00 PM",
-      "room_2": "PGN-105",
-      "schedule_2": "Monday–Friday | 7:00 AM – 9:00 PM",
-      "facebook": "https://www.facebook.com/profile.php?id=100091309162106"
-    },
-
-    "related_emotions": [
-      "Neutral"
-    ],
-
-    "risk_level": "LOW",
-
-    "source_document": "School of Computing Counselor Assignment",
-
-    "page_numbers": []
-  },
-
   {
     "id": "EC004",
-
-    "topic": "Emergency Safety",
-
-    "category": "Emergency Contacts",
-
+    "topic": "Philippine Emergency Services",
+    "category": "Emergency Services",
     "keywords": [
       "emergency",
       "911",
@@ -144,67 +55,87 @@
       "immediate danger",
       "crisis"
     ],
-
     "question_variations": [
       "I need emergency help.",
       "This is an emergency.",
       "Someone is in immediate danger."
     ],
-
-    "response": "If you or someone else is in immediate danger, contact your local emergency services immediately or go to the nearest hospital or emergency department. If possible, stay with the person until help arrives and notify a trusted adult or university official.",
-
+    "response": "If you or someone else is in immediate danger, call 911 in the Philippines or go to the nearest emergency department. If possible, stay with the person until help arrives and notify a trusted person or university official.",
     "contact_information": {
-      "emergency_services": "911 (Philippines)",
-      "nearest_hospital": "Nearest Emergency Department"
+      "national_emergency_hotline": "911",
+      "nearest_hospital": "Nearest emergency department",
+      "availability": "Use for immediate emergencies. This record does not make a separate availability claim."
     },
-
     "related_emotions": [
       "Fear",
-      "Hopelessness"
+      "Sadness"
     ],
-
     "risk_level": "HIGH",
-
-    "source_document": "Suicide Prevention First Aid Guide",
-
+    "source_document": "Philippine government emergency-hotline information",
+    "provenance": {
+      "verified_on": "2026-08-05",
+      "sources": [
+        {
+          "name": "Philippine Government Emergency Hotlines",
+          "url": "https://ehotlines.e.gov.ph/",
+          "scope": "National Emergency Hotline 911."
+        },
+        {
+          "name": "Executive Order No. 56",
+          "url": "https://elibrary.judiciary.gov.ph/thebookshelf/showdocs/10/90588",
+          "scope": "Institutionalizes 911 as the nationwide emergency answering point."
+        }
+      ]
+    },
     "page_numbers": []
   },
-
   {
     "id": "EC005",
-
     "topic": "National Mental Health Crisis Support",
-
-    "category": "Emergency Contacts",
-
+    "category": "Mental Health Crisis Support",
     "keywords": [
       "mental health hotline",
       "crisis hotline",
       "suicide hotline",
-      "help line"
+      "help line",
+      "ncmh"
     ],
-
     "question_variations": [
       "Is there a mental health hotline?",
       "Who can I call for emotional support?",
       "Is there a suicide hotline?"
     ],
-
-    "response": "If you need immediate emotional support outside the university, contact an official mental health crisis service in the Philippines or seek assistance from your nearest hospital or emergency department.",
-
+    "response": "For National Center for Mental Health crisis support in the Philippines, contact 1553, 0917-899-8727, or (02) 7-989-8727. If there is immediate danger, call 911 or go to the nearest emergency department.",
     "contact_information": {
-      "note": "Replace this section with the latest official national mental health hotline numbers before deployment."
+      "national_center_for_mental_health": {
+        "short_code": "1553",
+        "mobile": "0917-899-8727",
+        "landline": "(02) 7-989-8727"
+      },
+      "emergency_escalation": "911 for immediate danger",
+      "availability": "This record does not make an availability claim; verify current service availability through the official sources."
     },
-
     "related_emotions": [
-      "Hopelessness",
-      "Fear"
+      "Fear",
+      "Sadness"
     ],
-
     "risk_level": "HIGH",
-
-    "source_document": "Official Mental Health Resources",
-
+    "source_document": "Official Philippine government and Department of Health crisis-support information",
+    "provenance": {
+      "verified_on": "2026-08-05",
+      "sources": [
+        {
+          "name": "Philippine Government Emergency Hotlines",
+          "url": "https://ehotlines.e.gov.ph/",
+          "scope": "National Center for Mental Health public contact numbers."
+        },
+        {
+          "name": "Department of Health — Cordillera Administrative Region",
+          "url": "https://caro.doh.gov.ph/abot-kamay-ang-tulong-para-sa-mental-health/",
+          "scope": "NCMH 1553, mobile, and landline crisis-support contact numbers."
+        }
+      ]
+    },
     "page_numbers": []
   }
 ]

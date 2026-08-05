@@ -50,6 +50,25 @@ def load_model(language: str = "english"):
         raise FileNotFoundError(
             f"Model directory not found: {model_path}. Publish or copy a model into this directory first."
         )
+
+    required_files = (
+        "model.safetensors",
+        "config.json",
+        "tokenizer.json",
+        "runtime_artifact_manifest.json",
+    )
+    missing_files = [
+        filename
+        for filename in required_files
+        if not (model_path / filename).is_file()
+    ]
+    if missing_files:
+        raise FileNotFoundError(
+            "Runtime emotion model artifact is incomplete at "
+            f"{model_path}: {', '.join(missing_files)}. "
+            "Provision the approved artifact and run "
+            "backend/scripts/verify_emotion_model.py before startup."
+        )
     
     return AutoModelForSequenceClassification.from_pretrained(
         str(model_path)

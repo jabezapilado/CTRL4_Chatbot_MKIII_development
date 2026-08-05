@@ -1,0 +1,26 @@
+{
+  "artifact_name": "ctrl4-eerm-english-latest-model.safetensors",
+  "artifact_version": "v10",
+  "purpose": "CTRL4 Chatbot MK III English emotion-inference runtime artifact",
+  "required_files": {
+    "model.safetensors": {
+      "size_bytes": 267841796,
+      "sha256": "d90161c6b064d42ecee866e099f9f3125abb969e7a5ce76cd4c4fb32369ccce9"
+    },
+    "config.json": {
+      "sha256": "d0801564e5d549d6e5aab649e196cdd6e95629e5a1a57c20624acd722165925e"
+    },
+    "special_tokens_map.json": {
+      "sha256": "5d5b662e421ea9fac075174bb0688ee0d9431699900b90662acd44b2a350503a"
+    },
+    "tokenizer.json": {
+      "sha256": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66"
+    },
+    "tokenizer_config.json": {
+      "sha256": "51cde98bb5402e0816faaf75fec5e2c3ade3d290e2c9a72daad76b6f386f3b5e"
+    },
+    "vocab.txt": {
+      "sha256": "07eced375cec144d27c900241f3e339478dec958f92fddbc551f295c992038a3"
+    }
+  }
+}

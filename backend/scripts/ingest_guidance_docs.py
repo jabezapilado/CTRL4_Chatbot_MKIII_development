@@ -19,10 +19,23 @@ def main() -> int:
         return 1
 
     count = rag_service.build_index()
+    report = rag_service.last_build_report
     logger.info("CTRL4 RAG index build completed.")
-    logger.info("Indexed chunks: %s", count)
-    logger.info("Documents: %s", rag_service.docs_dir)
-    logger.info("Index: %s", rag_service.index_dir)
+    logger.info("RAG chunks indexed: %s", count)
+    if report:
+        logger.info(
+            "RAG source summary: discovered=%s indexed=%s skipped=%s fingerprint=%s",
+            len(report.discovered_sources),
+            len(report.indexed_sources),
+            len(report.skipped_sources),
+            report.source_fingerprint[:12],
+        )
+        for skipped in report.skipped_sources:
+            logger.warning(
+                "RAG source skipped: source=%s reason=%s",
+                skipped["source"],
+                skipped["reason"],
+            )
 
     return 0
 

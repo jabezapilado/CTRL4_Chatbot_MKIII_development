@@ -3,7 +3,7 @@ Ollama Provider
 
 Provides text generation using a locally hosted Ollama model.
 
-CTRL4 Chatbot MK II
+CTRL4 Chatbot MK III
 
 Authors:
 - Apilado, Jabez Timothy E.
@@ -15,6 +15,7 @@ Authors:
 from __future__ import annotations
 
 import logging
+from urllib.parse import urlsplit, urlunsplit
 
 import requests
 
@@ -22,6 +23,25 @@ from ..config import Config
 from .base_provider import BaseProvider, LLMResponse
 
 logger = logging.getLogger(__name__)
+
+
+def ollama_tags_url(generation_url: str) -> str:
+    """Derive Ollama's tags endpoint from the configured generation URL."""
+    parsed = urlsplit(str(generation_url).strip())
+    if not parsed.scheme or not parsed.netloc:
+        raise ValueError("CHATBOT_OLLAMA_URL must be an absolute HTTP(S) URL.")
+
+    path = parsed.path.rstrip("/")
+    if path.endswith("/api/generate"):
+        tags_path = f"{path[:-len('/generate')]}/tags"
+    elif path.endswith("/api"):
+        tags_path = f"{path}/tags"
+    elif not path:
+        tags_path = "/api/tags"
+    else:
+        tags_path = f"{path}/api/tags"
+
+    return urlunsplit((parsed.scheme, parsed.netloc, tags_path, "", ""))
 
 
 class OllamaProvider(BaseProvider):
@@ -37,10 +57,12 @@ class OllamaProvider(BaseProvider):
 
         self.initialization_error: str | None = None
 
+        self.tags_url = ollama_tags_url(self.config.OLLAMA_URL)
+
         try:
 
             response = requests.get(
-                "http://localhost:11434/api/tags",
+                self.tags_url,
                 timeout=5,
             )
 
