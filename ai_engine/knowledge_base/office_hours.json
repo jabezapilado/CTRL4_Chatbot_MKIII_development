@@ -2,7 +2,7 @@
   {
     "id": "OFF001",
 
-    "topic": "University Guidance Center Office Hours",
+    "topic": "SOC Guidance Office Hours",
 
     "category": "Guidance Office",
 
@@ -21,7 +21,7 @@
       "When can I go to the Guidance Office?"
     ],
 
-    "response": "The University Guidance Center offers counseling services from Monday to Friday. Depending on your assigned counselor and location, counseling services are available between 7:00 AM and 9:00 PM. Students are encouraged to visit during office hours or contact their assigned counselor before visiting whenever possible.",
+    "response": "The SOC Guidance Office is open Monday to Friday, 8:00 AM to 5:00 PM. It is closed on weekends and public holidays. Students may use CTRL4 to request an appointment and should follow the appointment details shown by the system.",
 
     "related_emotions": [
       "Neutral"
@@ -252,7 +252,7 @@
       "Where can I message the Guidance Office?"
     ],
 
-    "response": "The University Guidance Center maintains official Facebook pages for announcements and student communication. Students may also contact their assigned counselor through their official Facebook pages for counseling-related inquiries and scheduling.",
+    "response": "The SOC Guidance Office maintains official Facebook pages for announcements and student communication. Students may also contact their assigned counselor through their official Facebook pages for counseling-related inquiries and scheduling.",
 
     "related_emotions": [
       "Neutral"

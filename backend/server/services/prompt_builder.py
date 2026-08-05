@@ -669,7 +669,12 @@ class PromptBuilder:
 
             knowledge_status = (
                 "Relevant Guidance Office documents were retrieved. "
-                "Use them as the primary source for official university information."
+                "Use them as the authoritative source for institutional names, "
+                "office information, policies, schedules, contacts, services, and "
+                "appointment procedures. Use the institution names exactly as they "
+                "appear in the retrieved documents. Do not substitute a generic "
+                "institution name or use prior model knowledge when the retrieved "
+                "documents provide the answer."
             )
 
         else:

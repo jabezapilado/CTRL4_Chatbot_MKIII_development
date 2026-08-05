@@ -403,6 +403,27 @@ class ConversationFinalizationLoggingTests(unittest.TestCase):
 
 
 class EmergencyKnowledgeReleaseTests(unittest.TestCase):
+    def test_current_knowledge_uses_soc_guidance_identity_not_legacy_generic_centers(self) -> None:
+        knowledge_base = ROOT / "ai_engine/knowledge_base"
+        combined = "\n".join(
+            path.read_text(encoding="utf-8")
+            for path in sorted(knowledge_base.glob("*.json"))
+        )
+        for unsupported_name in (
+            "University Guidance Center",
+            "Student Counseling Center",
+            "Campus Wellness Office",
+        ):
+            with self.subTest(unsupported_name=unsupported_name):
+                self.assertNotIn(unsupported_name, combined)
+
+        office_hours = json.loads(
+            (knowledge_base / "office_hours.json").read_text(encoding="utf-8")
+        )
+        official_record = next(record for record in office_hours if record["id"] == "OFF001")
+        self.assertIn("SOC Guidance Office", official_record["response"])
+        self.assertIn("8:00 AM to 5:00 PM", official_record["response"])
+
     def test_emergency_contacts_are_verified_and_have_no_deployment_placeholder(self) -> None:
         content = (ROOT / "ai_engine/knowledge_base/emergency_contacts.json").read_text(
             encoding="utf-8"

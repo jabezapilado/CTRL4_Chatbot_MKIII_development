@@ -81,6 +81,11 @@ class ResponseSafetyService:
         r"\b(?:room|sjh)[ -]?\d{1,4}\b",
         re.IGNORECASE,
     )
+    _UNSUPPORTED_INSTITUTION_NAMES: Final[re.Pattern[str]] = re.compile(
+        r"\b(?:University Guidance Center|Student Counseling Center|"
+        r"Campus Wellness Office)\b",
+        re.IGNORECASE,
+    )
 
     def validate(
         self,
@@ -89,6 +94,7 @@ class ResponseSafetyService:
     ) -> ResponseSafetyResult:
         """Return whether a generated response may be sent unchanged."""
         text = str(response)
+        documents = tuple(documents)
 
         if self._DIAGNOSIS_OR_TREATMENT.search(text):
             return self._blocked(
@@ -115,6 +121,12 @@ class ResponseSafetyService:
             )
 
         if self._contains_fabricated_institutional_information(text, documents):
+            return self._blocked(
+                "fabricated_institutional_information",
+                FABRICATED_INSTITUTIONAL_INFORMATION_REPLACEMENT,
+            )
+
+        if self._contains_unverified_institution_name(text, documents):
             return self._blocked(
                 "fabricated_institutional_information",
                 FABRICATED_INSTITUTIONAL_INFORMATION_REPLACEMENT,
@@ -148,6 +160,23 @@ class ResponseSafetyService:
         context_lower = context.casefold()
         details = self._FACTUAL_DETAILS.findall(response)
         return any(detail.casefold() not in context_lower for detail in details)
+
+    def _contains_unverified_institution_name(
+        self,
+        response: str,
+        documents: Iterable[object],
+    ) -> bool:
+        """Reject generic institution names absent from retrieved official context."""
+
+        names = self._UNSUPPORTED_INSTITUTION_NAMES.findall(response)
+        if not names:
+            return False
+
+        context = "\n".join(
+            str(getattr(document, "text", ""))
+            for document in documents
+        ).casefold()
+        return any(name.casefold() not in context for name in names)
 
 
 __all__ = ["ResponseSafetyResult", "ResponseSafetyService"]

@@ -8,6 +8,7 @@ import types
 import unittest
 from dataclasses import dataclass
 from pathlib import Path
+from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parents[1]
 SERVICES_DIR = ROOT / "backend/server/services"
@@ -82,6 +83,18 @@ class _Rag:
     ready = False
 
 
+class _RetrievedRag:
+    ready = True
+
+    def __init__(self, documents: list[object]) -> None:
+        self.documents = documents
+        self.queries: list[str] = []
+
+    def retrieve(self, query: str) -> list[object]:
+        self.queries.append(query)
+        return self.documents
+
+
 class _Emotion:
     def __init__(self, normalized_emotion: str = "negative") -> None:
         self.normalized_emotion = normalized_emotion
@@ -116,13 +129,14 @@ def _service(
     *,
     emotion: _Emotion | None = None,
     safety: object | None = None,
+    rag: object | None = None,
     response_safety: object | None = None,
 ) -> AIService:
     return AIService(
         safety=safety or _Safety(),
         language=_Language(),
         emotion=emotion or _Emotion(),
-        rag=_Rag(),
+        rag=rag or _Rag(),
         prompt_builder=PromptBuilder(),
         llm=llm,
         intent=IntentService(),
@@ -169,8 +183,76 @@ class ResponseValidationRegressionTests(unittest.TestCase):
         self.assertNotIn("hurt yourself", result.response.casefold())
         self.assertIn("contact a trusted person", result.response.casefold())
 
+    def test_unverified_generic_institution_name_is_replaced(self) -> None:
+        result = ResponseSafetyService().validate(
+            "The University Guidance Center can help with your concern.",
+            [SimpleNamespace(text="The SOC Guidance Office is open Monday to Friday.")],
+        )
+
+        self.assertFalse(result.allowed)
+        self.assertEqual(result.category, "fabricated_institutional_information")
+
 
 class ConversationHistoryRegressionTests(unittest.TestCase):
+    def test_office_hours_retrieval_is_injected_and_grounded_in_the_final_response(self) -> None:
+        official_chunk = (
+            "The SOC Guidance Office is open Monday to Friday, 8:00 AM to 5:00 PM. "
+            "It is closed on weekends and public holidays."
+        )
+        rag = _RetrievedRag(
+            [
+                SimpleNamespace(
+                    source="office_hours.json",
+                    text=official_chunk,
+                    score=0.99,
+                )
+            ]
+        )
+        llm = _CapturingLlm([
+            "The SOC Guidance Office is open Monday to Friday, 8:00 AM to 5:00 PM."
+        ])
+
+        result = _service(llm, rag=rag, response_safety=ResponseSafetyService()).respond(
+            "What are your office hours?"
+        )
+
+        self.assertEqual(rag.queries, ["What are your office hours?"])
+        self.assertIn("[Source: office_hours.json]", llm.prompts[0])
+        self.assertIn(official_chunk, llm.prompts[0])
+        self.assertIn("Use the institution names exactly", llm.prompts[0])
+        self.assertEqual(
+            result.response,
+            "The SOC Guidance Office is open Monday to Friday, 8:00 AM to 5:00 PM.",
+        )
+        self.assertNotIn("University Guidance Center", result.response)
+
+    def test_taglish_appointment_request_uses_retrieved_appointment_context(self) -> None:
+        official_chunk = (
+            "Students may book a counseling appointment directly through CTRL4. "
+            "The appointment booking feature allows students to request a date and time slot."
+        )
+        rag = _RetrievedRag(
+            [
+                SimpleNamespace(
+                    source="appointment_process.json",
+                    text=official_chunk,
+                    score=0.98,
+                )
+            ]
+        )
+        llm = _CapturingLlm([
+            "Maaari kang mag-request ng appointment sa CTRL4 at pumili ng available na date at time slot."
+        ])
+
+        result = _service(llm, rag=rag, response_safety=ResponseSafetyService()).respond(
+            "Paano ako mag-book ng appointment?"
+        )
+
+        self.assertEqual(rag.queries, ["Paano ako mag-book ng appointment?"])
+        self.assertIn(official_chunk, llm.prompts[0])
+        self.assertEqual(result.intent, "appointment_booking")
+        self.assertIn("CTRL4", result.response)
+
     def test_browser_history_is_normalized_into_the_prompt_and_preserves_continuity(self) -> None:
         first_reply = (
             "It sounds like CONWORLD has become exhausting. Would practical study "

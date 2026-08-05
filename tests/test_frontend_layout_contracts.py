@@ -59,6 +59,17 @@ class FrontendLayoutContractTests(unittest.TestCase):
         self.assertNotIn("option.innerHTML", dashboard)
         self.assertIn("function appendTableEmptyState", dashboard)
 
+    def test_chat_message_pane_keeps_footer_controls_in_the_flex_layout(self) -> None:
+        template = _read("frontend/templates/chatbot.html")
+        stylesheet = _read("frontend/static/css/chatbot.css")
+
+        self.assertIn('id="chat-area"', template)
+        self.assertIn('id="quick-replies"', template)
+        self.assertIn('class="input-bar"', template)
+        self.assertIn(".chat-area {\n  flex: 1;\n  min-height: 0;", stylesheet)
+        self.assertIn(".quick-replies {\n  display: flex;", stylesheet)
+        self.assertIn("height: 100dvh;", stylesheet)
+
 
 if __name__ == "__main__":
     unittest.main()
