@@ -1,6 +1,10 @@
 # CTRL4 Chatbot MK II
 ## 05 — API Integration & External Services
 
+> **Historical architecture document.** For current HTTP endpoints see
+> [API_REFERENCE.md](../API_REFERENCE.md), and for the implemented chatbot
+> pipeline see [01_project_architecture.md](../01_project_architecture.md).
+
 **Version:** MK II Stable (v2.0.0)
 
 **Authors**

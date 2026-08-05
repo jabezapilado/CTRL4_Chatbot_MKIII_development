@@ -1,249 +1,300 @@
-# CTRL4 Chatbot MK II
-## Deployment Guide
+# CTRL4 Chatbot MK III — Deployment Guide
 
-Version: MK II Stable (v2.0.0)
+This guide is the supported, reproducible deployment procedure for CTRL4
+Chatbot MK III. It preserves the implemented Flask, MySQL/MariaDB, RAG, and
+server-side session architecture; it does not change application behavior.
 
----
+## Supported deployment topology
 
-# Overview
+The supported topology is **one application instance on one host**. CTRL4 uses
+CacheLib filesystem sessions, so a browser session is valid only for the single
+application process that owns the configured session directory. Do not run
+multiple Gunicorn workers, multiple containers, or multiple hosts until a
+separately approved shared session backend is introduced.
 
-This guide explains how to deploy and run CTRL4 Chatbot MK II in a local development environment.
+Run TLS at a trusted reverse proxy. In production the application requires
+secure cookies and therefore must receive HTTPS requests from that proxy.
 
-The chatbot consists of:
-
-- Flask Backend
-- HTML/CSS/JavaScript Frontend
-- MySQL Database
-- AI Engine
-- Google Gemini API or Ollama
-- Retrieval-Augmented Generation (RAG)
-
----
-
-# System Requirements
-
-## Software
+## Prerequisites
 
 - Python 3.10 or newer
-- MySQL 8.x or MariaDB
+- MySQL 8.x or MariaDB, including `mysql` and `mysqldump` client commands
 - Git
-- Visual Studio Code (recommended)
+- A Guidance Office knowledge-base directory, a validated RAG index, and the
+  protected English emotion-model release artifact
+- Either a Gemini API key or a reachable Ollama instance
+- For production: a reverse proxy that terminates HTTPS
 
-Optional
+## Dependencies
 
-- Ollama
+`requirements.txt` at the repository root is the **sole authoritative runtime
+dependency manifest**. `backend/requirements.txt` only delegates to it for
+legacy commands.
 
----
-
-# Clone the Repository
+From the repository root:
 
 ```bash
-git clone https://github.com/<your-username>/CTRL4_Chatbot.git
-
-cd CTRL4_Chatbot
+python3 -m venv backend/.venv
+./backend/.venv/bin/python -m pip install --upgrade pip
+./backend/.venv/bin/python -m pip install -r requirements.txt
 ```
 
----
-
-# Create Virtual Environment
+The documented setup command remains valid because it delegates to the same
+manifest:
 
 ```bash
 cd backend
-
-python -m venv .venv
+./setup.sh
 ```
 
-Activate
+## Environment configuration
 
-Windows
+Create `backend/.env` by copying `backend/.env.example`. The application loads
+this file automatically; do **not** shell-source it because values may contain
+spaces or special characters.
 
 ```bash
-.venv\Scripts\activate
+cp backend/.env.example backend/.env
+chmod 600 backend/.env
 ```
 
-macOS / Linux
+Important variables are listed below. `.env.example` contains the complete
+reference, including optional seed-account and RAG tuning values.
+
+| Group | Required production values |
+| --- | --- |
+| Runtime | `CHATBOT_ENV=production`, `CHATBOT_DEBUG=false`, a strong unique `CHATBOT_SECRET_KEY`, and `CHATBOT_PORT` (default `5001`) |
+| Database | `CHATBOT_DB_HOST`, `CHATBOT_DB_PORT`, `CHATBOT_DB_USER`, `CHATBOT_DB_PASSWORD`, `CHATBOT_DB_NAME`; optionally `CHATBOT_DB_SSL_CA` and `CHATBOT_DB_SSL_VERIFY_CERT=true` |
+| Sessions | `CHATBOT_SESSION_TYPE=cachelib`, an absolute protected `CHATBOT_SESSION_FILE_DIR`, and `CHATBOT_SESSION_COOKIE_SECURE=true` |
+| Logging | an absolute protected `CHATBOT_LOG_FILE`, `CHATBOT_LOG_LEVEL`, `CHATBOT_LOG_MAX_BYTES`, and `CHATBOT_LOG_BACKUP_COUNT` |
+| Database startup | `CHATBOT_DATABASE_INITIALIZE_ON_START=false`; perform upgrades explicitly after backup |
+| AI | `CHATBOT_LLM_PROVIDER`, Gemini values when using Gemini, or Ollama URL/model when using Ollama |
+| RAG | `CHATBOT_RAG_DOCS_DIR`, `CHATBOT_RAG_INDEX_DIR`; set `CHATBOT_RAG_AUTO_BUILD_ON_START=false` after provisioning the index |
+
+Production startup rejects unsafe combinations: debug mode, the default secret,
+non-secure session cookies, a missing session directory, or automatic startup
+migrations without `CHATBOT_DATABASE_BACKUP_CONFIRMED=true`.
+
+Development behavior is unchanged: `CHATBOT_ENV` defaults to `development`,
+debug defaults to `true`, and database initialization remains enabled by
+default.
+
+## MySQL client credentials for backup and restore
+
+Do not put database passwords on a command line. Create a restricted client
+defaults file outside the repository, for example `/etc/ctrl4/mysql-client.cnf`:
+
+```ini
+[client]
+host=127.0.0.1
+port=3306
+user=CTRL4_DATABASE_USER
+password=CTRL4_DATABASE_PASSWORD
+```
+
+If the database requires TLS, add the supported client TLS options to that
+file. Restrict it to its owner:
 
 ```bash
-source .venv/bin/activate
+chmod 600 /etc/ctrl4/mysql-client.cnf
 ```
 
----
+Set `CTRL4_MYSQL_DEFAULTS_FILE` to this file only for the backup or restore
+command. It is never written to application configuration or logs.
 
-# Install Dependencies
+## Database initialization
+
+### Fresh database — authoritative schema procedure
+
+Use `backend/sql/schema.sql` only for a fresh, empty database. It contains the
+complete current schema and intentionally does not select a hard-coded database
+name.
 
 ```bash
-pip install -r requirements.txt
+export CTRL4_MYSQL_DEFAULTS_FILE=/etc/ctrl4/mysql-client.cnf
+mysql --defaults-extra-file="$CTRL4_MYSQL_DEFAULTS_FILE" \
+  -e 'CREATE DATABASE ctrl4_development CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci'
+mysql --defaults-extra-file="$CTRL4_MYSQL_DEFAULTS_FILE" ctrl4_development \
+  < backend/sql/schema.sql
 ```
 
----
+Set `CHATBOT_DB_NAME=ctrl4_development` in `backend/.env`. The application may
+then start with initialization disabled in production because the complete
+schema already exists.
 
-# Configure Environment Variables
+### Existing development database — supported upgrade procedure
 
-Create
+`initialize_database()` is the runtime compatibility initializer. It creates
+missing current tables and applies only its known migrations, including legacy
+appointment status conversion and removal of the obsolete
+`conversation_summaries.transcript_json` column. It is **not** a universal
+migration engine for arbitrary historical schemas.
 
-```
-backend/.env
-```
+Before invoking it against an existing database:
 
-Example
+1. Stop the application.
+2. Create and verify a backup using the procedure below.
+3. Set `CHATBOT_DATABASE_BACKUP_CONFIRMED=true` temporarily.
+4. Run the initializer explicitly:
 
-```env
-CHATBOT_DB_HOST=127.0.0.1
-CHATBOT_DB_PORT=3306
-CHATBOT_DB_USER=root
-CHATBOT_DB_PASSWORD=
-CHATBOT_DB_NAME=soc_chatbot
+   ```bash
+   cd backend
+   CHATBOT_DATABASE_BACKUP_CONFIRMED=true \
+     ../.venv/bin/python scripts/setup_database.py
+   ```
 
-CHATBOT_LLM_PROVIDER=gemini
+5. Verify `/health`, required tables, and the canonical appointment status
+   values before restarting normal production traffic.
 
-CHATBOT_GEMINI_API_KEY=YOUR_API_KEY
-CHATBOT_GEMINI_MODEL=gemini-2.5-flash
+In production, `setup_database.py` refuses to run unless the backup-confirmation
+environment value is set. It does not seed accounts unless `--seed` is supplied
+explicitly. In development, its existing seed behavior is retained.
 
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=qwen2.5:7b
-```
+Do not set `CHATBOT_DATABASE_INITIALIZE_ON_START=true` for routine production
+starts. If an operator deliberately enables it, the same backup confirmation is
+required by configuration validation.
 
----
+## Backup and restore
 
-# Database Setup
+### Backup
 
-Import the SQL file located in
-
-```
-backend/sql/
-```
-
-into MySQL.
-
-Ensure the database name matches
-
-```
-soc_chatbot
-```
-
-or update the `.env` configuration accordingly.
-
----
-
-# Knowledge Base
-
-Place all Guidance Office documents inside
-
-```
-ai_engine/knowledge_base/
-```
-
-Then build the RAG index.
-
-Example
+Backups are logical SQL dumps. The script refuses to overwrite an existing
+file, writes through a restricted temporary file, and does not include
+credentials in process arguments.
 
 ```bash
-python backend/scripts/ingest_guidance_docs.py
+export CTRL4_MYSQL_DEFAULTS_FILE=/etc/ctrl4/mysql-client.cnf
+./backend/scripts/backup_database.sh \
+  /secure/ctrl4-backups/ctrl4_$(date +%Y%m%d_%H%M%S).sql
 ```
 
----
+Store backups outside the repository, protect them as confidential records, and
+verify them regularly by restoring only into a separate database.
 
-# Running the Application
+### Restore verification
 
-Start the backend
+The restore script never drops, recreates, or writes to the active configured
+database. First create a separate empty target database after confirming its
+name is not the active `CHATBOT_DB_NAME`:
 
 ```bash
-python app.py
+export CTRL4_MYSQL_DEFAULTS_FILE=/etc/ctrl4/mysql-client.cnf
+mysql --defaults-extra-file="$CTRL4_MYSQL_DEFAULTS_FILE" \
+  -e 'CREATE DATABASE ctrl4_restore_check CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci'
+
+CTRL4_RESTORE_DB_NAME=ctrl4_restore_check \
+  ./backend/scripts/restore_database.sh \
+  /secure/ctrl4-backups/ctrl4_YYYYMMDD_HHMMSS.sql
 ```
 
-The server will run on
+Inspect the restored database before any separately approved recovery action.
 
-```
-http://127.0.0.1:5000
-```
+## AI runtime asset provisioning
 
----
+### English emotion model
 
-# Switching LLM Providers
+The released English emotion-model weight is a controlled artifact, not an
+ordinary Git file. Obtain only the approved release file from the project
+release custodian; do not use historical checkpoints or a different model.
 
-CTRL4 supports multiple providers.
+| Item | Required value |
+| --- | --- |
+| Artifact filename | `ctrl4-eerm-english-latest-model.safetensors` |
+| Destination | `ai_engine/models/english/latest/model.safetensors` |
+| Expected size | `267841796` bytes |
+| SHA-256 | `d90161c6b064d42ecee866e099f9f3125abb969e7a5ce76cd4c4fb32369ccce9` |
 
-Gemini
-
-```env
-CHATBOT_LLM_PROVIDER=gemini
-```
-
-Ollama
-
-```env
-CHATBOT_LLM_PROVIDER=ollama
-```
-
-No source code changes are required.
-
----
-
-# Troubleshooting
-
-## Gemini Quota
-
-If the Gemini API returns HTTP 429, the daily free-tier request limit has been reached.
-
-Possible solutions:
-
-- Wait for the quota reset.
-- Switch to another Gemini model with available quota.
-- Use Ollama locally.
-- Upgrade to a paid Gemini plan.
-
----
-
-## Ollama Not Running
-
-Start Ollama
+Copy the artifact through a protected operator-controlled channel, then verify
+the complete runtime model directory before startup:
 
 ```bash
-ollama serve
+cd /path/to/CTRL4_Chatbot
+./backend/.venv/bin/python backend/scripts/verify_emotion_model.py
 ```
 
-Verify the selected model has been downloaded
+The verifier checks the weight, model configuration, and tokenizer files
+against `runtime_artifact_manifest.json`. A missing or mismatched artifact is a
+deployment failure; CTRL4 does not fall back to another emotion model.
+
+### RAG index
+
+Place approved knowledge records in the configured RAG document directory and
+build the index before normal production startup:
 
 ```bash
-ollama list
+cd backend
+../.venv/bin/python scripts/ingest_guidance_docs.py
 ```
 
----
+Keep the generated index in protected deployment storage. Do not rebuild it on
+each production start unless that work is intentionally scheduled. The build
+stores `manifest.json` beside the FAISS index. It fingerprints the current
+source files and RAG settings. If the fingerprint differs at startup, CTRL4
+rebuilds only when `CHATBOT_RAG_AUTO_BUILD_ON_START=true`; otherwise it marks
+the index stale and does not use it. The first manifest build preserves a
+pre-manifest legacy index under the index directory's non-runtime `archive/`
+folder for inspection.
 
-## Database Connection Issues
+## Starting the application
 
-Verify:
+### Development
 
-- MySQL is running
-- Database credentials are correct
-- Database exists
-- Port number matches `.env`
+```bash
+cd backend
+../.venv/bin/python app.py
+```
 
----
+The development server listens on `http://127.0.0.1:5001` by default.
 
-## Missing Knowledge Base
+### Production
 
-If no RAG index is found, rebuild the knowledge base using the ingestion script before starting the application.
+After explicit database preparation, run exactly one Gunicorn worker:
 
----
+```bash
+cd backend
+../.venv/bin/gunicorn \
+  --bind 127.0.0.1:5001 \
+  --workers 1 \
+  --access-logfile - \
+  --error-logfile - \
+  app:app
+```
 
-# Deployment Checklist
+The reverse proxy should forward HTTPS traffic to this local listener. Do not
+expose the Gunicorn listener directly to the public network.
 
-Before deployment, verify:
+## Health and startup verification
 
-- Python dependencies installed
-- Database imported
-- Environment variables configured
-- Knowledge base indexed
-- Gemini or Ollama configured
-- Flask server starts successfully
-- Student login works
-- AI chat responds correctly
-- Appointment system functions
-- Dashboard loads successfully
+After starting the application, verify the registered services without
+authenticating or submitting private data:
 
----
+```bash
+curl --fail --silent --show-error http://127.0.0.1:5001/health
+```
 
-# Version
+The expected response is HTTP 200 with the established success envelope. Also
+confirm the session directory and log directory are owned by the application
+user and are not web-accessible.
 
-CTRL4 Chatbot MK II Stable (v2.0.0)
+## Logging
+
+Application logs default to `backend/data/logs/ctrl4.log` in development. Use
+an absolute protected `CHATBOT_LOG_FILE` in production. Logs rotate at 5 MiB by
+default and retain five previous files; configure the size/count values in
+`backend/.env` to match host storage policy.
+
+Deployment logging is aggregate-only. It must never include credentials, email
+addresses, session values, conversation content, prompts, generated replies,
+counselor notes, summaries, or secrets.
+
+## Deployment checklist
+
+- [ ] Install dependencies from root `requirements.txt` in a clean virtual environment.
+- [ ] Create and protect `backend/.env`.
+- [ ] Configure the single-instance CacheLib session directory.
+- [ ] Prepare the database using the correct fresh or upgrade procedure.
+- [ ] Verify a backup and a restore into a separate database.
+- [ ] Provision the RAG index and selected LLM provider.
+- [ ] Start one Gunicorn worker behind HTTPS.
+- [ ] Confirm `GET /health` returns HTTP 200.
+- [ ] Review protected log and session directory permissions.

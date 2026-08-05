@@ -1,5 +1,9 @@
 # CTRL4 MK II - API SPECIFICATION
 
+> **Historical planning document.** Current frozen implementation references:
+> [PROJECT_CONTEXT.md](../PROJECT_CONTEXT.md) and
+> [01_project_architecture.md](../01_project_architecture.md).
+
 > This document defines the official REST API contract of CTRL4 MK II.
 >
 > It serves as the communication contract between the frontend and backend. All API implementations shall conform to this specification unless adviser requirements change.

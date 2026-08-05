@@ -6,6 +6,45 @@ The format follows the principles of **Keep a Changelog**.
 
 ---
 
+## [3.0.0] - CTRL4 Chatbot MK III v1.0 — August 2026
+
+### Added
+
+- Completed the authenticated chatbot and internal Conversation Intelligence
+  pipeline for intent, emotion, topic, metadata, language, summaries, safety,
+  retrieval, prompting, and escalation handling.
+- Completed Appointment Management with dynamic program-based counselor routing,
+  normalized start-time conflict handling, schedule and availability checks,
+  canonical lifecycle management, student replacement rescheduling, and
+  persistent in-app notifications.
+- Added Guidance case-management workflows: flagged cases, dedicated counselor
+  notes, referrals and histories, interventions and histories, confidential
+  case handling, and the privacy-projected student case-status dashboard.
+- Added staff aggregate analytics for appointments, chatbot activity, counselor
+  workload, and flagged cases, plus Reports & client-side CSV export.
+
+### Changed
+
+- Standardized completed application workflows around the implemented Route →
+  Service → Database architecture, server-side sessions, role boundaries, and
+  established response envelopes.
+- Added atomic database-backed active-slot persistence for appointment conflict
+  protection without introducing counselor ownership or duration assumptions.
+- Normalized current implementation branding, release documentation, API
+  reference, installation/deployment guidance, and student, staff, and
+  administrator user guides to CTRL4 Chatbot MK III.
+
+### Verified
+
+- Completed System Integration Testing, Security & Privacy Testing, and
+  Performance & Reliability Testing infrastructure and regression coverage.
+- Completed Deployment Preparation, current-reference documentation review,
+  final release audit, and repository cleanup of confirmed legacy artifacts.
+- Preserved historical MK II changelog history, roadmap material, and model or
+  training provenance as archival records.
+
+---
+
 ## [2.0.0] - MK II Stable — July 2026
 
 ### Added

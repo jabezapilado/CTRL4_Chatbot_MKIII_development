@@ -1,0 +1,74 @@
+# CTRL4 Chatbot MK III — Guidance-Staff User Guide
+
+> This guide describes existing staff workflows. It does not grant access beyond
+> current staff route guards and service authorization.
+
+## Dashboard and appointments
+
+After sign-in, use the staff dashboard for authorized appointments and
+Guidance Office operations. Appointment records visible to you follow the
+existing authorized-program/dynamic-routing model; a current program route is
+not historical counselor ownership.
+
+Staff may create manual appointments for a student using the approved source
+and appointment fields. Manual appointments begin **confirmed**. Student
+requests begin **pending**. The only appointment lifecycle is:
+
+```text
+pending → confirmed | rejected | cancelled
+confirmed → completed | cancelled
+cancelled, rejected, completed → terminal
+```
+
+Only the assigned staff workflow may make a lifecycle transition. A nonblank
+counselor note is required before completing a confirmed appointment. Do not
+treat start times as duration slots: the current conflict rule is same-date,
+normalized start-time equality only.
+
+The month calendar is read-only. It reuses the authorized appointment dataset;
+it does not book, move, resize, or link replacement appointments.
+
+## Conversation and case management
+
+Staff can review staff-visible inquiries, summaries, escalations, and flagged
+conversations. Use a flagged case's existing panels to:
+
+- mark a flagged conversation reviewed;
+- maintain confidential counselor notes;
+- create and update internal referrals and their notes/status history;
+- create interventions and record progress or outcomes; and
+- view or update the current confidentiality state.
+
+These records are sensitive Guidance Office data. Do not copy them into
+unapproved channels. Do not infer a personal reviewer or counselor ownership
+where the current record does not persist one.
+
+## Settings and notifications
+
+Staff settings include operational configuration. Consultation rooms/schedules
+are profile metadata and are validated for appointment routing; they are not a
+room-booking system. Guidance Office availability uses the structured
+appointment-availability setting. Invalid operational availability data fails
+closed for booking.
+
+The notification view is recipient-scoped. Notifications remain until the
+recipient explicitly marks them read.
+
+## Analytics, reports, and CSV
+
+The dashboard provides read-only appointment, chatbot, counselor workload, and
+flagged-case analytics. Scope differs by module:
+
+- appointment and workload metrics use your authorized appointment/program
+  scope; referrals/interventions use persisted staff ownership;
+- chatbot and flagged-case analytics are staff-wide aggregates; and
+- flagged-case analytics do not establish reviewer ownership.
+
+Reports forward one shared optional date range to the four existing analytics
+APIs and export only already-authorized aggregate values as CSV. There are no
+raw-data exports or PDF exports.
+
+## Privacy
+
+Student-facing views must never receive staff notes or protected case details.
+Use the dashboard only from a protected device and sign out when finished.

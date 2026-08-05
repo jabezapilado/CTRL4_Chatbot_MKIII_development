@@ -1,569 +1,77 @@
-# CTRL4 Chatbot MK II
+# CTRL4 Chatbot MK III
 
-> Development of an AI-Powered Guidance Chatbot for Inquiry Management Using NLP-Based Negative Emotion Detection
+CTRL4 Chatbot MK III is an undergraduate-thesis Guidance Office support system
+for Holy Angel University. It combines authenticated chatbot support,
+appointment management, staff case-management workflows, and privacy-preserving
+aggregate analytics.
 
-![Python](https://img.shields.io/badge/Python-3.10+-blue)
-![Flask](https://img.shields.io/badge/Flask-3.x-black)
-![Gemini](https://img.shields.io/badge/Gemini-2.5--Flash-orange)
-![Ollama](https://img.shields.io/badge/Ollama-Supported-green)
-![RAG](https://img.shields.io/badge/RAG-Enabled-success)
-![Version](https://img.shields.io/badge/Version-MK%20II%20Stable-success)
+## Current release
 
----
-
-# Overview
-
-CTRL4 Chatbot MK II is the second-generation AI-powered guidance chatbot developed for the **Holy Angel University – School of Computing**.
-
-The system provides students with 24/7 guidance support by combining modern Artificial Intelligence technologies including Retrieval-Augmented Generation (RAG), multilingual Natural Language Processing (NLP), emotion-aware conversations, and official Guidance Office knowledge.
-
-Unlike the first prototype (MK I), CTRL4 Chatbot MK II introduces a modular AI architecture that separates language understanding, emotion detection, safety validation, prompt engineering, knowledge retrieval, and LLM providers into independent services for improved scalability, maintainability, and future expansion.
-
----
-
-# Project Status
-
-**Current Version:** MK II Stable (v2.0.0)
-
-CTRL4 Chatbot MK II is considered feature complete.
-
-Major improvements over MK I include:
-
-- Modular AI architecture
-- Retrieval-Augmented Generation (RAG)
-- Emotion-aware prompting
-- Multilingual support
-- Safety validation
-- Provider abstraction
-- Gemini integration
-- Ollama integration
-- Performance monitoring
-- School of Computing branding
-- Redesigned user interface
-
----
-
-# Features
-
-## Artificial Intelligence
-
-- AI-powered Guidance Assistant
-- Retrieval-Augmented Generation (RAG)
-- Official Guidance Office Knowledge Base
-- Emotion Detection
-- Language Detection
-- Emotion-aware Prompt Engineering
-- Crisis Detection & Safety Validation
-- Multilingual Support (English, Filipino, Taglish)
-- Conversation Context Support
-
-## LLM Providers
-
-- Google Gemini API
-- Ollama Local LLM
-- Provider Abstraction Layer
-- Easily Extendable Provider Architecture
-
-## Student Features
-
-- AI Chat Support
-- Appointment Booking
-- Guidance Office Information
-- Conversation Export
-- Responsive Interface
-
-## Staff Features
-
-- Admin Dashboard
-- Student Concern Monitoring
-- Chat Takeover Mode
-- Appointment Management
-
----
-
-# What's New in MK II
-
-## Artificial Intelligence
-
-Compared to MK I, CTRL4 Chatbot MK II introduces:
-
-- Modular service-oriented AI architecture
-- LLM Provider abstraction
-- Retrieval-Augmented Generation (RAG)
-- Emotion-aware prompting
-- Crisis detection
-- Performance monitoring
-- Local AI support using Ollama
-- Cloud AI support using Gemini
-
-## User Interface
-
-### MK I
-
-- Holy Angel University branding
-- Red theme
-- Initial chatbot interface
-
-### MK II
-
-- School of Computing branding
-- Orange theme
-- Redesigned chatbot interface
-- Improved user experience
-- Cleaner layouts
-
----
-
-# AI Architecture
-
-```
-                    Student
-                        │
-                        ▼
-                 Frontend (HTML/CSS/JS)
-                        │
-                        ▼
-                  Flask Backend API
-                        │
-                        ▼
-                    AIService
-                        │
-        ┌───────────────┼───────────────┐
-        │               │               │
-        ▼               ▼               ▼
- SafetyService   LanguageService   EmotionService
-        │
-        ▼
-     RAGService
-        │
-        ▼
-   PromptBuilder
-        │
-        ▼
-     LLMService
-        │
-   ┌────┴────┐
-   ▼         ▼
-Gemini   Ollama
-Provider Provider
-```
-
----
-
-# Technology Stack
-
-## Backend
-
-- Python 3.10+
-- Flask
-- Flask-CORS
-
-## Artificial Intelligence
-
-- Google Gemini API
-- Ollama
-- Sentence Transformers
-- FAISS
-- DistilBERT
-- LangDetect
-
-## Database
-
-- MySQL / MariaDB
-
-## Frontend
-
-- HTML5
-- CSS3
-- JavaScript
-
----
-
-# Requirements
-
-Before running the project, ensure the following software is installed.
-
-## Software Requirements
-
-- Python 3.10 or later
-- MySQL 8.0 or MariaDB
-- Git
-- pip (Python Package Manager)
-
-## Optional
-
-To use the local AI provider, install:
-
-- Ollama
-- Qwen2.5:7B model
-
-Google Gemini users only need a valid Gemini API key.
-
----
-
-# Installation
-
-## 1. Clone the Repository
-
-```bash
-git clone https://github.com/jabezapilado/CTRL4_Chatbot_MKII.git
-cd CTRL4_Chatbot_MKII
-```
-
----
-
-## 2. Navigate to the Backend
-
-```bash
-cd backend
-```
-
----
-
-## 3. Create a Virtual Environment
-
-```bash
-python -m venv .venv
-```
-
----
-
-## 4. Activate the Virtual Environment
-
-### Windows
-
-```bash
-.venv\Scripts\activate
-```
-
-### macOS / Linux
-
-```bash
-source .venv/bin/activate
-```
-
----
-
-## 5. Install Dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
----
-
-## 6. Install Ollama (Optional - Local LLM)
-
-CTRL4 Chatbot MK II supports both **Google Gemini** and **Ollama** as Large Language Model (LLM) providers.
-
-If you intend to use **Ollama**, install it before running the chatbot.
-
-### Install Ollama
-
-Download Ollama from:
+The current application uses Flask, MySQL/MariaDB, genuine server-side CacheLib
+sessions, and a JavaScript frontend. Its architecture is:
 
 ```text
-https://ollama.com/download
+Frontend → Route → Service → Database
 ```
 
-### Verify the Installation
+Students use the chatbot, their own appointments, notifications, and the
+approved case-status projection. Guidance staff use authorized appointment,
+case-management, settings, analytics, and reporting workflows. Administrators
+have account-management-only access at `/admin`; they do not receive Guidance
+Office records.
+
+Appointments use current dynamic program-based counselor routing. They store a
+start time only, use normalized same-date start-time conflict handling, and
+persist active-slot reservations atomically. The canonical appointment statuses
+are `pending`, `confirmed`, `cancelled`, `rejected`, and `completed`.
+
+The chatbot supports English, Filipino, and Taglish. Its internal pipeline is
+language detection, pre-generation safety, Conversation Intelligence, RAG,
+prompt construction, LLM generation, and final response safety validation.
+It does not diagnose or prescribe treatment.
+
+## Start here
+
+- [Installation Guide](docs/INSTALLATION_GUIDE.md) — local prerequisites,
+  environment configuration, fresh database setup, protected emotion-model and
+  RAG provisioning, and the development server.
+- [Deployment Guide](docs/06_deployment_guide.md) — authoritative production,
+  backup/restore, upgrade, session, logging, and Gunicorn procedure.
+- [Project Architecture](docs/01_project_architecture.md) — implemented domain
+  boundaries and ownership.
+- [API Reference](docs/API_REFERENCE.md) — current endpoint contract.
+- [Security, Privacy, RBAC, and Sessions](docs/10_security_architecture.md)
+  — implemented controls and deferred work.
+- Role guides: [Students](docs/STUDENT_USER_GUIDE.md),
+  [Guidance Staff](docs/GUIDANCE_STAFF_USER_GUIDE.md), and
+  [Administrators](docs/ADMINISTRATOR_GUIDE.md).
+- [Project Context](docs/PROJECT_CONTEXT.md) — frozen decisions through Sprint
+  10 and contributor workflow.
+
+The development server listens on `http://127.0.0.1:5001` by default. Do not
+commit environment files, credentials, session files, RAG indexes, or real
+Guidance Office data.
+
+## Verification
+
+From the repository root, use the documented virtual environment and run the
+relevant checks for your change. The baseline repository checks include:
 
 ```bash
-ollama --version
+python3 -m compileall backend/server
+python3 -m unittest tests.test_documentation_contracts
+python3 -m unittest tests.test_deployment_configuration
+python3 -m unittest tests.test_system_integration_contracts
+python3 -m unittest tests.test_security_privacy_contracts
+git diff --check
 ```
 
-### Download the Required Model
-
-```bash
-ollama pull qwen2.5:7b
-```
-
-### Start the Ollama Server
-
-```bash
-ollama serve
-```
-
-The Ollama API will be available at:
-
-```text
-http://localhost:11434
-```
-
-> **Note**
->
-> If you plan to use **Google Gemini**, this step can be skipped.
-
----
-
-## 7. Configure Environment Variables
-
-Create:
-
-```text
-backend/.env
-```
-
-Example:
-
-```env
-CHATBOT_LLM_PROVIDER=gemini
-
-CHATBOT_GEMINI_API_KEY=YOUR_API_KEY
-CHATBOT_GEMINI_MODEL=gemini-2.5-flash-lite
-
-CHATBOT_OLLAMA_URL=http://localhost:11434/api/generate
-CHATBOT_OLLAMA_MODEL=qwen2.5:7b
-```
-
----
-
-## 8. Initialize the Database
-
-Run the database setup script:
-
-```bash
-python scripts/setup_database.py
-```
-
-This command:
-
-- Creates the application database.
-- Creates the required database tables.
-- Seeds the default user accounts.
-
-### Default Development Accounts
-
-| Role    |    Default Email     | Default Password |
-|---------|----------------------|------------------|
-| Student | `student@hau.edu.ph` |   `student123`   |
-| Staff   | `staff@hau.edu.ph`   |   `staff123`     |
-| Admin   | `admin@hau.edu.ph`   |   `admin123`     |
-
-These credentials are intended for local development only. Update or replace them before deploying the application in any shared or production environment.
-
----
-
-## 9. Build the Knowledge Base
-
-```bash
-python scripts/ingest_guidance_docs.py
-```
-
-This command generates the FAISS vector index used by the chatbot's Retrieval-Augmented Generation (RAG) pipeline.
-
----
-
-## 10. Start the Application
-
-```bash
-python app.py
-```
-
-The application will be available at:
-
-```text
-http://127.0.0.1:5000
-```
-
----
-
-## Switching Between LLM Providers
-
-CTRL4 Chatbot MK II supports both **Google Gemini** and **Ollama**.
-
-To change the active Large Language Model (LLM), edit the following variable in `backend/.env`.
-
-### Google Gemini
-
-```env
-CHATBOT_LLM_PROVIDER=gemini
-```
-
-### Ollama
-
-```env
-CHATBOT_LLM_PROVIDER=ollama
-```
-
-Restart the backend application after changing the provider.
-
-> **Note**
->
-> Google Gemini requires a valid API key, while Ollama requires the local Ollama server to be running with the configured model downloaded.
-
----
-
-# Project Structure
-
-```text
-CTRL4_Chatbot/
-│
-├── ai_engine/                          # AI model development and training
-│   ├── configs/
-│   ├── core/
-│   │   ├── models/
-│   │   ├── preprocessors/
-│   │   ├── schemas/
-│   │   ├── tokenizers/
-│   │   ├── training/
-│   │   └── utilities/
-│   │
-│   ├── data/
-│   │   ├── external/
-│   │   ├── processed/
-│   │   └── merged/
-│   │
-│   ├── knowledge_base/
-│   └── models/
-│
-├── backend/                            # Flask backend and AI services
-│   ├── data/
-│   │   └── rag_index/
-│   │
-│   ├── scripts/
-│   │   ├── ingest_guidance_docs.py
-│   │   └── setup_database.py
-│   │
-│   ├── server/
-│   │   ├── llm_providers/
-│   │   │   ├── base_provider.py
-│   │   │   ├── gemini_provider.py
-│   │   │   └── ollama_provider.py
-│   │   │
-│   │   ├── services/
-│   │   │   ├── ai_service.py
-│   │   │   ├── emotion_service.py
-│   │   │   ├── language_service.py
-│   │   │   ├── llm_service.py
-│   │   │   ├── prompt_builder.py
-│   │   │   ├── rag_service.py
-│   │   │   └── safety_service.py
-│   │   │
-│   │   ├── auth.py
-│   │   ├── config.py
-│   │   ├── db.py
-│   │   └── routes.py
-│   │
-│   ├── sql/
-│   ├── app.py
-│   ├── requirements.txt
-│   └── setup.sh
-│
-├── frontend/                           # Web interface
-│   ├── static/
-│   │   ├── css/
-│   │   ├── img/
-│   │   └── js/
-│   │
-│   └── templates/
-│
-├── docs/                               # Project documentation
-│   ├── models/
-│   │   ├── english_model/
-│   │   └── filipino_model/
-│   │
-│   ├── 01_project_architecture.md
-│   ├── 02_dataset_documentation.md
-│   ├── 03_preprocessing_pipeline.md
-│   ├── 04_model_architecture.md
-│   ├── 05_api_integration.md
-│   ├── 06_deployment_guide.md
-│   ├── 07_future_work.md
-│   ├── 08_design_decisions.md
-│   └── CTRL4_BIBLE.md
-│
-├── CHANGELOG.md
-├── LICENSE
-├── README.md
-├── requirements.txt
-└── .gitignore
-```
-
----
-
-# Screenshots
-
-*(To be added before final release.)*
-
-- Login Page
-- Student Chat Interface
-- Appointment Page
-- Staff Dashboard
-- Admin Chat Takeover
-- AI Performance Logger
-
----
-
-# Version History
-
-## MK I
-
-- Initial chatbot prototype
-- Gemini-only implementation
-- Holy Angel University branding
-- Red theme
-- Basic chatbot workflow
-
-## MK II
-
-- Complete AI architecture redesign
-- Modular service-oriented architecture
-- Retrieval-Augmented Generation (RAG)
-- Emotion Detection
-- Language Detection
-- Safety Validation
-- Prompt Engineering
-- Gemini Provider
-- Ollama Provider
-- Performance Monitoring
-- School of Computing branding
-- Orange UI redesign
-- Admin Dashboard
-- Chat Takeover
-- Conversation Export
-
----
-
-# Future Work (MK III)
-
-Planned enhancements include:
-
-- Long-term conversation memory
-- Counselor analytics dashboard
-- Emotional trend visualization
-- AI-generated counselor summaries
-- Intent classification
-- Streaming AI responses
-- Real-time chat using WebSockets
-- Migration to the Google Gen AI SDK
-
----
-
-# Contributors
-
-- **Apilado, Jabez Timothy E.**
-  - Backend Development
-  - Artificial Intelligence Integration
-  - System Architecture
-  - Database Development
-  - Quality Assurance
-
-- **Quilantang, Grant Mihkael D.**
-  - Frontend Development
-
-- **Lanix, Iligan**
-  - AI Model Development
-
-- **Wylengco, Teyshaun Zell**
-  - UI/UX Design
-
----
-
-# License
-
-This project is licensed under the **CTRL4 Academic Use License**.
-
-It is intended for academic, educational, and research purposes only. Commercial use, redistribution, or modification for commercial purposes requires permission from the authors.
-
-See the [LICENSE](LICENSE) file for complete terms.
+For database-backed or load testing, use an explicitly configured isolated
+database as described in the deployment and test documentation. Never use a
+production-like database for integration or mutation tests.
+
+## Historical material
+
+Historical MK II planning, training, roadmap, and model-lineage material is
+preserved for thesis provenance. It is not the current implementation contract.
+Use the current-reference documents above for development and deployment.

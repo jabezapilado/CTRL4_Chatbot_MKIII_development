@@ -1,0 +1,170 @@
+# CTRL4 Chatbot MK III — Current API Reference
+
+> **Current reference, derived from route decorators.** All examples are
+> synthetic. Do not send credentials, session identifiers, or protected case
+> data in URLs. Unless noted, successful responses use
+> `{"success": true, "message": "...", "data": ...}`; failures retain the
+> established `errors: null` envelope (appointment required-field failures may
+> include their existing field map).
+
+Endpoint-controlled errors use the established envelope. The current Flask
+global 404/500 fallback handlers retain their pre-existing `{"error": "..."}`
+payload; they are not a documented alternative endpoint contract and were not
+redesigned by this documentation issue.
+
+## Rendered frontend routes
+
+These are page routes, not JSON APIs. Their server-side route guard redirects
+unauthenticated users to login and enforces the listed role boundary.
+
+| Method | Path | Access | Purpose |
+| --- | --- | --- | --- |
+| GET | `/` | Public | Login page |
+| GET | `/login` | Public | Login page |
+| GET | `/chatbot` | Student | Student chatbot |
+| GET | `/appointment` | Student | Student appointment page |
+| GET | `/case-status` | Student | Student case-status page |
+| GET | `/dashboard` | Guidance staff | Staff dashboard |
+| GET | `/admin` | Administrator | Account-listing page only |
+| GET | `/chatbot_admin` | Guidance staff | Legacy staff compatibility page; it has no persisted takeover workflow |
+
+## Authentication and health
+
+| Method | Path | Access | Request | Success / important errors |
+| --- | --- | --- | --- | --- |
+| POST | `/auth/login` | Public | `email`, `password` | 200 authenticated user in `data`; 400 validation, 401 invalid credentials, 403 blocked account |
+| POST | `/auth/logout` | Authenticated | None | 200; 401 if no session |
+| GET | `/health` | Public | None | 200 service status; 500 only on health failure |
+
+Login establishes the server-side session. The returned account data supports
+the existing frontend redirect; the browser cookie is opaque and must not be
+treated as an API credential to inspect.
+
+## Accounts
+
+Administrators manage accounts only; account-management APIs do not grant
+guidance-record access. All endpoints in the following table require `admin`.
+
+| Method | Path | Request / query | Success | Important errors |
+| --- | --- | --- | --- | --- |
+| GET | `/api/accounts` | Optional `role`, `status`, `q` | 200 `data.items` | 400 invalid filters |
+| POST | `/api/accounts` | See role-specific creation fields below | 201 id/status and generated number when applicable | 400 validation/unsupported fields; 409 duplicate email |
+| PATCH | `/api/accounts/<account_id>` | Student fields: `full_name`, `email`, `gender`, `program` | 200 updated account | 400, 404, 409 |
+| DELETE | `/api/accounts/<account_id>` | None | 200 disabled status | 400, 404 |
+| PATCH | `/api/accounts/staff/<account_id>` | Approved staff profile fields | 200 updated account | 400, 404, 409 |
+| DELETE | `/api/accounts/staff/<account_id>` | None | 200 disabled status | 400, 404 |
+| PATCH | `/api/accounts/admin/<account_id>` | Approved administrator profile fields | 200 updated account | 400, 404, 409 |
+| DELETE | `/api/accounts/admin/<account_id>` | None | 200 disabled status | 400, 404; self-deactivation is rejected |
+
+Every creation payload has `full_name`, `email`, `password`, and `role` (the
+role defaults to `student` only when omitted). A student may provide `gender`
+and `program`. A staff account may provide `gender`, `assigned_programs`,
+`office`, `support_statement`, `consultation_rooms`, and
+`consultation_schedules`. An administrator may provide `gender` only; student,
+staff, counselor-profile, and account-number fields are rejected. The listing
+search composes with role/status and searches only approved identifier fields.
+
+### Manual-booking student search — staff only
+
+| Method | Path | Request / query | Success / privacy |
+| --- | --- | --- | --- |
+| GET | `/api/accounts/search` | Optional `q` | 200 matching student `data.items`; omitted/blank query returns an empty list |
+
+This search supports the existing staff manual-appointment workflow. It is not
+an administrator account listing and does not change staff guidance-record
+authority.
+
+## Appointments
+
+| Method | Path | Access | Request | Success / important errors |
+| --- | --- | --- | --- | --- |
+| GET | `/api/appointments` | Staff | None | 200 authorized `data.items` |
+| POST | `/api/appointments` | Authenticated student booking flow | `contact_number`, `appointment_category`, `appointment_mode`, `preferred_date`, `preferred_time_slot`, `reason` | 201; 400 validation, 404 missing student, 409 exact slot conflict |
+| GET | `/api/appointments/my` | Student | None | 200 own `data.items`; counselor notes are redacted |
+| PATCH | `/api/appointments/my/<appointment_id>/cancel` | Student owner | None | 200; 403 ownership, 404 missing, 400 lifecycle/deadline rule |
+| POST | `/api/appointments/my/<appointment_id>/reschedule` | Student owner | `preferred_date`, `preferred_time_slot` | 201 replacement id; 403/404/400 or 409 conflict |
+| POST | `/api/appointments/manual` | Staff | `account_id`, `appointment_category`, `appointment_mode`, `preferred_date`, `preferred_time_slot`, `reason`, `appointment_source` | 201; 400/404/409 |
+| PATCH | `/api/appointments/<appointment_id>` | Assigned staff | `status` | 200; 400 invalid transition, 404 missing |
+| GET | `/api/appointments/<appointment_id>` | Staff | None | 200 authorized details; 404 missing |
+| PATCH | `/api/appointments/<appointment_id>/notes` | Assigned staff | `counselor_notes` | 200; 400/404 |
+
+The only appointment statuses are `pending`, `confirmed`, `cancelled`,
+`rejected`, and `completed`. Normalized same-date start-time conflicts block
+only `pending` and `confirmed` and return HTTP 409 with
+`This schedule is already taken.` There is no duration/end-time API.
+
+## Chatbot and conversation finalization
+
+| Method | Path | Access | Request | Success / important errors |
+| --- | --- | --- | --- | --- |
+| POST | `/chat` | Authenticated | `message`; optional in-memory `conversation` | 200 response data; 400 missing message; 401 no session |
+| POST | `/chat/finalize` | Authenticated | non-empty `conversation`; optional `topic`, `language`, `emotion` | 200 finalization data; 400 missing conversation; 401 no session |
+
+The public chat contract exposes only its existing response fields. Internal
+intent, normalized topic, normalized emotion, metadata, prompts, and retrieval
+details are not API inputs or historical analytics fields.
+
+## Notifications and settings
+
+| Method | Path | Access | Request | Success / important errors |
+| --- | --- | --- | --- | --- |
+| GET | `/api/notifications` | Student or staff | None | 200 recipient-scoped `data.items` |
+| PATCH | `/api/notifications/<notification_id>/read` | Student or staff recipient | None | 200; 404 for inaccessible/missing item |
+| GET | `/api/settings` | Staff | None | 200 current settings |
+| POST | `/api/settings` | Staff | settings payload | 200 saved status |
+
+Settings include staff-maintained operational configuration. The descriptive
+`officeHours` value is informational; booking availability uses the validated
+`appointmentAvailability` configuration in the appointment service.
+
+## Conversation, escalation, and case management — staff only
+
+Every endpoint in this section requires `staff`. Returned data is staff
+privacy-projected; student APIs do not receive these records.
+
+| Method | Path | Request | Success / important errors |
+| --- | --- | --- | --- |
+| GET | `/api/inquiries` | None | 200 `data.items` |
+| GET | `/api/conversation-summaries` | None | 200 `data.items` |
+| GET | `/api/escalations` | None | 200 `data.items` |
+| GET | `/api/flagged-conversations` | None | 200 `data.items` |
+| GET | `/api/flagged-conversations/<summary_id>` | None | 200 case projection; 404 |
+| PATCH | `/api/flagged-conversations/<summary_id>/review` | None | 200; 404; 409 when already reviewed |
+| GET | `/api/flagged-conversations/<summary_id>/confidentiality` | None | 200; 404 |
+| PATCH | `/api/flagged-conversations/<summary_id>/confidentiality` | `confidentiality_status`, optional `confidentiality_reason` | 200; 400/404 |
+| GET | `/api/flagged-conversations/<summary_id>/notes` | None | 200 `data.items`; 404 |
+| POST | `/api/flagged-conversations/<summary_id>/notes` | `note_text` | 201; 400/404 |
+| PATCH | `/api/flagged-conversations/<summary_id>/notes/<note_id>` | `note_text` | 200; 400/404 |
+| GET | `/api/flagged-conversations/<summary_id>/referrals` | None | 200 `data.items`; 404 |
+| POST | `/api/flagged-conversations/<summary_id>/referrals` | `destination`, `referral_reason`, optional `note_text` | 201; 400/404 |
+| PATCH | `/api/flagged-conversations/<summary_id>/referrals/<referral_id>/status` | `status` | 200; 400/404 |
+| POST | `/api/flagged-conversations/<summary_id>/referrals/<referral_id>/notes` | `note_text` | 201; 400/404 |
+| GET | `/api/flagged-conversations/<summary_id>/interventions` | None | 200 `data.items`; 404 |
+| POST | `/api/flagged-conversations/<summary_id>/interventions` | `intervention_type`, `objective` | 201; 400/404 |
+| PATCH | `/api/flagged-conversations/<summary_id>/interventions/<intervention_id>/progress` | `progress_status` | 200; 400/404 |
+| PATCH | `/api/flagged-conversations/<summary_id>/interventions/<intervention_id>/outcome` | `outcome` | 200; 400/404 |
+
+## Student case status
+
+| Method | Path | Access | Request | Success / privacy |
+| --- | --- | --- | --- | --- |
+| GET | `/api/student/cases` | Student | None | 200 own generic status `data.items`; no notes, summaries, reasons, or internal identifiers |
+
+## Dashboard analytics — staff only
+
+All analytics endpoints accept optional inclusive `start_date` and `end_date`
+where the service supports filtering. Malformed or reversed ranges return 400.
+They return aggregate-only data; no endpoint exposes raw case or conversation
+records for analytics.
+
+| Method | Path | Scope / data |
+| --- | --- | --- |
+| GET | `/api/dashboard/appointments/analytics` | Staff-authorized appointment dataset; total/status/trends/current dynamic-routing counselor and program counts |
+| GET | `/api/dashboard/chatbot/analytics` | Existing staff-wide aggregates: total messages, trends, finalization and escalation counts, persisted `emotion_result` distribution, average finalized message count |
+| GET | `/api/dashboard/counselor-workload` | Authenticated staff's authorized appointments and persisted staff-owned referrals/interventions |
+| GET | `/api/dashboard/flagged-cases/analytics` | Staff-wide aggregate flagged-case counts, escalation trends, persisted status distribution, current confidentiality count |
+| GET | `/api/dashboard/stats` | Existing staff dashboard statistics |
+
+The Reports view directly reuses the four analytics endpoints above and creates
+CSV only from their already-authorized aggregate values. PDF export is not
+implemented.

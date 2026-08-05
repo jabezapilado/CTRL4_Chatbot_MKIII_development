@@ -1,5 +1,9 @@
 # CTRL4 MK II - BACKEND IMPLEMENTATION PLAN
 
+> **Historical planning document.** Current frozen implementation references:
+> [PROJECT_CONTEXT.md](../PROJECT_CONTEXT.md) and
+> [01_project_architecture.md](../01_project_architecture.md).
+
 > This document defines the backend implementation roadmap of CTRL4 MK II.
 >
 > It translates the approved system architecture into backend modules and implementation phases.

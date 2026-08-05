@@ -1,5 +1,9 @@
 # CTRL4 MK II - DATABASE ARCHITECTURE
 
+> **Historical planning document.** Current frozen implementation references:
+> [PROJECT_CONTEXT.md](../PROJECT_CONTEXT.md) and
+> [01_project_architecture.md](../01_project_architecture.md).
+
 > This document defines the database architecture of CTRL4 MK II.
 >
 > All database design decisions are considered LOCKED unless adviser requirements change.

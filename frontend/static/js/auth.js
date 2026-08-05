@@ -21,9 +21,14 @@ async function logout() {
     .catch(() => {})
     .finally(() => {
       sessionStorage.clear();
-      localStorage.removeItem("hau_escalation_event");
-      localStorage.removeItem("hau_escalation_staff_msg");
-      localStorage.removeItem("hau_escalation_user_msg");
+      [
+        "hau_escalations",
+        "hau_escalation_event",
+        "hau_escalation_staff_msg",
+        "hau_escalation_user_msg",
+        "hau_takeover_case",
+      ].forEach((key) => localStorage.removeItem(key));
+      sessionStorage.removeItem("current_escalation");
       window.location.replace("/login?reason=logged-out");
     });
 }

@@ -1,5 +1,9 @@
 # CTRL4 MK II - SYSTEM PILLARS
 
+> **Historical planning document.** Current frozen implementation references:
+> [PROJECT_CONTEXT.md](../PROJECT_CONTEXT.md) and
+> [01_project_architecture.md](../01_project_architecture.md).
+
 > This document defines the five core architectural pillars of CTRL4 MK II.
 >
 > These pillars serve as the foundation for the system architecture, feature planning, user interface, backend implementation, database design, and thesis documentation.

@@ -119,7 +119,10 @@ ollama/
 # Uncomment if the index is generated automatically.
 # ===========================================
 
-# backend/data/rag_index/
+backend/data/rag_index/
+backend/data/sessions/
+backend/data/logs/
+backend/data/backups/
 
 # ===========================================
 # Jupyter

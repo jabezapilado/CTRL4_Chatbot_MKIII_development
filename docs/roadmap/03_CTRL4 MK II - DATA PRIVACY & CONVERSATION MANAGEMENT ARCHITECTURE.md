@@ -1,5 +1,9 @@
 # CTRL4 MK II - DATA PRIVACY & CONVERSATION MANAGEMENT ARCHITECTURE
 
+> **Historical planning document.** Current frozen implementation references:
+> [PROJECT_CONTEXT.md](../PROJECT_CONTEXT.md) and
+> [01_project_architecture.md](../01_project_architecture.md).
+
 > This document defines the conversation lifecycle, data privacy architecture, AI summary generation, and temporary data handling of CTRL4 MK II.
 
 ---
