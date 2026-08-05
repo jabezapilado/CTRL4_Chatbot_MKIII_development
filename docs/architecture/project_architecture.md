@@ -1,9 +1,10 @@
 # CTRL4 Chatbot MK III — Current Project Architecture
 
 > **Current reference.** This document describes the implemented system through
-> Sprint 10. For implementation constraints, read [AGENTS.md](../AGENTS.md) and
-> for frozen decisions, read [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md). Documents
-> in [roadmap/](roadmap/) are historical planning artifacts.
+> Sprint 10. Start at the [documentation index](../README.md). For
+> implementation constraints, read [AGENTS.md](../../AGENTS.md) and for frozen
+> decisions, read [Project Context](project_context.md). Documents in
+> [roadmap/](../roadmap/) are historical planning artifacts.
 
 ## Purpose and major domains
 
@@ -126,5 +127,5 @@ flagged-case analytics retain their existing staff-wide aggregate scopes. The
 Reports view reuses the four analytics APIs with one shared optional date
 range and produces client-side CSV from already-authorized aggregate data.
 
-For endpoint detail, see [API_REFERENCE.md](API_REFERENCE.md). For deployment,
-see [06_deployment_guide.md](06_deployment_guide.md).
+For endpoint detail, see the [API Reference](api_reference.md). For deployment,
+see the [Deployment Guide](../deployment/deployment_guide.md).

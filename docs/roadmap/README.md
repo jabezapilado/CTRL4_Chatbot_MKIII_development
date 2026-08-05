@@ -2,7 +2,8 @@
 
 The documents in this directory preserve the original MK II planning record.
 They are not the authoritative specification when they conflict with frozen
-implementation decisions. Use [PROJECT_CONTEXT.md](../PROJECT_CONTEXT.md),
-[01_project_architecture.md](../01_project_architecture.md),
-[API_REFERENCE.md](../API_REFERENCE.md), and [06_deployment_guide.md](../06_deployment_guide.md)
-for current references.
+implementation decisions. Use the [documentation index](../README.md),
+[Project Context](../architecture/project_context.md),
+[Project Architecture](../architecture/project_architecture.md),
+[API Reference](../architecture/api_reference.md), and
+[Deployment Guide](../deployment/deployment_guide.md) for current references.

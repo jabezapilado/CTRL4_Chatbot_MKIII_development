@@ -17,10 +17,10 @@ class DocumentationContractTests(unittest.TestCase):
         current = "\n".join(
             _read(name)
             for name in (
-                "01_project_architecture.md",
-                "10_security_architecture.md",
-                "API_REFERENCE.md",
-                "PROJECT_CONTEXT.md",
+                "architecture/project_architecture.md",
+                "architecture/security_architecture.md",
+                "architecture/api_reference.md",
+                "architecture/project_context.md",
             )
         )
 
@@ -30,12 +30,12 @@ class DocumentationContractTests(unittest.TestCase):
         for status in ("pending", "confirmed", "cancelled", "rejected", "completed"):
             self.assertIn(f"`{status}`", current)
 
-        self.assertIn("interval-overlap", _read("01_project_architecture.md"))
-        self.assertNotIn("approved →", _read("01_project_architecture.md"))
-        self.assertNotIn("did_not_attend", _read("API_REFERENCE.md"))
+        self.assertIn("interval-overlap", _read("architecture/project_architecture.md"))
+        self.assertNotIn("approved →", _read("architecture/project_architecture.md"))
+        self.assertNotIn("did_not_attend", _read("architecture/api_reference.md"))
 
     def test_api_reference_covers_current_route_inventory(self) -> None:
-        reference = _read("API_REFERENCE.md")
+        reference = _read("architecture/api_reference.md")
         endpoints = (
             "/auth/login",
             "/auth/logout",
@@ -87,12 +87,12 @@ class DocumentationContractTests(unittest.TestCase):
         current = "\n".join(
             _read(name)
             for name in (
-                "01_project_architecture.md",
-                "10_security_architecture.md",
-                "API_REFERENCE.md",
-                "STUDENT_USER_GUIDE.md",
-                "GUIDANCE_STAFF_USER_GUIDE.md",
-                "ADMINISTRATOR_GUIDE.md",
+                "architecture/project_architecture.md",
+                "architecture/security_architecture.md",
+                "architecture/api_reference.md",
+                "guides/student_guide.md",
+                "guides/guidance_staff_guide.md",
+                "guides/administrator_guide.md",
             )
         )
 
@@ -111,6 +111,39 @@ class DocumentationContractTests(unittest.TestCase):
 
         self.assertIn("not persisted as a transcript", current)
         self.assertIn("client-side CSV", current)
+
+    def test_documentation_index_uses_current_locations(self) -> None:
+        index = _read("README.md")
+        required_links = (
+            "architecture/project_architecture.md",
+            "architecture/security_architecture.md",
+            "architecture/api_reference.md",
+            "architecture/project_context.md",
+            "deployment/installation_guide.md",
+            "deployment/deployment_guide.md",
+            "guides/student_guide.md",
+            "guides/guidance_staff_guide.md",
+            "guides/administrator_guide.md",
+            "research/emotion_label_lineage_report.md",
+            "models/README.md",
+            "roadmap/mkiii_roadmap.md",
+            "archive/README.md",
+        )
+        for link in required_links:
+            with self.subTest(link=link):
+                self.assertIn(f"]({link})", index)
+
+        old_current_paths = (
+            "01_project_architecture.md",
+            "06_deployment_guide.md",
+            "10_security_architecture.md",
+            "API_REFERENCE.md",
+            "INSTALLATION_GUIDE.md",
+            "PROJECT_CONTEXT.md",
+        )
+        for path in old_current_paths:
+            with self.subTest(path=path):
+                self.assertFalse((DOCS / path).exists())
 
 
 if __name__ == "__main__":

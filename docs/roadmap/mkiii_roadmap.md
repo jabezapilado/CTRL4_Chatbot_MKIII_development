@@ -1,8 +1,9 @@
 # CTRL4 Chatbot MK III Roadmap
 
 > **Historical planning document.** It is not the current implementation
-> specification. See [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) and
-> [01_project_architecture.md](01_project_architecture.md) for current behavior.
+> specification. See [Project Context](../architecture/project_context.md) and
+> [Project Architecture](../architecture/project_architecture.md) for current
+> behavior.
 
 > Internal Development Roadmap
 >

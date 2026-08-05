@@ -1,0 +1,66 @@
+# CTRL4 Chatbot MK III Documentation
+
+This index separates the current CTRL4 Chatbot MK III v1.0.0 implementation
+references from research provenance and historical planning material. For
+development constraints, see [AGENTS.md](../AGENTS.md).
+
+## Current and authoritative references
+
+### Architecture
+
+- [Project Architecture](architecture/project_architecture.md) — domain
+  boundaries, Route → Service → Database ownership, appointments, cases, AI,
+  analytics, and reports.
+- [Security Architecture](architecture/security_architecture.md) — RBAC,
+  CacheLib server-side sessions, privacy projections, browser safety, and
+  deferred security work.
+- [API Reference](architecture/api_reference.md) — route-derived public page
+  and JSON endpoint contracts, authorization, and privacy restrictions.
+- [Project Context](architecture/project_context.md) — frozen decisions and
+  completed Sprint 1–10 outcomes for contributors.
+
+### Installation and deployment
+
+- [Installation Guide](deployment/installation_guide.md) — concise local setup,
+  external model-artifact provisioning, RAG preparation, and development start.
+- [Deployment Guide](deployment/deployment_guide.md) — authoritative production
+  topology, environment configuration, database preparation, backup/restore,
+  logging, and Gunicorn procedure.
+
+### User guides
+
+- [Student Guide](guides/student_guide.md) — authenticated student chatbot,
+  appointments, notifications, and privacy-projected case status.
+- [Guidance Staff Guide](guides/guidance_staff_guide.md) — authorized
+  appointment, case-management, settings, analytics, reports, and CSV workflows.
+- [Administrator Guide](guides/administrator_guide.md) — account-management-only
+  authority and its explicit boundaries.
+
+## Research and provenance references
+
+- [Emotion Label Lineage Report](research/emotion_label_lineage_report.md) —
+  source-to-label transformation and runtime label mapping.
+- [Model and evaluation provenance](models/README.md) — historical
+  English/Filipino model documentation and tracked evaluation artifacts. This
+  code-adjacent path is retained because the training publication workflow owns
+  it; its contents are research records, not deployment instructions or model
+  binaries.
+
+## Roadmaps and historical material
+
+- [MK III roadmap](roadmap/mkiii_roadmap.md) — historical planning for the MK III
+  program; frozen implementation takes precedence.
+- [Historical MK II roadmaps](roadmap/README.md) — preserved planning artifacts.
+- [Historical archive](archive/README.md) — superseded dataset, design, ethics,
+  API, and Sprint 3 records retained for thesis provenance.
+
+## Release information
+
+- [Root README](../README.md) — project overview and quick start.
+- [Changelog](../CHANGELOG.md) — concise release history.
+- [v1.0.0 release tag](https://github.com/jabezapilado/CTRL4_Chatbot_MKIII/releases/tag/v1.0.0)
+  — current stable release.
+
+Historical documents intentionally retain their original terminology, including
+MK II references. They do not define current roles, APIs, data retention,
+analytics, deployment behavior, or permissions.

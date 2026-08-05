@@ -1,7 +1,7 @@
 # CTRL4 Chatbot MK III — Installation Guide
 
 > For production, database upgrades, backup/restore, and Gunicorn deployment,
-> use the authoritative [Deployment Guide](06_deployment_guide.md). This guide
+> use the authoritative [Deployment Guide](deployment_guide.md). This guide
 > is the concise local-installation path.
 
 ## Prerequisites
@@ -15,7 +15,7 @@
 
 ## Install dependencies
 
-The root [`requirements.txt`](../requirements.txt) is the canonical dependency
+The root [`requirements.txt`](../../requirements.txt) is the canonical dependency
 manifest.
 
 ```bash
@@ -39,7 +39,7 @@ credentials in documentation.
 
 For a new empty development database, create the database and load
 `backend/sql/schema.sql`; see the exact commands in the
-[Deployment Guide](06_deployment_guide.md#database-initialization). For an
+[Deployment Guide](deployment_guide.md#database-initialization). For an
 existing development database, back it up first, then use the documented
 `initialize_database()` upgrade procedure. The schema file is for fresh
 databases; the initializer is a compatibility upgrader, not a universal
@@ -96,5 +96,5 @@ curl --fail --silent --show-error http://127.0.0.1:5001/health
 ```
 
 For production Gunicorn startup, explicit upgrade/backup procedure, and log
-locations, follow [06_deployment_guide.md](06_deployment_guide.md) rather than
+locations, follow the [Deployment Guide](deployment_guide.md) rather than
 duplicating those operational steps here.

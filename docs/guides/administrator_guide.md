@@ -7,7 +7,7 @@
 ## Account management
 
 Use the account-management operations documented in
-[API_REFERENCE.md](API_REFERENCE.md#accounts) to list accounts, apply the
+[API Reference](../architecture/api_reference.md#accounts) to list accounts, apply the
 existing role/status filters, and use the approved identifier search. Create
 student, staff, or administrator accounts using the fields accepted for the
 selected role. Unsupported role-specific fields are rejected rather than

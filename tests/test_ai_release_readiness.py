@@ -252,7 +252,10 @@ class EmotionArtifactProvisioningTests(unittest.TestCase):
             )
 
     def test_current_installation_and_deployment_docs_include_provisioning(self) -> None:
-        for path in ("docs/INSTALLATION_GUIDE.md", "docs/06_deployment_guide.md"):
+        for path in (
+            "docs/deployment/installation_guide.md",
+            "docs/deployment/deployment_guide.md",
+        ):
             content = (ROOT / path).read_text(encoding="utf-8")
             with self.subTest(path=path):
                 self.assertIn("verify_emotion_model.py", content)

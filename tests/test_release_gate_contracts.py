@@ -42,15 +42,15 @@ class ReleaseGateContractTests(unittest.TestCase):
             "README.md",
             "AGENTS.md",
             "requirements.txt",
-            "docs/01_project_architecture.md",
-            "docs/06_deployment_guide.md",
-            "docs/10_security_architecture.md",
-            "docs/API_REFERENCE.md",
-            "docs/INSTALLATION_GUIDE.md",
-            "docs/STUDENT_USER_GUIDE.md",
-            "docs/GUIDANCE_STAFF_USER_GUIDE.md",
-            "docs/ADMINISTRATOR_GUIDE.md",
-            "docs/PROJECT_CONTEXT.md",
+            "docs/architecture/project_architecture.md",
+            "docs/deployment/deployment_guide.md",
+            "docs/architecture/security_architecture.md",
+            "docs/architecture/api_reference.md",
+            "docs/deployment/installation_guide.md",
+            "docs/guides/student_guide.md",
+            "docs/guides/guidance_staff_guide.md",
+            "docs/guides/administrator_guide.md",
+            "docs/architecture/project_context.md",
             "backend/server/services/__init__.py",
         )
 
@@ -63,6 +63,8 @@ class ReleaseGateContractTests(unittest.TestCase):
 
         readme = _read("README.md")
         self.assertIn("CTRL4 Chatbot MK III", readme)
+        self.assertIn("v1.0.0", readme)
+        self.assertIn("docs/README.md", readme)
         self.assertIn("http://127.0.0.1:5001", readme)
         self.assertNotIn("student123", readme)
 
