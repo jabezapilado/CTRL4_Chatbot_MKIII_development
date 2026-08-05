@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import logging
 
-from flask import Blueprint, jsonify, request, session
+from flask import Blueprint, current_app, jsonify, request, session
 from .services.account_service import login_service
-from .request_validation import require_login
 
 
 logger = logging.getLogger(__name__)
@@ -29,6 +28,13 @@ def role_landing_path(user: dict) -> str:
 
     return "/chatbot"
 
+
+def _rotate_authenticated_session() -> None:
+    """Replace the server-side session identifier after successful login."""
+    regenerate = getattr(current_app.session_interface, "regenerate", None)
+    if callable(regenerate):
+        regenerate(session)
+
 @auth_bp.post("/auth/login")
 def login():
     payload = request.get_json(silent=True) or {}
@@ -37,10 +43,11 @@ def login():
         user = login_service(payload)
         # Prevent session fixation by issuing a fresh authenticated session.
         session.clear()
-        session.permanent = True
         session["hau_user"] = user
+        _rotate_authenticated_session()
+        session.permanent = True
     except ValueError as exc:
-        logger.warning("Login failed: %s", exc)
+        logger.warning("Login validation failed.")
         return jsonify(
             {
                 "success": False,
@@ -49,7 +56,7 @@ def login():
             }
         ), 400
     except PermissionError as exc:
-        logger.warning("Login denied: %s", exc)
+        logger.warning("Login denied.")
         return jsonify(
             {
                 "success": False,
@@ -58,7 +65,7 @@ def login():
             }
         ), 401
     except RuntimeError as exc:
-        logger.warning("Login blocked: %s", exc)
+        logger.warning("Login blocked.")
         return jsonify(
             {
                 "success": False,
@@ -67,11 +74,7 @@ def login():
             }
         ), 403
 
-    logger.info(
-        "User %s logged in as %s",
-        user["email"],
-        user.get("role", "student"),
-    )
+    logger.info("Authenticated session established (role=%s).", user.get("role", "student"))
     return jsonify(
         {
             "success": True,
@@ -83,7 +86,7 @@ def login():
 
 @auth_bp.post("/auth/logout")
 def logout():
-    user = require_login()
+    user = get_logged_in_user()
     if not user:
         return jsonify(
             {
@@ -94,7 +97,7 @@ def logout():
         ), 401
     session.clear()
     if user:
-        logger.info("User %s logged out", user["email"])
+        logger.info("Authenticated session cleared.")
     return jsonify(
         {
             "success": True,

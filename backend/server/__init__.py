@@ -2,11 +2,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from cachelib.file import FileSystemCache
 from flask import Flask, jsonify
 from flask_cors import CORS
+from flask_session import Session
 
 from .config import Config
 from .db import initialize_database
+from .logging_config import configure_application_logging
 from .routes import register_blueprints
 
 
@@ -21,6 +24,21 @@ def create_app() -> Flask:
 
     app.config.from_object(Config())
     app.secret_key = app.config.get("SECRET_KEY")
+    configure_application_logging(app.config)
+
+    if app.config.get("SESSION_TYPE") != "cachelib":
+        raise RuntimeError(
+            "Only the documented CacheLib session backend is supported."
+        )
+    session_directory = Path(app.config["SESSION_CACHE_DIR"])
+    session_directory.mkdir(parents=True, exist_ok=True)
+    session_directory.chmod(0o700)
+    app.config["SESSION_CACHELIB"] = FileSystemCache(
+        cache_dir=str(session_directory),
+        threshold=app.config["SESSION_CACHE_THRESHOLD"],
+        mode=0o700,
+    )
+    Session(app)
     
     CORS(app)
 
@@ -34,7 +52,8 @@ def create_app() -> Flask:
     def internal_server_error(_error):
         return jsonify({"error": "Internal server error"}), 500
 
-    with app.app_context():
-        initialize_database()
+    if app.config.get("DATABASE_INITIALIZE_ON_START", True):
+        with app.app_context():
+            initialize_database()
 
     return app

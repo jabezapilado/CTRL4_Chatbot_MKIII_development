@@ -1,0 +1,174 @@
+"""Dependency-free regression checks for Issue #71 security boundaries."""
+
+from __future__ import annotations
+
+import unittest
+import shutil
+import subprocess
+from pathlib import Path
+from unittest.mock import patch
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+
+def _source(relative_path: str) -> str:
+    return (PROJECT_ROOT / relative_path).read_text(encoding="utf-8")
+
+
+class SecurityPrivacyContractTests(unittest.TestCase):
+    def test_server_side_session_wiring_and_fixation_rotation_are_present(self) -> None:
+        config = _source("backend/server/config.py")
+        app_factory = _source("backend/server/__init__.py")
+        auth = _source("backend/server/auth.py")
+
+        self.assertIn('self.SESSION_TYPE = os.getenv("CHATBOT_SESSION_TYPE", "cachelib")', config)
+        self.assertIn("self.SESSION_CACHE_DIR", config)
+        self.assertIn("SESSION_COOKIE_HTTPONLY = True", config)
+        self.assertIn("SESSION_COOKIE_SAMESITE = \"Lax\"", config)
+        self.assertIn("PERMANENT_SESSION_LIFETIME = timedelta(hours=8)", config)
+        self.assertIn("from flask_session import Session", app_factory)
+        self.assertIn("from cachelib.file import FileSystemCache", app_factory)
+        self.assertIn('app.config["SESSION_CACHELIB"] = FileSystemCache(', app_factory)
+        self.assertIn("Session(app)", app_factory)
+        self.assertIn("session.clear()", auth)
+        self.assertIn("_rotate_authenticated_session()", auth)
+        self.assertIn("regenerate(session)", auth)
+
+    def test_chat_logging_never_interpolates_protected_payloads(self) -> None:
+        chatbot_routes = _source("backend/server/routes/chatbot_routes.py")
+        ai_service = _source("backend/server/services/ai_service.py")
+        prompt_builder = _source("backend/server/services/prompt_builder.py")
+
+        for source in (chatbot_routes, ai_service, prompt_builder):
+            self.assertNotIn("AIService failed for message", source)
+            self.assertNotIn("processing message: %r", source)
+            self.assertNotIn("Conversation Debug", source)
+            self.assertNotIn("logger.exception(", source)
+
+        self.assertIn("exception_type=%s", chatbot_routes)
+        self.assertIn("exception_type=%s", ai_service)
+        self.assertNotIn("for user %s", chatbot_routes)
+
+    def test_chat_browser_storage_only_clears_legacy_protected_keys(self) -> None:
+        chat = _source("frontend/static/js/chat.js")
+        chat_admin = _source("frontend/static/js/chat_admin.js")
+        auth = _source("frontend/static/js/auth.js")
+
+        for key in (
+            "hau_escalations",
+            "hau_escalation_event",
+            "hau_escalation_staff_msg",
+            "hau_escalation_user_msg",
+            "hau_takeover_case",
+        ):
+            self.assertIn(key, chat)
+            self.assertNotIn(f'localStorage.setItem("{key}"', chat)
+            self.assertNotIn(f'localStorage.getItem("{key}"', chat)
+
+        self.assertIn('sessionStorage.removeItem("current_escalation")', chat)
+        self.assertNotIn('sessionStorage.setItem("current_escalation"', chat)
+        self.assertIn('localStorage.removeItem(legacyTakeoverDataKey)', chat_admin)
+        self.assertNotIn("localStorage.setItem", chat_admin)
+        self.assertIn("hau_escalations", auth)
+        self.assertIn("hau_takeover_case", auth)
+
+    def test_dashboard_protects_persisted_values_rendered_with_inner_html(self) -> None:
+        dashboard = _source("frontend/static/js/dashboard.js")
+
+        self.assertIn("function escapeHtml(value)", dashboard)
+        self.assertNotIn("option.innerHTML", dashboard)
+        self.assertNotIn('onclick="', dashboard)
+
+        expected_escaped_values = (
+            "${escapeHtml(summary.student)}",
+            "${escapeHtml(summary.studentId)}",
+            "${escapeHtml(summary.recommendation || \"No recommendation available.\")}",
+            "${escapeHtml(title)}",
+            "${escapeHtml(question)}",
+            "${escapeHtml(answer || \"\")}",
+            "${escapeHtml(inquiry.student)}",
+            "${escapeHtml(inquiry.studentId)}",
+            "${escapeHtml(preview)}",
+            "${escapeHtml(inquiry.category)}",
+            "${escapeHtml(inquiry.time)}",
+            "${escapeHtml(summary.category)}",
+            "${escapeHtml(summary.id)}",
+        )
+        for escaped_value in expected_escaped_values:
+            with self.subTest(escaped_value=escaped_value):
+                self.assertIn(escaped_value, dashboard)
+
+        # Persisted case-management values use textContent / DOM construction.
+        for renderer in (
+            "function renderCaseNotes",
+            "function renderReferrals",
+            "function renderInterventions",
+            "function renderCaseConfidentiality",
+        ):
+            with self.subTest(renderer=renderer):
+                self.assertIn(renderer, dashboard)
+
+    def test_hostile_dashboard_value_is_escaped_as_text(self) -> None:
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("Node.js is unavailable for the frontend safety check.")
+
+        script = """
+const fs = require('fs');
+const source = fs.readFileSync('frontend/static/js/dashboard.js', 'utf8');
+const start = source.indexOf('function escapeHtml(value)');
+const end = source.indexOf('\\nfunction escapeAppointmentText', start);
+if (start < 0 || end < 0) process.exit(2);
+const context = {};
+require('vm').runInNewContext(source.slice(start, end), context);
+const hostile = '<img src=x onerror=alert(1)>';
+const escaped = context.escapeHtml(hostile);
+if (escaped !== '&lt;img src=x onerror=alert(1)&gt;') process.exit(3);
+"""
+        result = subprocess.run(
+            [node, "-e", script],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_existing_student_and_notification_privacy_boundaries_remain_intact(self) -> None:
+        from backend.server.services import appointment_service, notification_service
+
+        with patch.object(
+            appointment_service,
+            "list_student_appointments",
+            return_value=[
+                {
+                    "id": 4,
+                    "account_id": 12,
+                    "status": "pending",
+                    "counselor_notes": "Private counselor note.",
+                }
+            ],
+        ) as list_appointments:
+            appointments = appointment_service.list_student_appointments_service(
+                {"id": 12, "role": "student"}
+            )
+
+        list_appointments.assert_called_once_with(12)
+        self.assertNotIn("counselor_notes", appointments[0])
+
+        with patch.object(
+            notification_service,
+            "list_notifications_for_recipient",
+            return_value=[{"id": 5, "title": "Appointment update"}],
+        ) as list_notifications:
+            notifications = notification_service.list_notifications_service(
+                {"id": 12, "role": "student"}
+            )
+
+        self.assertEqual(notifications, [{"id": 5, "title": "Appointment update"}])
+        list_notifications.assert_called_once_with(12)
+
+
+if __name__ == "__main__":
+    unittest.main()
