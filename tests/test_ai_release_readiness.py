@@ -413,6 +413,7 @@ class EmergencyKnowledgeReleaseTests(unittest.TestCase):
             "University Guidance Center",
             "Student Counseling Center",
             "Campus Wellness Office",
+            "Holy Angel University University Guidance Services",
         ):
             with self.subTest(unsupported_name=unsupported_name):
                 self.assertNotIn(unsupported_name, combined)
@@ -423,6 +424,16 @@ class EmergencyKnowledgeReleaseTests(unittest.TestCase):
         official_record = next(record for record in office_hours if record["id"] == "OFF001")
         self.assertIn("SOC Guidance Office", official_record["response"])
         self.assertIn("8:00 AM to 5:00 PM", official_record["response"])
+
+    def test_appointment_knowledge_uses_the_current_confirmed_status_term(self) -> None:
+        appointments = json.loads(
+            (ROOT / "ai_engine/knowledge_base/appointment_process.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        preparation = next(record for record in appointments if record["id"] == "APPT002")
+        self.assertIn("confirmed", preparation["response"])
+        self.assertNotIn("approved", preparation["response"].casefold())
 
     def test_emergency_contacts_are_verified_and_have_no_deployment_placeholder(self) -> None:
         content = (ROOT / "ai_engine/knowledge_base/emergency_contacts.json").read_text(
