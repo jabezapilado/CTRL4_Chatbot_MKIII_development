@@ -180,11 +180,10 @@ class SummaryService:
             return self.generate_text(prompt)
 
         except RuntimeError:
-            # TODO: Log the error in a future version.
             return (
-                "An automatic summary could not be generated for this "
-                "conversation. Please review the conversation manually if "
-                "it is still available."
+                "An AI summary could not be generated. Review the available "
+                "case metadata and contact the student through the approved "
+                "Guidance Office process."
             )
     
     def _build_recommendation(
