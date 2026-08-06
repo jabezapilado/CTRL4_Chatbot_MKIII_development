@@ -1,22 +1,7 @@
 /* Administrator account-management portal. Server-side RBAC remains authoritative. */
 
 const ADMIN_API_BASE = window.location.origin;
-
-function configuredPrograms() {
-  const source = document.getElementById("admin-programs");
-  if (!source) return [];
-
-  try {
-    const programs = JSON.parse(source.textContent || "[]");
-    return Array.isArray(programs)
-      ? programs.filter((program) => typeof program === "string" && program.trim())
-      : [];
-  } catch {
-    return [];
-  }
-}
-
-const PROGRAMS = Object.freeze(configuredPrograms());
+let programs = [];
 
 const accountListBody = document.getElementById("account-list-body");
 const accountListMessage = document.getElementById("account-list-message");
@@ -30,9 +15,6 @@ const accountFormMessage = document.getElementById("account-form-message");
 const accountRole = document.getElementById("account-role");
 const accountProgram = document.getElementById("account-program");
 const accountAssignedPrograms = document.getElementById("account-assigned-programs");
-const accountConsultationSchedules = document.getElementById(
-  "account-consultation-schedules",
-);
 const studentProfileFields = document.getElementById("student-profile-fields");
 const staffProfileFields = document.getElementById("staff-profile-fields");
 const accountPasswordField = document.getElementById("account-password-field");
@@ -243,10 +225,10 @@ function populateProgramSelect() {
   empty.textContent = "Select program";
   accountProgram.appendChild(empty);
 
-  PROGRAMS.forEach((program) => {
+  programs.forEach((program) => {
     const option = document.createElement("option");
-    option.value = program;
-    option.textContent = program;
+    option.value = program.display_name;
+    option.textContent = program.display_name;
     accountProgram.appendChild(option);
   });
 }
@@ -255,74 +237,82 @@ function renderAssignedPrograms(selectedPrograms = []) {
   const selected = new Set(selectedPrograms);
   accountAssignedPrograms.replaceChildren();
 
-  PROGRAMS.forEach((program) => {
+  programs.forEach((program) => {
     const label = document.createElement("label");
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.name = "assigned_programs";
-    checkbox.value = program;
-    checkbox.checked = selected.has(program);
+    checkbox.value = program.display_name;
+    checkbox.checked = selected.has(program.display_name);
     const text = document.createElement("span");
-    text.textContent = program;
+    text.textContent = program.display_name;
     label.append(checkbox, text);
     accountAssignedPrograms.appendChild(label);
   });
 }
 
-function scheduleRooms() {
-  return String(document.getElementById("account-consultation-rooms").value || "")
-    .split(",")
-    .map((room) => room.trim())
-    .filter(Boolean);
+function renderProgramCatalog(catalog) {
+  const list = document.getElementById("program-catalog-list");
+  list.replaceChildren();
+  catalog.forEach((program) => {
+    const row = document.createElement("article");
+    const title = document.createElement("strong");
+    const detail = document.createElement("span");
+    const toggle = createActionButton(
+      program.active ? "Deactivate" : "Activate",
+      "btn btn-outline btn-sm",
+      () => void updateProgram(program.code, { active: !program.active }),
+    );
+    const edit = createActionButton("Edit", "btn btn-outline btn-sm", () => {
+      const displayName = window.prompt("Program display name", program.display_name);
+      if (displayName && displayName.trim() !== program.display_name) {
+        void updateProgram(program.code, { display_name: displayName.trim() });
+      }
+    });
+    row.className = "program-catalog-row";
+    title.textContent = program.display_name;
+    detail.textContent = `${program.code} · ${program.active ? "Active" : "Inactive"}`;
+    row.append(title, detail, edit, toggle);
+    list.appendChild(row);
+  });
 }
 
-function createScheduleRow(schedule = {}) {
-  const row = document.createElement("div");
-  row.className = "consultation-schedule-row";
-
-  const roomLabel = document.createElement("label");
-  roomLabel.textContent = "Room";
-  const room = document.createElement("select");
-  room.name = "consultation_schedule_room";
-  const rooms = scheduleRooms();
-  const roomOptions = [...new Set(["", ...rooms, schedule.room || ""])];
-  roomOptions.forEach((value) => {
-    const option = document.createElement("option");
-    option.value = value;
-    option.textContent = value || "Select room";
-    option.selected = value === (schedule.room || "");
-    room.appendChild(option);
-  });
-  roomLabel.appendChild(room);
-
-  const daysLabel = document.createElement("label");
-  daysLabel.textContent = "Days";
-  const days = document.createElement("input");
-  days.name = "consultation_schedule_days";
-  days.placeholder = "Monday-Friday";
-  days.value = schedule.days || "";
-  daysLabel.appendChild(days);
-
-  const timeLabel = document.createElement("label");
-  timeLabel.textContent = "Time";
-  const time = document.createElement("input");
-  time.name = "consultation_schedule_time";
-  time.placeholder = "8:00 AM - 5:00 PM";
-  time.value = schedule.time || "";
-  timeLabel.appendChild(time);
-
-  const remove = createActionButton("Remove", "btn btn-outline btn-sm", () => {
-    row.remove();
-  });
-
-  row.append(roomLabel, daysLabel, timeLabel, remove);
-  accountConsultationSchedules.appendChild(row);
+async function loadPrograms() {
+  const message = document.getElementById("program-catalog-message");
+  setFeedback(message, "Loading program catalog…");
+  try {
+    const response = await fetch(`${ADMIN_API_BASE}/api/accounts/programs`);
+    const payload = await responsePayload(response, "Unable to retrieve programs.");
+    const catalog = payload.data?.items || [];
+    programs = catalog.filter((program) => program.active);
+    populateProgramSelect();
+    renderAssignedPrograms(
+      editingAccount ? parseList(editingAccount.assigned_programs) : [],
+    );
+    renderProgramCatalog(catalog);
+    setFeedback(message);
+  } catch (error) {
+    programs = [];
+    populateProgramSelect();
+    renderAssignedPrograms();
+    setFeedback(message, error.message || "Unable to retrieve programs.", "error");
+  }
 }
 
-function refreshScheduleRoomOptions() {
-  const schedules = consultationSchedules();
-  accountConsultationSchedules.replaceChildren();
-  schedules.forEach(createScheduleRow);
+async function updateProgram(code, updates) {
+  const message = document.getElementById("program-catalog-message");
+  try {
+    const response = await fetch(`${ADMIN_API_BASE}/api/accounts/programs/${encodeURIComponent(code)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates),
+    });
+    const payload = await responsePayload(response, "Unable to update program.");
+    setFeedback(message, payload.message, "success");
+    await loadPrograms();
+  } catch (error) {
+    setFeedback(message, error.message || "Unable to update program.", "error");
+  }
 }
 
 function syncRoleFields() {
@@ -338,7 +328,6 @@ function syncRoleFields() {
 function setFormValues(account = null) {
   editingAccount = account;
   accountForm.reset();
-  accountConsultationSchedules.replaceChildren();
   populateProgramSelect();
 
   if (account) {
@@ -353,13 +342,6 @@ function setFormValues(account = null) {
     accountRole.value = account.role || "student";
     accountProgram.value = account.program || "";
     renderAssignedPrograms(parseList(account.assigned_programs));
-    document.getElementById("account-office").value = account.office || "";
-    document.getElementById("account-support-statement").value =
-      account.support_statement || "";
-    document.getElementById("account-consultation-rooms").value = parseList(
-      account.consultation_rooms,
-    ).join(", ");
-    parseList(account.consultation_schedules).forEach(createScheduleRow);
   } else {
     document.getElementById("account-dialog-kicker").textContent =
       "New account";
@@ -395,24 +377,6 @@ function selectedPrograms() {
   );
 }
 
-function consultationSchedules() {
-  return Array.from(
-    accountConsultationSchedules.querySelectorAll(".consultation-schedule-row"),
-  )
-    .map((row) => ({
-      room: row.querySelector('[name="consultation_schedule_room"]').value.trim(),
-      days: row.querySelector('[name="consultation_schedule_days"]').value.trim(),
-      time: row.querySelector('[name="consultation_schedule_time"]').value.trim(),
-    }))
-    .filter((schedule) => schedule.room || schedule.days || schedule.time);
-}
-
-function validateSchedules(schedules) {
-  if (schedules.some((schedule) => !schedule.room || !schedule.days || !schedule.time)) {
-    throw new Error("Each consultation schedule must include a room, days, and time.");
-  }
-}
-
 function accountPayload() {
   const role = formRole();
   const payload = {
@@ -438,15 +402,7 @@ function accountPayload() {
   }
 
   if (role === "staff") {
-    const schedules = consultationSchedules();
-    validateSchedules(schedules);
     payload.assigned_programs = selectedPrograms();
-    payload.office = document.getElementById("account-office").value.trim();
-    payload.support_statement = document
-      .getElementById("account-support-statement")
-      .value.trim();
-    payload.consultation_rooms = scheduleRooms();
-    payload.consultation_schedules = schedules;
   }
 
   return payload;
@@ -535,15 +491,8 @@ document.getElementById("create-account-btn").addEventListener("click", () => {
 document.getElementById("account-reset-btn").addEventListener("click", resetFilters);
 document.getElementById("account-dialog-close").addEventListener("click", closeAccountForm);
 document.getElementById("account-form-cancel").addEventListener("click", closeAccountForm);
-document.getElementById("add-consultation-schedule").addEventListener("click", () => {
-  createScheduleRow();
-});
-document
-  .getElementById("account-consultation-rooms")
-  .addEventListener("change", refreshScheduleRoomOptions);
 accountRole.addEventListener("change", () => {
   renderAssignedPrograms();
-  accountConsultationSchedules.replaceChildren();
   syncRoleFields();
 });
 accountFilterForm.addEventListener("submit", (event) => {
@@ -558,5 +507,28 @@ document.getElementById("admin-logout-btn").addEventListener("click", () => {
   window.logout();
 });
 
-populateProgramSelect();
+document.getElementById("program-catalog-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const code = document.getElementById("program-code");
+  const displayName = document.getElementById("program-display-name");
+  const message = document.getElementById("program-catalog-message");
+  try {
+    const response = await fetch(`${ADMIN_API_BASE}/api/accounts/programs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        code: code.value,
+        display_name: displayName.value,
+      }),
+    });
+    const payload = await responsePayload(response, "Unable to create program.");
+    event.currentTarget.reset();
+    setFeedback(message, payload.message, "success");
+    await loadPrograms();
+  } catch (error) {
+    setFeedback(message, error.message || "Unable to create program.", "error");
+  }
+});
+
+void loadPrograms();
 loadAccounts();

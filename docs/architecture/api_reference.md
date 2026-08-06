@@ -123,6 +123,22 @@ Settings include staff-maintained operational configuration. The descriptive
 entries are persisted Guidance Office knowledge and are evaluated after live
 operational settings but before RAG or provider output.
 
+## Account and program management
+
+| Method | Path | Access | Request | Success / important errors |
+| --- | --- | --- | --- | --- |
+| GET | `/api/accounts/programs` | Admin | None | 200 active and inactive program catalog |
+| GET | `/api/accounts/programs/active` | Admin or staff | None | 200 active program catalog |
+| POST | `/api/accounts/programs` | Admin | code, display_name; optional active/order | 201; 400 validation |
+| PATCH | `/api/accounts/programs/<program_code>` | Admin | display_name, active, or order | 200; 400 validation; 404 |
+| GET | `/api/accounts/staff/profile` | Staff | None | 200 authenticated staff operational profile only |
+| PATCH | `/api/accounts/staff/profile` | Staff | office, support statement, rooms, schedules | 200; 400 validation |
+
+Administrators manage account identity, role, account authorization, and active
+program assignments. Guidance operational profiles are self-service staff data;
+administrator account routes reject office, support-statement, consultation-room,
+and consultation-schedule writes.
+
 ## Conversation, escalation, and case management — staff only
 
 Every endpoint in this section requires `staff`. Returned data is staff

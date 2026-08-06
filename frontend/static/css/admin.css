@@ -1,3 +1,33 @@
+.program-catalog-list {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.program-catalog-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(140px, 0.7fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+}
+
+.program-catalog-row span {
+  color: var(--gray-500);
+  font-size: 12px;
+}
+
+@media (max-width: 620px) {
+  .program-catalog-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .program-catalog-row strong,
+  .program-catalog-row span {
+    grid-column: 1 / -1;
+  }
+}
 /* Administrator account-management portal. Guidance data is intentionally absent. */
 
 .admin-page {

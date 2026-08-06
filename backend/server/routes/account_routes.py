@@ -1,9 +1,7 @@
 from flask import Blueprint, jsonify, request
 import logging
 
-from ..request_validation import require_role
-
-from ..db import search_student_accounts
+from ..request_validation import require_any_role, require_role
 
 from ..services.account_service import (
     create_account_service,
@@ -14,7 +12,11 @@ from ..services.account_service import (
     update_admin_account_service,
     update_staff_account_service,
     update_student_account_service,
+    search_students_for_staff_service,
+    get_own_staff_operational_profile_service,
+    update_own_staff_operational_profile_service,
 )
+from ..services.program_service import program_service
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +25,116 @@ account_bp = Blueprint(
     __name__,
     url_prefix="/api/accounts",
 )
+
+
+@account_bp.get("/programs")
+def list_programs_route():
+    _, error = require_role("admin")
+    if error:
+        return error
+    return jsonify(
+        {
+            "success": True,
+            "message": "Programs retrieved successfully.",
+            "data": {"items": program_service.list_programs(include_inactive=True)},
+        }
+    ), 200
+
+
+@account_bp.get("/programs/active")
+def list_active_programs_route():
+    _, error = require_any_role("admin", "staff")
+    if error:
+        return error
+    return jsonify(
+        {
+            "success": True,
+            "message": "Active programs retrieved successfully.",
+            "data": {"items": program_service.list_programs()},
+        }
+    ), 200
+
+
+@account_bp.post("/programs")
+def create_program_route():
+    _, error = require_role("admin")
+    if error:
+        return error
+    try:
+        program = program_service.create_program(request.get_json(silent=True) or {})
+    except ValueError as exc:
+        return _error_response(str(exc), 400)
+    return jsonify(
+        {
+            "success": True,
+            "message": "Program created successfully.",
+            "data": program,
+        }
+    ), 201
+
+
+@account_bp.patch("/programs/<string:program_code>")
+def update_program_route(program_code: str):
+    _, error = require_role("admin")
+    if error:
+        return error
+    try:
+        program = program_service.update_program(
+            program_code,
+            request.get_json(silent=True) or {},
+        )
+    except ValueError as exc:
+        return _error_response(str(exc), 400)
+    except LookupError as exc:
+        return _error_response(str(exc), 404)
+    return jsonify(
+        {
+            "success": True,
+            "message": "Program updated successfully.",
+            "data": program,
+        }
+    ), 200
+
+
+@account_bp.get("/staff/profile")
+def staff_profile_route():
+    user, error = require_role("staff")
+    if error:
+        return error
+    try:
+        profile = get_own_staff_operational_profile_service(user)
+    except LookupError as exc:
+        return _error_response(str(exc), 404)
+    return jsonify(
+        {
+            "success": True,
+            "message": "Counselor profile retrieved successfully.",
+            "data": profile,
+        }
+    ), 200
+
+
+@account_bp.patch("/staff/profile")
+def update_staff_profile_route():
+    user, error = require_role("staff")
+    if error:
+        return error
+    try:
+        profile = update_own_staff_operational_profile_service(
+            user,
+            request.get_json(silent=True) or {},
+        )
+    except ValueError as exc:
+        return _error_response(str(exc), 400)
+    except LookupError as exc:
+        return _error_response(str(exc), 404)
+    return jsonify(
+        {
+            "success": True,
+            "message": "Counselor profile updated successfully.",
+            "data": profile,
+        }
+    ), 200
 
 
 def _error_response(message: str, status: int):
@@ -71,13 +183,16 @@ def search_accounts():
             }
         ), 200
 
+    try:
+        items = search_students_for_staff_service(user, query)
+    except LookupError as exc:
+        return _error_response(str(exc), 404)
+
     return jsonify(
         {
             "success": True,
             "message": "Accounts retrieved successfully.",
-            "data": {
-                "items": search_student_accounts(query)
-            },
+            "data": {"items": items},
         }
     ), 200
 

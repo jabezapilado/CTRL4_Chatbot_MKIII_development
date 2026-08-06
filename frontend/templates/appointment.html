@@ -74,13 +74,14 @@
               <label class="form-label" for="rescheduleTime">
                 New Preferred Time Slot
               </label>
-              <input
-                type="text"
+              <select
                 id="rescheduleTime"
                 class="form-input form-select"
-                placeholder="Choose a time within the configured availability"
                 required
-              />
+                disabled
+              >
+                <option value="">Select an available time slot</option>
+              </select>
             </div>
           </div>
           <p
@@ -176,15 +177,15 @@
                   Preferred Time Slot
                 </label>
 
-                <input
-                  type="text"
+                <select
                   id="prefTime"
                   name="prefTime"
                   class="form-input form-select"
-                  placeholder="Loading appointment availability..."
                   aria-required="true"
                   disabled
-                />
+                >
+                  <option value="">Select an available time slot</option>
+                </select>
                 <span class="error-msg" id="prefTime-error"> </span>
               </div>
             </div>

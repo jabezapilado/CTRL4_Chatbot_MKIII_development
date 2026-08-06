@@ -1248,6 +1248,16 @@
               </div>
               <div class="field-grid-2 settings-choice-grid">
                 <div class="field-group">
+                  <label for="settings-appointment-slots"
+                    >Selectable Appointment Start Times</label
+                  >
+                  <textarea
+                    id="settings-appointment-slots"
+                    rows="4"
+                    placeholder="One start time per line, for example 09:00 AM"
+                  ></textarea>
+                </div>
+                <div class="field-group">
                   <label for="settings-appointment-categories"
                     >Appointment Categories</label
                   >
@@ -1327,6 +1337,42 @@
                   <button class="btn btn-primary" type="submit">Add FAQ</button>
                 </div>
               </form>
+            </section>
+
+            <section class="settings-panel counselor-profile-panel">
+              <div class="settings-list-heading">
+                <div>
+                  <h3>My Counselor Profile</h3>
+                  <p class="sub">
+                    Manage your own office, support statement, consultation rooms, and consultation schedule.
+                  </p>
+                </div>
+              </div>
+              <p id="counselor-profile-status" class="settings-status" role="status" aria-live="polite" hidden></p>
+              <div class="field-grid-2">
+                <div class="field-group">
+                  <label for="counselor-profile-office">Office</label>
+                  <input id="counselor-profile-office" autocomplete="organization" />
+                </div>
+                <div class="field-group">
+                  <label for="counselor-profile-rooms">Consultation Rooms</label>
+                  <input id="counselor-profile-rooms" placeholder="Separate rooms with commas" />
+                </div>
+              </div>
+              <div class="field-group">
+                <label for="counselor-profile-support">Support Statement</label>
+                <textarea id="counselor-profile-support" rows="3"></textarea>
+              </div>
+              <div class="settings-list-section">
+                <div class="settings-list-heading">
+                  <h4>Consultation Schedule</h4>
+                  <button class="btn btn-outline btn-sm" id="add-counselor-schedule" type="button">Add schedule</button>
+                </div>
+                <div id="counselor-schedule-list"></div>
+              </div>
+              <div class="settings-actions">
+                <button class="btn btn-primary" id="save-counselor-profile" type="button">Save Counselor Profile</button>
+              </div>
             </section>
 
             <p

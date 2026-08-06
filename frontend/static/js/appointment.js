@@ -47,6 +47,7 @@ const STUDENT_APPOINTMENT_STATUS_LABELS = {
 
 let reschedulingAppointmentId = null;
 let bookingOptions = { state: "loading", bookingEnabled: false };
+const touchedFields = new Set();
 
 function isBookingAvailable(options = bookingOptions) {
   return options?.state === "available" && options.bookingEnabled === true;
@@ -87,14 +88,37 @@ function populateChoiceSelect(id, choices, placeholder) {
   select.disabled = !isBookingAvailable();
 }
 
+function populateSlotSelect(select, slots, placeholder, disabled = false) {
+  if (!select) return;
+  const previousValue = select.value;
+  select.replaceChildren();
+  const prompt = document.createElement("option");
+  prompt.value = "";
+  prompt.disabled = true;
+  prompt.selected = true;
+  prompt.textContent = placeholder;
+  select.appendChild(prompt);
+  slots.forEach((slot) => {
+    const option = document.createElement("option");
+    option.value = slot;
+    option.textContent = formatStudentAppointmentTime(slot);
+    if (slot === previousValue) option.selected = true;
+    select.appendChild(option);
+  });
+  select.disabled = disabled;
+}
+
 function parseAppointmentTime(value) {
-  const match = String(value || "").trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  const match = String(value || "")
+    .trim()
+    .match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
   if (!match) return null;
   const hour = Number(match[1]);
   const minute = Number(match[2]);
   if (hour < 1 || hour > 12 || minute > 59) return null;
   const normalizedHour = hour === 12 ? 0 : hour;
-  const minutes = (normalizedHour + (match[3].toUpperCase() === "PM" ? 12 : 0)) * 60 + minute;
+  const minutes =
+    (normalizedHour + (match[3].toUpperCase() === "PM" ? 12 : 0)) * 60 + minute;
   return {
     minutes,
     value: `${String(hour).padStart(2, "0")}:${match[2]} ${match[3].toUpperCase()}`,
@@ -117,28 +141,18 @@ function dateMatchesAvailabilityWindow(dateValue, window) {
 function isConfiguredDateAvailable(dateValue, options = bookingOptions) {
   return Boolean(
     isBookingAvailable(options) &&
-      !options.unavailableDates?.includes(dateValue) &&
-      options.officeAvailability?.some((window) =>
-        dateMatchesAvailabilityWindow(dateValue, window),
-      ),
+    !options.unavailableDates?.includes(dateValue) &&
+    options.officeAvailability?.some((window) =>
+      dateMatchesAvailabilityWindow(dateValue, window),
+    ),
   );
 }
 
 function isConfiguredTimeAvailable(dateValue, value, options = bookingOptions) {
-  const requested = parseAppointmentTime(value);
-  if (!requested || !isConfiguredDateAvailable(dateValue, options)) return false;
-  return options.officeAvailability.some((window) => {
-    if (!dateMatchesAvailabilityWindow(dateValue, window)) return false;
-    const [start, end] = String(window.time || "").split(" - ");
-    const startTime = parseAppointmentTime(start);
-    const endTime = parseAppointmentTime(end);
-    return Boolean(
-      startTime &&
-        endTime &&
-        requested.minutes >= startTime.minutes &&
-        requested.minutes < endTime.minutes,
-    );
-  });
+  return Boolean(
+    isConfiguredDateAvailable(dateValue, options) &&
+      options.availableSlots?.includes(value),
+  );
 }
 
 function configuredAvailabilityLabel(options = bookingOptions) {
@@ -152,27 +166,39 @@ function renderBookingOptions() {
   const time = document.getElementById("prefTime");
   const date = document.getElementById("prefDate");
   if (time) {
-    time.disabled = !available;
-    time.placeholder = available
-      ? `Available: ${configuredAvailabilityLabel()}`
-      : "Appointment configuration unavailable";
+    populateSlotSelect(
+      time,
+      [],
+      available
+        ? "Select a date first"
+        : "Appointment configuration unavailable",
+      true,
+    );
   }
   if (date) date.disabled = !available;
   populateChoiceSelect(
     "appointmentCategory",
     available ? bookingOptions.appointmentCategories || [] : [],
-    available ? "Select appointment category" : "Appointment configuration unavailable",
+    available
+      ? "Select appointment category"
+      : "Appointment configuration unavailable",
   );
   populateChoiceSelect(
     "appointmentMode",
     available ? bookingOptions.consultationModes || [] : [],
-    available ? "Select consultation mode" : "Appointment configuration unavailable",
+    available
+      ? "Select consultation mode"
+      : "Appointment configuration unavailable",
   );
   if (rescheduleTime) {
-    rescheduleTime.disabled = !available;
-    rescheduleTime.placeholder = available
-      ? `Available: ${configuredAvailabilityLabel()}`
-      : "Appointment configuration unavailable";
+    populateSlotSelect(
+      rescheduleTime,
+      [],
+      available
+        ? "Select a date first"
+        : "Appointment configuration unavailable",
+      true,
+    );
   }
   if (rescheduleDate) rescheduleDate.disabled = !available;
   submitBtn.disabled = !available;
@@ -184,15 +210,60 @@ function renderBookingOptions() {
   );
 }
 
-async function refreshBookingOptions() {
-  const response = await fetch(`${window.location.origin}/api/appointments/booking-options`);
+async function refreshBookingOptions(preferredDate = "", render = true) {
+  const query = new URLSearchParams();
+  if (preferredDate) query.set("date", preferredDate);
+  const response = await fetch(
+    `${window.location.origin}/api/appointments/booking-options${
+      query.size ? `?${query}` : ""
+    }`,
+  );
   const payload = await response.json();
   if (!response.ok) {
     throw new Error(payload.message || "Unable to load appointment options.");
   }
-  bookingOptions = payload.data || { state: "unconfigured", bookingEnabled: false };
-  renderBookingOptions();
+  bookingOptions = payload.data || {
+    state: "unconfigured",
+    bookingEnabled: false,
+  };
+  if (render) renderBookingOptions();
   return bookingOptions;
+}
+
+async function loadSlotOptions(dateValue, select, messageElement) {
+  if (!dateValue || !isConfiguredDateAvailable(dateValue)) {
+    populateSlotSelect(select, [], "Select a valid date first", true);
+    return;
+  }
+  populateSlotSelect(select, [], "Loading available time slots...", true);
+  try {
+    const options = await refreshBookingOptions(dateValue, false);
+    const slots = options.availableSlots || [];
+    populateSlotSelect(
+      select,
+      slots,
+      slots.length
+        ? "Select an available time slot"
+        : "No available time slots for the selected date.",
+      !slots.length,
+    );
+    if (messageElement) {
+      setStudentAppointmentMessage(
+        slots.length ? "" : "No available time slots for the selected date.",
+        slots.length ? "" : "error",
+        messageElement,
+      );
+    }
+  } catch (error) {
+    populateSlotSelect(select, [], "Unable to load available time slots", true);
+    if (messageElement) {
+      setStudentAppointmentMessage(
+        error.message || "Unable to load available time slots.",
+        "error",
+        messageElement,
+      );
+    }
+  }
 }
 // ── Field definitions (id + validation rules) ───────────────────────────────
 const FIELDS = [
@@ -234,7 +305,12 @@ const FIELDS = [
         return "Please select a preferred time slot.";
       }
 
-      if (!isConfiguredTimeAvailable(document.getElementById("prefDate")?.value, v)) {
+      if (
+        !isConfiguredTimeAvailable(
+          document.getElementById("prefDate")?.value,
+          v,
+        )
+      ) {
         return "Select a time within the configured appointment availability.";
       }
 
@@ -311,6 +387,10 @@ function setError(id, msg) {
  */
 function validateField(field) {
   const el = document.getElementById(field.id);
+  if (!el || el.disabled) {
+    setError(field.id, null);
+    return true;
+  }
   const val = el.value;
   const err = field.validate(val);
   setError(field.id, err);
@@ -328,11 +408,13 @@ function setMinDate() {
 FIELDS.forEach((field) => {
   const el = document.getElementById(field.id);
   if (!el) return;
-  // Validate on blur
-  el.addEventListener("blur", () => validateField(field));
+  el.addEventListener("blur", () => {
+    touchedFields.add(field.id);
+    validateField(field);
+  });
   // Clear error while typing/changing (after first blur)
   el.addEventListener("input", () => {
-    if (el.classList.contains("input-error")) {
+    if (touchedFields.has(field.id) && el.classList.contains("input-error")) {
       validateField(field);
     }
   });
@@ -341,12 +423,24 @@ FIELDS.forEach((field) => {
     el.addEventListener("change", () => validateField(field));
   }
 });
+
+document.getElementById("prefDate")?.addEventListener("change", () => {
+  touchedFields.add("prefDate");
+  void loadSlotOptions(
+    document.getElementById("prefDate").value,
+    document.getElementById("prefTime"),
+    bookingOptionsMessage,
+  );
+});
 // ── Form Submission ──────────────────────────────────────────────────────────
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
 
   try {
-    await refreshBookingOptions();
+    await refreshBookingOptions(
+      document.getElementById("prefDate").value,
+      false,
+    );
   } catch (error) {
     setBookingOptionsMessage(
       error.message || "Unable to load current appointment options.",
@@ -361,6 +455,7 @@ form.addEventListener("submit", async (e) => {
   let isValid = true;
 
   FIELDS.forEach((field) => {
+    touchedFields.add(field.id);
     if (!validateField(field)) isValid = false;
   });
 
@@ -438,7 +533,6 @@ function collectFormData() {
     preferredDate: document.getElementById("prefDate").value,
 
     preferredTime:
-      parseAppointmentTime(document.getElementById("prefTime").value)?.value ||
       document.getElementById("prefTime").value,
 
     appointmentCategory: document.getElementById("appointmentCategory").value,
@@ -460,6 +554,13 @@ backBtn?.addEventListener("click", () => {
 
 function resetForm() {
   form.reset();
+  touchedFields.clear();
+  populateSlotSelect(
+    document.getElementById("prefTime"),
+    [],
+    "Select a date first",
+    true,
+  );
   // Remove all error states
   FIELDS.forEach((field) => setError(field.id, null));
   // Scroll to top of form
@@ -812,11 +913,14 @@ async function cancelStudentAppointment(
 }
 
 function populateRescheduleTimeOptions() {
-  if (!rescheduleTime) return;
-  rescheduleTime.value = "";
-  rescheduleTime.placeholder = isBookingAvailable()
-    ? `Available: ${configuredAvailabilityLabel()}`
-    : "Appointment configuration unavailable";
+  populateSlotSelect(
+    rescheduleTime,
+    [],
+    isBookingAvailable()
+      ? "Select a date first"
+      : "Appointment configuration unavailable",
+    true,
+  );
 }
 
 function openRescheduleModal(appointment) {
@@ -846,6 +950,10 @@ refreshStudentAppointmentsButton?.addEventListener("click", () => {
 
 rescheduleClose?.addEventListener("click", closeRescheduleModal);
 
+rescheduleDate?.addEventListener("change", () => {
+  void loadSlotOptions(rescheduleDate.value, rescheduleTime, rescheduleMessage);
+});
+
 rescheduleModal?.addEventListener("click", (event) => {
   if (event.target === rescheduleModal) {
     closeRescheduleModal();
@@ -869,7 +977,7 @@ rescheduleForm?.addEventListener("submit", async (event) => {
   }
 
   try {
-    await refreshBookingOptions();
+    await refreshBookingOptions(rescheduleDate.value, false);
   } catch (error) {
     setStudentAppointmentMessage(
       error.message || "Unable to load current appointment options.",
@@ -903,9 +1011,7 @@ rescheduleForm?.addEventListener("submit", async (event) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           preferred_date: rescheduleDate.value,
-          preferred_time_slot:
-            parseAppointmentTime(rescheduleTime.value)?.value ||
-            rescheduleTime.value,
+          preferred_time_slot: rescheduleTime.value,
         }),
       },
     );

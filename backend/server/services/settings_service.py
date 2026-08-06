@@ -33,7 +33,11 @@ APPOINTMENT_AVAILABILITY_FIELDS: Final[frozenset[str]] = frozenset(
         "unavailableDates",
         "appointmentCategories",
         "consultationModes",
+        "appointmentSlots",
     }
+)
+PRE_SLOT_AVAILABILITY_FIELDS: Final[frozenset[str]] = frozenset(
+    APPOINTMENT_AVAILABILITY_FIELDS - {"appointmentSlots"}
 )
 LEGACY_AVAILABILITY_FIELDS: Final[frozenset[str]] = frozenset(
     {
@@ -85,6 +89,14 @@ APPROVED_APPOINTMENT_AVAILABILITY: Final[dict[str, Any]] = {
         "Others",
     ],
     "consultationModes": ["Online", "Onsite"],
+    "appointmentSlots": [
+        "08:00 AM",
+        "09:00 AM",
+        "10:00 AM",
+        "01:00 PM",
+        "02:00 PM",
+        "03:00 PM",
+    ],
 }
 APPROVED_FAQS: Final[tuple[dict[str, Any], ...]] = (
     {
@@ -321,6 +333,29 @@ def _normalize_choices(
     return normalized
 
 
+def _normalize_slot_list(value: object, *, required: bool) -> list[str]:
+    if not isinstance(value, list):
+        raise ValueError("Appointment slots must be a list.")
+    if required and not value:
+        raise ValueError("Appointment slots must contain at least one start time.")
+
+    slots: list[str] = []
+    for raw_slot in value:
+        if not isinstance(raw_slot, str):
+            raise ValueError("Appointment slots must contain valid start times.")
+        try:
+            slot = datetime.strptime(" ".join(raw_slot.split()), "%I:%M %p").strftime(
+                "%I:%M %p"
+            )
+        except ValueError as exc:
+            raise ValueError("Appointment slots must contain valid start times.") from exc
+        slots.append(slot)
+
+    if len(slots) != len(set(slots)):
+        raise ValueError("Appointment slots must not contain duplicates.")
+    return sorted(slots, key=_time_minutes)
+
+
 def normalize_appointment_availability(
     value: object,
     *,
@@ -333,7 +368,12 @@ def normalize_appointment_availability(
 
     fields = set(availability)
     is_legacy = fields == LEGACY_AVAILABILITY_FIELDS
-    if fields != APPOINTMENT_AVAILABILITY_FIELDS and not (allow_legacy and is_legacy):
+    is_pre_slot = fields == PRE_SLOT_AVAILABILITY_FIELDS
+    if (
+        fields != APPOINTMENT_AVAILABILITY_FIELDS
+        and not is_pre_slot
+        and not (allow_legacy and is_legacy)
+    ):
         raise ValueError("Appointment availability contains unsupported fields.")
 
     booking_enabled = availability.get("bookingEnabled", True)
@@ -359,6 +399,9 @@ def normalize_appointment_availability(
         normalized["bookingEnabled"] = booking_enabled
         normalized["appointmentCategories"] = None
         normalized["consultationModes"] = None
+        normalized["appointmentSlots"] = list(
+            APPROVED_APPOINTMENT_AVAILABILITY["appointmentSlots"]
+        )
         return normalized
 
     normalized["bookingEnabled"] = booking_enabled
@@ -370,6 +413,12 @@ def normalize_appointment_availability(
     normalized["consultationModes"] = _normalize_choices(
         availability.get("consultationModes"),
         "Consultation modes",
+        required=booking_enabled,
+    )
+    normalized["appointmentSlots"] = _normalize_slot_list(
+        availability.get("appointmentSlots")
+        if not is_pre_slot
+        else APPROVED_APPOINTMENT_AVAILABILITY["appointmentSlots"],
         required=booking_enabled,
     )
     return normalized
@@ -432,6 +481,20 @@ class SettingsService:
             seeded[APPOINTMENT_AVAILABILITY_KEY] = APPROVED_APPOINTMENT_AVAILABILITY
         else:
             preserved.append(APPOINTMENT_AVAILABILITY_KEY)
+            existing_availability = _decode_json(
+                persisted[APPOINTMENT_AVAILABILITY_KEY]
+            )
+            if (
+                isinstance(existing_availability, dict)
+                and set(existing_availability) == PRE_SLOT_AVAILABILITY_FIELDS
+            ):
+                seeded[APPOINTMENT_AVAILABILITY_KEY] = {
+                    **existing_availability,
+                    "appointmentSlots": list(
+                        APPROVED_APPOINTMENT_AVAILABILITY["appointmentSlots"]
+                    ),
+                }
+                preserved.remove(APPOINTMENT_AVAILABILITY_KEY)
         if FAQ_SETTING_KEY not in persisted:
             seeded[FAQ_SETTING_KEY] = list(APPROVED_FAQS)
         else:
@@ -582,6 +645,7 @@ class SettingsService:
             ),
             "appointmentCategories": configuration["appointmentCategories"],
             "consultationModes": configuration["consultationModes"],
+            "appointmentSlots": configuration["appointmentSlots"],
         }
 
 

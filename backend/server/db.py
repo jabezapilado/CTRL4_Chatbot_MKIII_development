@@ -2633,6 +2633,45 @@ def search_student_accounts(query: str) -> list[dict[str, Any]]:
     return [_json_safe_row(row) for row in rows]
 
 
+def search_student_accounts_by_programs(
+    query: str,
+    programs: tuple[str, ...],
+) -> list[dict[str, Any]]:
+    """Return only authorized public student-search fields for staff workflows."""
+    if not programs:
+        return []
+
+    initialize_database()
+    search = f"%{query.strip()}%"
+    placeholders = ", ".join(["%s"] * len(programs))
+    with _database_connection() as connection:
+        with connection.cursor(dictionary=True) as cursor:
+            cursor.execute(
+                f"""
+                SELECT
+                    full_name,
+                    student_number,
+                    program,
+                    email
+                FROM accounts
+                WHERE role = 'student'
+                  AND status = 'active'
+                  AND program IN ({placeholders})
+                  AND (
+                        full_name LIKE %s
+                     OR student_number LIKE %s
+                     OR email LIKE %s
+                  )
+                ORDER BY full_name ASC, student_number ASC
+                LIMIT 10
+                """,
+                (*programs, search, search, search),
+            )
+            rows = cursor.fetchall()
+
+    return [_json_safe_row(row) for row in rows]
+
+
 # --- Helper: Get staff assigned to a program ---
 
 def get_staff_by_program(program: str) -> dict[str, Any] | None:
@@ -2702,6 +2741,25 @@ def get_student_by_id(
         (student_id,),
     )
 
+    return rows[0] if rows else None
+
+
+def get_student_by_student_number(student_number: str) -> dict[str, Any] | None:
+    rows = fetch_rows(
+        """
+        SELECT
+            id,
+            full_name,
+            student_number,
+            program
+        FROM accounts
+        WHERE student_number = %s
+          AND role = 'student'
+          AND status = 'active'
+        LIMIT 1
+        """,
+        (student_number,),
+    )
     return rows[0] if rows else None
 
 # --- Helper: List staff appointments by assigned programs ---
@@ -2902,9 +2960,6 @@ def create_account(
     if role == "student" and not program:
         raise ValueError("Program is required for students.")
 
-    if role == "student" and program not in config.PROGRAMS:
-        raise ValueError("Invalid program.")
-    
     # No longer require manual staff_number.
     if fetch_account_by_email(email):
         raise ValueError("An account with this email already exists.")

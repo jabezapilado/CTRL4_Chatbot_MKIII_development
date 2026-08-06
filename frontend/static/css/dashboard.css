@@ -823,6 +823,22 @@ table.inquiry-table .table-empty-state {
   margin-bottom: 18px;
 }
 
+.counselor-profile-panel {
+  margin-bottom: 18px;
+}
+
+.counselor-schedule-row {
+  display: grid;
+  grid-template-columns: minmax(130px, 1fr) minmax(130px, 1fr) minmax(110px, 0.8fr) minmax(110px, 0.8fr) auto;
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 10px;
+}
+
+.counselor-schedule-row .field-group {
+  margin: 0;
+}
+
 .faq-management-list {
   display: grid;
   gap: 12px;
@@ -2074,9 +2090,15 @@ table.inquiry-table .table-empty-state {
   .faq-editor-card-actions .btn {
     width: 100%;
   }
+  .counselor-schedule-row {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 @media (max-width: 480px) {
+  .counselor-schedule-row {
+    grid-template-columns: 1fr;
+  }
   .inbox-table thead {
     display: none;
   }

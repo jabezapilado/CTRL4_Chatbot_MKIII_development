@@ -72,10 +72,12 @@ class SettingsServiceTests(unittest.TestCase):
         self.assertEqual(options["consultationModes"], availability["consultationModes"])
 
     def test_seed_preserves_staff_edits_and_is_idempotent(self) -> None:
+        edited_availability = configured_availability()
+        edited_availability["appointmentSlots"] = ["09:00 AM"]
         edited = {
             "officeHours": "Staff edited hours",
             "contactNumber": "",
-            "appointmentAvailability": configured_availability(),
+            "appointmentAvailability": edited_availability,
             FAQ_SETTING_KEY: [
                 {
                     "id": "staff-faq",
@@ -97,6 +99,19 @@ class SettingsServiceTests(unittest.TestCase):
         self.assertIn("appointmentAvailability", first_report["preserved"])
         self.assertEqual(second_report["seeded"], [])
         self.assertEqual(len(writes), 1)
+
+    def test_seed_adds_missing_slots_without_replacing_existing_configuration(self) -> None:
+        availability = configured_availability()
+        service, store, _writes = self._memory_service(
+            {"appointmentAvailability": availability}
+        )
+
+        service.seed_approved_mk_ii_settings()
+
+        seeded = store["appointmentAvailability"]
+        self.assertEqual(seeded["officeAvailability"], availability["officeAvailability"])
+        self.assertEqual(seeded["appointmentCategories"], availability["appointmentCategories"])
+        self.assertIn("appointmentSlots", seeded)
 
     def test_seed_leaves_documented_counselor_rooms_profile_owned(self) -> None:
         staff_profile = {
@@ -149,6 +164,18 @@ class SettingsServiceTests(unittest.TestCase):
 
         self.assertIsNotNone(answer)
         self.assertIn("8:00 AM to 4:00 PM", answer.response)
+
+    def test_counseling_services_faq_answers_speaking_with_a_counselor(self) -> None:
+        service, _store, _writes = self._memory_service()
+        service.seed_approved_mk_ii_settings()
+
+        answer = service.answer_faq(
+            "Can I speak with a counselor?",
+            {"id": 1, "role": "student"},
+        )
+
+        self.assertIsNotNone(answer)
+        self.assertIn("request counseling assistance", answer.response)
     def test_update_normalizes_and_persists_supported_settings(self) -> None:
         saved: list[dict] = []
         service = SettingsService(load=lambda _keys: {}, save=saved.append)
@@ -271,6 +298,17 @@ class SettingsServiceTests(unittest.TestCase):
             ],
         )
 
+    def test_slot_configuration_normalizes_and_is_projected(self) -> None:
+        saved: list[dict] = []
+        availability = configured_availability()
+        availability["appointmentSlots"] = ["3:00 pm", "9:00 am"]
+        service = SettingsService(load=lambda _keys: {}, save=saved.append)
+
+        service.update_settings({"appointmentAvailability": availability})
+
+        slots = saved[0]["appointmentAvailability"]["appointmentSlots"]
+        self.assertEqual(slots, ["09:00 AM", "03:00 PM"])
+
     def test_legacy_availability_values_normalize_for_current_controls(self) -> None:
         legacy = {
             "officeAvailability": [
@@ -346,17 +384,27 @@ class SettingsRouteTests(unittest.TestCase):
             "state": "available",
             "bookingEnabled": True,
             "officeAvailability": [{"days": "Monday", "time": "09:00 AM - 05:00 PM"}],
+            "availableSlots": [],
         }
         with patch.object(
-            appointment_routes.settings_service,
-            "get_student_booking_options",
+            appointment_routes,
+            "get_booking_options_service",
             return_value=options,
-        ):
+        ) as get_options:
             response = self._client_for("student").get("/api/appointments/booking-options")
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get_json()["data"], options)
         self.assertNotIn("staff_id", response.get_json()["data"])
+        get_options.assert_called_once_with(
+            {
+                "id": 1,
+                "email": "student@example.test",
+                "role": "student",
+            },
+            preferred_date=None,
+            student_number=None,
+        )
 
     def test_invalid_settings_are_reported_with_the_standard_error_envelope(self) -> None:
         from backend.server.routes import settings_routes
@@ -418,6 +466,74 @@ class SettingsRouteTests(unittest.TestCase):
 
 
 class AppointmentSettingsIntegrationTests(unittest.TestCase):
+    def test_date_specific_slots_use_general_counselor_and_conflict_rules(self) -> None:
+        from backend.server.services import appointment_service
+
+        configuration = configured_availability()
+        configuration["appointmentSlots"] = ["09:00 AM", "10:00 AM"]
+        counselor = {
+            "id": 8,
+            "consultation_rooms": '["Room 1"]',
+            "consultation_schedules": '[{"room":"Room 1","days":"Monday","time":"09:00 AM - 10:00 AM"}]',
+        }
+        student = {"id": 7, "program": "BSCS"}
+        with patch.object(
+            appointment_service.settings_service,
+            "get_student_booking_options",
+            return_value={
+                "state": "available",
+                "bookingEnabled": True,
+                "officeAvailability": configuration["officeAvailability"],
+                "unavailableDates": [],
+                "appointmentCategories": configuration["appointmentCategories"],
+                "consultationModes": configuration["consultationModes"],
+                "appointmentSlots": configuration["appointmentSlots"],
+            },
+        ), patch.object(
+            appointment_service.settings_service,
+            "get_appointment_configuration",
+            return_value=configuration,
+        ), patch.object(
+            appointment_service,
+            "get_student_by_id",
+            return_value=student,
+        ), patch.object(
+            appointment_service,
+            "get_staff_by_program",
+            return_value=counselor,
+        ), patch.object(
+            appointment_service,
+            "list_appointments_by_date",
+            return_value=[],
+        ):
+            options = appointment_service.get_booking_options_service(
+                {"id": 7, "role": "student"},
+                preferred_date="2026-08-10",
+            )
+
+        self.assertEqual(options["availableSlots"], ["09:00 AM"])
+
+    def test_manipulated_slot_is_rejected_by_appointment_service(self) -> None:
+        from backend.server.services import appointment_service
+
+        counselor = {
+            "consultation_rooms": '["Room 1"]',
+            "consultation_schedules": '[{"room":"Room 1","days":"Monday","time":"09:00 AM - 05:00 PM"}]',
+        }
+        configuration = configured_availability()
+        configuration["appointmentSlots"] = ["09:00 AM"]
+        with patch.object(
+            appointment_service.settings_service,
+            "get_appointment_configuration",
+            return_value=configuration,
+        ), self.assertRaisesRegex(ValueError, "appointment time"):
+            appointment_service._validate_booking_constraints(
+                counselor,
+                "2026-08-10",
+                "10:00 AM",
+                "Academic",
+                "onsite",
+            )
     def test_configured_category_and_mode_are_authoritative(self) -> None:
         from backend.server.services import appointment_service
 

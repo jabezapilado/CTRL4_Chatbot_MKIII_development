@@ -1,7 +1,6 @@
 import logging
 from flask import (
     Blueprint,
-    current_app,
     render_template,
     request,
     jsonify,
@@ -66,7 +65,6 @@ def dashboard():
 def admin_accounts():
     return render_template(
         "admin.html",
-        programs=current_app.config.get("PROGRAMS", ()),
     )
 
 

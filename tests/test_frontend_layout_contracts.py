@@ -74,6 +74,35 @@ class FrontendLayoutContractTests(unittest.TestCase):
         self.assertIn('id="inbox-search-input"', template)
         self.assertIn('id="inbox-filter"', template)
 
+    def test_appointment_times_are_controlled_selects_with_touched_validation(self) -> None:
+        template = _read("frontend/templates/appointment.html")
+        appointment = _read("frontend/static/js/appointment.js")
+        dashboard = _read("frontend/static/js/dashboard.js")
+
+        self.assertIn('<select\n                  id="prefTime"'.replace("\\n", "\n"), template)
+        self.assertIn('<select\n                id="rescheduleTime"'.replace("\\n", "\n"), template)
+        self.assertNotIn('type="text"\n                  id="prefTime"'.replace("\\n", "\n"), template)
+        self.assertIn("function populateSlotSelect", appointment)
+        self.assertIn("function loadSlotOptions", appointment)
+        self.assertIn("const touchedFields = new Set()", appointment)
+        self.assertIn("Select an available time slot", appointment)
+        self.assertIn("No available time slots for the selected date.", appointment)
+        self.assertIn('<select id="manual-appointment-time" disabled>', dashboard)
+        self.assertIn("function populateManualSlotSelect", dashboard)
+
+    def test_manual_autocomplete_and_counselor_profile_use_safe_controls(self) -> None:
+        dashboard = _read("frontend/static/js/dashboard.js")
+        template = _read("frontend/templates/dashboard.html")
+
+        self.assertIn("Search by name, student number, or email", dashboard)
+        self.assertIn("manual-student-search-results", dashboard)
+        self.assertIn("studentSearchResults.addEventListener(\"keydown\"", dashboard)
+        self.assertIn("student_number: selectedStudent.student_number", dashboard)
+        self.assertNotIn("account_id: selectedStudent.id", dashboard)
+        self.assertIn("My Counselor Profile", template)
+        self.assertIn("counselor-profile-rooms", template)
+        self.assertIn("counselor-schedule-list", template)
+
     def test_chat_message_pane_keeps_footer_controls_in_the_flex_layout(self) -> None:
         template = _read("frontend/templates/chatbot.html")
         chat = _read("frontend/static/js/chat.js")

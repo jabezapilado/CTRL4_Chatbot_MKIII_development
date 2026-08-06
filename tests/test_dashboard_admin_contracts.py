@@ -81,7 +81,8 @@ class AdministratorAccountManagementContractTests(unittest.TestCase):
             "account-filter-form",
             "account-list-body",
             "account-status-filter",
-            "admin-programs",
+            "program-catalog-list",
+            "program-catalog-form",
         ):
             with self.subTest(identifier=identifier):
                 self.assertIn(identifier, template)
@@ -98,8 +99,16 @@ class AdministratorAccountManagementContractTests(unittest.TestCase):
         self.assertNotIn("/api/dashboard", script)
         self.assertNotIn("/api/flagged-conversations", script)
         self.assertNotIn('"BS Computer Science"', script)
-        self.assertIn("function configuredPrograms()", script)
-        self.assertIn("JSON.parse(source.textContent", script)
+        self.assertIn("function loadPrograms()", script)
+        self.assertIn("/api/accounts/programs", script)
+        self.assertNotIn("configuredPrograms", script)
+        self.assertNotIn("account-consultation-rooms", template)
+        self.assertNotIn("account-consultation-schedules", template)
+        self.assertNotIn("account-support-statement", template)
+        self.assertNotIn("account-office", template)
+        self.assertIn("Program Management", template)
+        self.assertIn("function renderProgramCatalog", script)
+        self.assertIn("function loadPrograms", script)
         self.assertNotIn("password_hash", script)
         self.assertNotIn("account.password", script)
         self.assertNotIn(".innerHTML", script)
@@ -114,8 +123,8 @@ class AdministratorAccountManagementContractTests(unittest.TestCase):
 
         self.assertIn('if path == "/admin" and role != ROLE_ADMIN:', routes)
         self.assertIn("return redirect(role_landing_path(user))", routes)
-        self.assertIn('programs=current_app.config.get("PROGRAMS", ())', routes)
         self.assertGreaterEqual(account_routes.count('require_role("admin")'), 7)
+        self.assertIn('require_role("staff")', account_routes)
 
     def test_admin_search_includes_name_and_email_without_relaxing_identifier_scope(self) -> None:
         database = _read("backend/server/db.py")

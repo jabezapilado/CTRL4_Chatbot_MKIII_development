@@ -56,12 +56,19 @@ def create_app() -> Flask:
         with app.app_context():
             initialize_database()
             from .services.settings_service import settings_service
+            from .services.program_service import program_service
 
             seed_report = settings_service.seed_approved_mk_ii_settings()
             app.logger.info(
                 "Approved settings seed completed (seeded=%s preserved=%s).",
                 seed_report["seeded"],
                 seed_report["preserved"],
+            )
+            program_seed_report = program_service.seed_program_catalog()
+            app.logger.info(
+                "Program catalog seed completed (seeded=%s preserved=%s).",
+                program_seed_report["seeded"],
+                program_seed_report["preserved"],
             )
 
     return app

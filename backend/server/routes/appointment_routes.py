@@ -20,10 +20,8 @@ from ..services.appointment_service import (
     get_appointment_details_service,
     list_staff_appointments_service,
     list_student_appointments_service,
+    get_booking_options_service,
 )
-from ..services.settings_service import settings_service
-
-
 appointment_bp = Blueprint(
     "appointments",
     __name__,
@@ -35,17 +33,28 @@ logger = logging.getLogger(__name__)
 
 @appointment_bp.get("/booking-options")
 def booking_options_route():
-    _, error = require_any_role("student", "staff")
+    user, error = require_any_role("student", "staff")
     if error:
         return error
-
-    return jsonify(
-        {
-            "success": True,
-            "message": "Appointment booking options retrieved successfully.",
-            "data": settings_service.get_student_booking_options(),
-        }
-    ), 200
+    try:
+        options = get_booking_options_service(
+            user,
+            preferred_date=request.args.get("date"),
+            student_number=request.args.get("student_number"),
+        )
+        return jsonify(
+            {
+                "success": True,
+                "message": "Appointment booking options retrieved successfully.",
+                "data": options,
+            }
+        ), 200
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc), "errors": None}), 400
+    except PermissionError as exc:
+        return jsonify({"success": False, "message": str(exc), "errors": None}), 403
+    except LookupError as exc:
+        return jsonify({"success": False, "message": str(exc), "errors": None}), 404
 
 
 @appointment_bp.get("")

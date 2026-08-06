@@ -1143,31 +1143,43 @@ function isManualBookingSelectionAvailable(dateValue, timeValue, options) {
   ) {
     return false;
   }
-  const requestedTime = parseBookingTime(timeValue);
-  if (requestedTime === null) return false;
-  return options.officeAvailability?.some((window) => {
-    if (!dateMatchesBookingWindow(dateValue, window)) return false;
-    const [start, end] = String(window.time || "").split(" - ");
-    const startTime = parseBookingTime(start);
-    const endTime = parseBookingTime(end);
-    return (
-      startTime !== null &&
-      endTime !== null &&
-      requestedTime >= startTime &&
-      requestedTime < endTime
-    );
-  });
+  return Boolean(options.availableSlots?.includes(timeValue));
 }
 
-async function refreshAppointmentBookingOptions() {
+async function refreshAppointmentBookingOptions(preferredDate = "", studentNumber = "") {
+  const query = new URLSearchParams();
+  if (preferredDate) query.set("date", preferredDate);
+  if (studentNumber) query.set("student_number", studentNumber);
   const response = await fetchJson(
-    `${API_BASE}/api/appointments/booking-options`,
+    `${API_BASE}/api/appointments/booking-options${
+      query.size ? `?${query}` : ""
+    }`,
   );
   appointmentBookingOptions = response.data || {
     state: "unconfigured",
     bookingEnabled: false,
   };
   return appointmentBookingOptions;
+}
+
+function populateManualSlotSelect(select, slots, placeholder, disabled = false) {
+  if (!select) return;
+  const previousValue = select.value;
+  select.replaceChildren();
+  const prompt = document.createElement("option");
+  prompt.value = "";
+  prompt.disabled = true;
+  prompt.selected = true;
+  prompt.textContent = placeholder;
+  select.appendChild(prompt);
+  slots.forEach((slot) => {
+    const option = document.createElement("option");
+    option.value = slot;
+    option.textContent = formatAppointmentTime(slot);
+    if (slot === previousValue) option.selected = true;
+    select.appendChild(option);
+  });
+  select.disabled = disabled;
 }
 
 function renderManualAppointmentOptions(container) {
@@ -1196,11 +1208,12 @@ function renderManualAppointmentOptions(container) {
   [date, time, mode, category].forEach((input) => {
     if (input) input.disabled = !available;
   });
-  if (time) {
-    time.placeholder = available
-      ? `Available: ${windows.map((window) => `${window.days}, ${window.time}`).join("; ")}`
-      : "Appointment configuration unavailable";
-  }
+  populateManualSlotSelect(
+    time,
+    [],
+    available ? "Select a student and date first" : "Appointment configuration unavailable",
+    true,
+  );
   if (status) {
     status.textContent = available
       ? "Current appointment options loaded."
@@ -1226,7 +1239,11 @@ function renderManualAppointmentEntry() {
           <input
             id="manual-student-search"
             type="text"
-            placeholder="Search by student number or name"
+            placeholder="Search by name, student number, or email"
+            autocomplete="off"
+            aria-autocomplete="list"
+            aria-controls="manual-student-search-results"
+            aria-expanded="false"
           />
           <div
             id="manual-student-search-results"
@@ -1285,7 +1302,9 @@ function renderManualAppointmentEntry() {
 
         <div class="field-group manual-entry-spaced">
           <label for="manual-appointment-time">Preferred Time</label>
-          <input id="manual-appointment-time" type="text" />
+          <select id="manual-appointment-time" disabled>
+            <option value="">Select an available time slot</option>
+          </select>
         </div>
 
         <div class="field-grid-2 manual-entry-spaced">
@@ -1335,68 +1354,148 @@ function renderManualAppointmentEntry() {
     "#manual-student-search-results",
   );
 
-  studentSearchResults.innerHTML = "";
+  studentSearchResults.replaceChildren();
   studentSearchResults.hidden = true;
   let selectedStudent = null;
+  let activeSuggestionIndex = -1;
 
-  studentSearchInput.addEventListener("input", async () => {
-    const query = studentSearchInput.value.trim();
+  function clearSelectedStudent() {
     selectedStudent = null;
-
-    studentSearchResults.innerHTML = "";
-    studentSearchResults.hidden = true;
-
     studentNumberInput.value = "";
     studentProgramInput.value = "";
     studentEmailInput.value = "";
+    container.querySelector("#manual-appointment-details").hidden = true;
+    appointmentDateInput.disabled = true;
+    populateManualSlotSelect(
+      appointmentTimeInput,
+      [],
+      "Select a student and date first",
+      true,
+    );
+  }
+
+  function closeSuggestions() {
+    studentSearchResults.replaceChildren();
+    studentSearchResults.hidden = true;
+    studentSearchInput.setAttribute("aria-expanded", "false");
+    activeSuggestionIndex = -1;
+  }
+
+  function selectStudent(student) {
+    selectedStudent = student;
+    studentSearchInput.value = student.full_name || "";
+    studentNumberInput.value = student.student_number || "";
+    studentProgramInput.value = student.program || "";
+    studentEmailInput.value = student.email || "";
+    appointmentDateInput.disabled = false;
+    closeSuggestions();
+  }
+
+  function renderSuggestions(students) {
+    studentSearchResults.replaceChildren();
+    activeSuggestionIndex = -1;
+    if (!students.length) {
+      const empty = document.createElement("p");
+      empty.className = "manual-student-search-empty";
+      empty.textContent = "No students in your assigned programs match this search.";
+      studentSearchResults.appendChild(empty);
+      studentSearchResults.hidden = false;
+      studentSearchInput.setAttribute("aria-expanded", "true");
+      return;
+    }
+    students.forEach((student, index) => {
+      const option = document.createElement("button");
+      option.type = "button";
+      option.className = "manual-student-search-result";
+      option.dataset.suggestionIndex = String(index);
+      const name = document.createElement("strong");
+      const detail = document.createElement("small");
+      name.textContent = student.full_name || "Authorized student";
+      detail.textContent = [
+        student.student_number || "—",
+        student.program || "—",
+        student.email || "—",
+      ].join(" · ");
+      option.append(name, detail);
+      option.addEventListener("click", () => selectStudent(student));
+      studentSearchResults.appendChild(option);
+    });
+    studentSearchResults.hidden = false;
+    studentSearchInput.setAttribute("aria-expanded", "true");
+  }
+
+  studentSearchInput.addEventListener("input", async () => {
+    const query = studentSearchInput.value.trim();
+    clearSelectedStudent();
+    closeSuggestions();
 
     if (!query) {
       return;
     }
 
     try {
+      const loading = document.createElement("p");
+      loading.className = "manual-student-search-empty";
+      loading.textContent = "Searching authorized students...";
+      studentSearchResults.appendChild(loading);
+      studentSearchResults.hidden = false;
       const response = await fetchJson(
         `${API_BASE}/api/accounts/search?q=${encodeURIComponent(query)}`,
       );
 
-      const students = response.items || [];
-
-      studentSearchResults.innerHTML = "";
-
-      if (!students.length) {
-        studentSearchResults.hidden = true;
-        return;
-      }
-
-      studentSearchResults.hidden = false;
-
-      students.forEach((student) => {
-        const option = document.createElement("button");
-        option.type = "button";
-        option.className = "manual-student-search-result";
-
-        const name = document.createElement("strong");
-        name.textContent = student.full_name || "Unknown";
-        const detail = document.createElement("small");
-        detail.textContent = `${student.student_number || "—"} • ${student.program || "—"}`;
-        option.append(name, document.createElement("br"), detail);
-
-        option.addEventListener("click", () => {
-          selectedStudent = student;
-          studentSearchInput.value = student.full_name;
-          studentNumberInput.value = student.student_number || "";
-          studentProgramInput.value = student.program || "";
-          studentEmailInput.value = student.email || "";
-
-          studentSearchResults.innerHTML = "";
-          studentSearchResults.hidden = true;
-        });
-
-        studentSearchResults.appendChild(option);
-      });
+      renderSuggestions(response.data?.items || []);
     } catch (error) {
       console.error(error);
-      createToast("Unable to search student accounts.", "info");
+      studentSearchResults.replaceChildren();
+      const unavailable = document.createElement("p");
+      unavailable.className = "manual-student-search-empty";
+      unavailable.textContent = "Student search is unavailable. Try again.";
+      studentSearchResults.appendChild(unavailable);
+      studentSearchResults.hidden = false;
+    }
+  });
+
+  studentSearchInput.addEventListener("keydown", (event) => {
+    const options = Array.from(
+      studentSearchResults.querySelectorAll(".manual-student-search-result"),
+    );
+    if (!options.length) return;
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      activeSuggestionIndex =
+        event.key === "ArrowDown"
+          ? Math.min(activeSuggestionIndex + 1, options.length - 1)
+          : Math.max(activeSuggestionIndex - 1, 0);
+      options.forEach((option, index) => {
+        option.classList.toggle("is-active", index === activeSuggestionIndex);
+      });
+      options[activeSuggestionIndex]?.focus();
+    } else if (event.key === "Enter" && activeSuggestionIndex >= 0) {
+      event.preventDefault();
+      options[activeSuggestionIndex]?.click();
+    } else if (event.key === "Escape") {
+      closeSuggestions();
+    }
+  });
+
+  studentSearchResults.addEventListener("keydown", (event) => {
+    const options = Array.from(
+      studentSearchResults.querySelectorAll(".manual-student-search-result"),
+    );
+    const currentIndex = options.indexOf(document.activeElement);
+    if (event.key === "ArrowDown" && currentIndex >= 0) {
+      event.preventDefault();
+      options[Math.min(currentIndex + 1, options.length - 1)]?.focus();
+    } else if (event.key === "ArrowUp" && currentIndex >= 0) {
+      event.preventDefault();
+      if (currentIndex === 0) studentSearchInput.focus();
+      else options[currentIndex - 1]?.focus();
+    } else if (event.key === "Enter" && currentIndex >= 0) {
+      event.preventDefault();
+      options[currentIndex].click();
+    } else if (event.key === "Escape") {
+      closeSuggestions();
+      studentSearchInput.focus();
     }
   });
 
@@ -1422,6 +1521,48 @@ function renderManualAppointmentEntry() {
     "#manual-appointment-reason",
   );
   renderManualAppointmentOptions(container);
+  appointmentDateInput.disabled = true;
+
+  appointmentDateInput.addEventListener("change", async () => {
+    if (!selectedStudent || !appointmentDateInput.value) {
+      populateManualSlotSelect(
+        appointmentTimeInput,
+        [],
+        "Select a student and date first",
+        true,
+      );
+      return;
+    }
+    populateManualSlotSelect(
+      appointmentTimeInput,
+      [],
+      "Loading available time slots...",
+      true,
+    );
+    try {
+      const options = await refreshAppointmentBookingOptions(
+        appointmentDateInput.value,
+        selectedStudent.student_number,
+      );
+      const slots = options.availableSlots || [];
+      populateManualSlotSelect(
+        appointmentTimeInput,
+        slots,
+        slots.length
+          ? "Select an available time slot"
+          : "No available time slots for the selected date.",
+        !slots.length,
+      );
+    } catch (error) {
+      populateManualSlotSelect(
+        appointmentTimeInput,
+        [],
+        "Unable to load available time slots",
+        true,
+      );
+      createToast(error.message || "Unable to load available time slots.", "info");
+    }
+  });
 
   container
     .querySelector("#create-manual-appointment-btn")
@@ -1455,7 +1596,10 @@ function renderManualAppointmentEntry() {
     ?.addEventListener("click", async () => {
       let currentOptions;
       try {
-        currentOptions = await refreshAppointmentBookingOptions();
+        currentOptions = await refreshAppointmentBookingOptions(
+          appointmentDateInput.value,
+          selectedStudent.student_number,
+        );
       } catch (error) {
         createToast("Unable to load current appointment options.", "info");
         return;
@@ -1512,7 +1656,7 @@ function renderManualAppointmentEntry() {
       }
 
       const payload = {
-        account_id: selectedStudent.id,
+        student_number: selectedStudent.student_number,
         appointment_source: appointmentSourceSelect.value
           .toLowerCase()
           .replace("-", "_")
@@ -1524,6 +1668,8 @@ function renderManualAppointmentEntry() {
         reason: appointmentReasonInput.value.trim(),
       };
 
+      const saveButton = container.querySelector("#save-manual-appointment-btn");
+      saveButton.disabled = true;
       try {
         await fetchJson(`${API_BASE}/api/appointments/manual`, {
           method: "POST",
@@ -1542,6 +1688,8 @@ function renderManualAppointmentEntry() {
           error.message || "Unable to create manual appointment.",
           "info",
         );
+      } finally {
+        saveButton.disabled = false;
       }
     });
 }
@@ -1779,6 +1927,15 @@ function setSettingsStatus(message, type = "") {
   if (type) status.classList.add(type);
 }
 
+function setCounselorProfileStatus(message, type = "") {
+  const status = document.getElementById("counselor-profile-status");
+  if (!status) return;
+  status.textContent = message || "";
+  status.hidden = !message;
+  status.classList.remove("error", "success");
+  if (type) status.classList.add(type);
+}
+
 function setFaqStatus(message, type = "") {
   const status = document.getElementById("faq-status");
   if (!status) return;
@@ -1901,6 +2058,135 @@ function createUnavailableDate(value = "") {
   return row;
 }
 
+function counselorRooms() {
+  return String(document.getElementById("counselor-profile-rooms")?.value || "")
+    .split(",")
+    .map((room) => room.trim())
+    .filter(Boolean);
+}
+
+function createCounselorScheduleRow(schedule = {}) {
+  const row = document.createElement("div");
+  const room = document.createElement("select");
+  const day = document.createElement("select");
+  const start = document.createElement("input");
+  const end = document.createElement("input");
+  const remove = document.createElement("button");
+  const { startTime, endTime } = availabilityWindowTimeValues(schedule.time);
+
+  row.className = "counselor-schedule-row";
+  room.dataset.counselorScheduleRoom = "true";
+  day.dataset.counselorScheduleDay = "true";
+  start.dataset.counselorScheduleStart = "true";
+  end.dataset.counselorScheduleEnd = "true";
+  ["", ...counselorRooms()].forEach((value) => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = value || "Select room";
+    option.selected = value === (schedule.room || "");
+    room.appendChild(option);
+  });
+  AVAILABILITY_DAY_OPTIONS.forEach((value) => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = value;
+    option.selected = value === (schedule.days || "Monday");
+    day.appendChild(option);
+  });
+  start.type = "time";
+  start.value = startTime;
+  end.type = "time";
+  end.value = endTime;
+  remove.type = "button";
+  remove.className = "btn btn-outline btn-sm";
+  remove.textContent = "Remove";
+  remove.addEventListener("click", () => row.remove());
+
+  row.append(
+    createAvailabilityField("Room", room),
+    createAvailabilityField("Days", day),
+    createAvailabilityField("Start", start),
+    createAvailabilityField("End", end),
+    remove,
+  );
+  return row;
+}
+
+function renderCounselorProfile(profile) {
+  const rooms = document.getElementById("counselor-profile-rooms");
+  const office = document.getElementById("counselor-profile-office");
+  const support = document.getElementById("counselor-profile-support");
+  const schedules = document.getElementById("counselor-schedule-list");
+  if (!rooms || !office || !support || !schedules) return;
+  rooms.value = (profile.consultation_rooms || []).join(", ");
+  office.value = profile.office || "";
+  support.value = profile.support_statement || "";
+  schedules.replaceChildren();
+  (profile.consultation_schedules || []).forEach((schedule) => {
+    schedules.appendChild(createCounselorScheduleRow(schedule));
+  });
+}
+
+function collectCounselorSchedules() {
+  const schedules = [];
+  for (const row of document.querySelectorAll(".counselor-schedule-row")) {
+    const room = row.querySelector("[data-counselor-schedule-room]")?.value || "";
+    const days = row.querySelector("[data-counselor-schedule-day]")?.value || "";
+    const start = row.querySelector("[data-counselor-schedule-start]")?.value || "";
+    const end = row.querySelector("[data-counselor-schedule-end]")?.value || "";
+    if (!room || !days || !start || !end || start >= end) {
+      throw new Error("Each consultation schedule needs a room, day, and valid start/end time.");
+    }
+    schedules.push({
+      room,
+      days,
+      time: `${inputTimeToCanonical(start)} - ${inputTimeToCanonical(end)}`,
+    });
+  }
+  return schedules;
+}
+
+async function loadCounselorProfile() {
+  const response = await fetchJson(`${API_BASE}/api/accounts/staff/profile`);
+  renderCounselorProfile(response.data || {});
+}
+
+function bindCounselorProfile() {
+  document.getElementById("add-counselor-schedule")?.addEventListener("click", () => {
+    document
+      .getElementById("counselor-schedule-list")
+      ?.appendChild(createCounselorScheduleRow());
+  });
+  document.getElementById("counselor-profile-rooms")?.addEventListener("change", () => {
+    const list = document.getElementById("counselor-schedule-list");
+    const existing = Array.from(list?.children || [], (row) => ({
+      room: row.querySelector("[data-counselor-schedule-room]")?.value || "",
+      days: row.querySelector("[data-counselor-schedule-day]")?.value || "",
+      time: `${inputTimeToCanonical(row.querySelector("[data-counselor-schedule-start]")?.value || "")} - ${inputTimeToCanonical(row.querySelector("[data-counselor-schedule-end]")?.value || "")}`,
+    }));
+    list?.replaceChildren(...existing.map(createCounselorScheduleRow));
+  });
+  document.getElementById("save-counselor-profile")?.addEventListener("click", async () => {
+    try {
+      setCounselorProfileStatus("Saving counselor profile...");
+      const response = await fetchJson(`${API_BASE}/api/accounts/staff/profile`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          office: document.getElementById("counselor-profile-office")?.value || "",
+          support_statement: document.getElementById("counselor-profile-support")?.value || "",
+          consultation_rooms: counselorRooms(),
+          consultation_schedules: collectCounselorSchedules(),
+        }),
+      });
+      renderCounselorProfile(response.data || {});
+      setCounselorProfileStatus("Counselor profile saved.", "success");
+    } catch (error) {
+      setCounselorProfileStatus(error.message || "Unable to save counselor profile.", "error");
+    }
+  });
+}
+
 function renderAvailabilityConfiguration(availability) {
   const windows = document.getElementById("appointment-availability-windows");
   const unavailableDates = document.getElementById(
@@ -2003,6 +2289,7 @@ function getSettingsSnapshot() {
       holidays: [],
       academicCalendarExclusions: [],
       unavailableDates,
+      appointmentSlots: settingsChoices("settings-appointment-slots"),
       appointmentCategories: settingsChoices("settings-appointment-categories"),
       consultationModes: settingsChoices("settings-consultation-modes"),
     },
@@ -2018,6 +2305,9 @@ function renderPersistedSettings(settings) {
     "settings-office-email": settings?.officeEmail || "",
     "settings-contact-number": settings?.contactNumber || "",
     "settings-office-location": settings?.officeLocation || "",
+    "settings-appointment-slots": (availability?.appointmentSlots || []).join(
+      "\n",
+    ),
     "settings-appointment-categories": (
       availability?.appointmentCategories || []
     ).join("\n"),
@@ -4411,7 +4701,10 @@ async function loadBackendData() {
     flaggedConversations = [];
     flaggedConversationsLoaded = false;
     inboxLoadState = "error";
-    setInboxState("Inbox items are unavailable. Retry to load persisted summaries.", "error");
+    setInboxState(
+      "Inbox items are unavailable. Retry to load persisted summaries.",
+      "error",
+    );
   }
 
   try {
@@ -4470,6 +4763,13 @@ async function loadBackendData() {
   }
 
   try {
+    await loadCounselorProfile();
+  } catch (error) {
+    console.error(error);
+    setCounselorProfileStatus("Unable to load counselor profile.", "error");
+  }
+
+  try {
     await loadFaqs();
   } catch (error) {
     console.error(error);
@@ -4517,6 +4817,7 @@ window.addEventListener("error", (event) => {
 });
 
 bindSettingsInteractions();
+bindCounselorProfile();
 bindInboxControls();
 bindFaqManagement();
 bindAppointmentSearch();
