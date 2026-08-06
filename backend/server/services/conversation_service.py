@@ -38,12 +38,6 @@ logger = logging.getLogger(__name__)
 
 ESCALATION_PENDING: Final[str] = "pending"
 INQUIRY_TYPE_AI_CHAT: Final[str] = "ai_chat"
-ESCALATION_NORMALIZED_EMOTIONS: Final[frozenset[str]] = frozenset({
-    "crisis",
-    "distressed",
-})
-
-
 def _parse_analytics_filter_date(value: object, field_name: str) -> date | None:
     if value is None or not str(value).strip():
         return None
@@ -419,10 +413,8 @@ def determine_escalation_reason(
     escalated: bool,
     normalized_emotion: str | None,
 ) -> str | None:
-    """Return the existing AI trigger reason without changing escalation policy."""
-    normalized_emotion = str(normalized_emotion or "").strip().lower()
-    if normalized_emotion in ESCALATION_NORMALIZED_EMOTIONS:
-        return f"Detected {normalized_emotion} emotion."
+    """Return a reason only for an explicit SafetyService escalation."""
+    del normalized_emotion
     if escalated:
         return "AI safety escalation."
     return None
@@ -507,17 +499,25 @@ def should_escalate_conversation(
     escalated: bool,
     normalized_emotion: str | None,
 ) -> bool:
-    """Decide whether Conversation Intelligence marks a session for escalation."""
-    return (
-        escalated
-        or str(normalized_emotion or "").lower()
-        in ESCALATION_NORMALIZED_EMOTIONS
-    )
+    """Escalate only for explicit safety risk, never an emotion label alone."""
+    del normalized_emotion
+    return bool(escalated)
 
 
 def _meaningful_summary_evidence(conversation: object) -> list[dict[str, str]]:
     """Return canonical transient evidence only when a student actually spoke."""
     return summary_conversation_evidence(conversation)
+
+
+def _appointment_context(appointment: object) -> dict[str, str] | None:
+    if not isinstance(appointment, dict):
+        return None
+
+    context = {
+        key: str(appointment.get(key) or "").strip()
+        for key in ("category", "preferred_date", "preferred_time_slot")
+    }
+    return context if all(context.values()) else None
 
 
 def _save_escalation(
@@ -545,9 +545,11 @@ def finalize_conversation(
     emotion: str,
     flagged: bool,
     escalation_reason: str | None = None,
+    appointment: object = None,
 ) -> dict:
     evidence = _meaningful_summary_evidence(conversation)
-    if not evidence:
+    appointment_context = _appointment_context(appointment)
+    if not evidence and not appointment_context:
         logger.info("Conversation finalization skipped (no student-authored evidence).")
         return {
             "success": True,
@@ -566,6 +568,7 @@ def finalize_conversation(
         language=language,
         emotion=emotion,
         flagged=flagged,
+        appointment=appointment_context,
     )
 
     summary_id = save_conversation_summary(
@@ -609,4 +612,5 @@ def finalize_conversation(
         "assistant_message_count": sum(
             item["role"] == "assistant" for item in evidence
         ),
+        "appointment_recorded": appointment_context is not None,
     }

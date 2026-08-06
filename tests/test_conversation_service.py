@@ -236,13 +236,25 @@ class ConversationServiceTests(unittest.TestCase):
         self.assertNotIn("summary_id", conversation)
         self.assertNotIn("transcript", conversation)
 
-    def test_escalation_reason_uses_existing_normalized_emotion(self):
+    def test_normalized_emotion_does_not_create_an_escalation_reason(self):
         reason = conversation_service.determine_escalation_reason(
             escalated=False,
             normalized_emotion="distressed",
         )
 
-        self.assertEqual(reason, "Detected distressed emotion.")
+        self.assertIsNone(reason)
+        self.assertFalse(
+            conversation_service.should_escalate_conversation(
+                escalated=False,
+                normalized_emotion="distressed",
+            )
+        )
+        self.assertTrue(
+            conversation_service.should_escalate_conversation(
+                escalated=True,
+                normalized_emotion="negative",
+            )
+        )
 
     def test_review_is_idempotent_for_an_already_reviewed_conversation(self):
         reviewed = {"id": 8, "escalation_status": "reviewed"}

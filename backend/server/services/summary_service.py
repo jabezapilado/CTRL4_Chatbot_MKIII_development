@@ -10,7 +10,7 @@ FLAGGED_RECOMMENDATION: Final[str] = (
 )
 
 NORMAL_RECOMMENDATION: Final[str] = (
-    "No immediate intervention is required."
+    "No escalation was required based on the recorded session."
 )
 
 @dataclass
@@ -98,6 +98,7 @@ class SummaryService:
         language: str,
         emotion: str,
         flagged: bool,
+        appointment: dict[str, str] | None = None,
     ) -> ConversationSummary:
         """
         Generate a structured conversation summary.
@@ -128,10 +129,17 @@ class SummaryService:
         """
 
         evidence = summary_conversation_evidence(conversation)
-        if not evidence:
+        if not evidence and appointment is None:
             raise ValueError("A summary requires student-authored evidence.")
 
-        summary_text = self._build_summary(conversation=evidence)
+        summary_text = (
+            self._appointment_only_summary(appointment)
+            if not evidence
+            else self._build_summary(
+                conversation=evidence,
+                appointment=appointment,
+            )
+        )
 
         recommendation = self._build_recommendation(
             flagged=flagged,
@@ -145,9 +153,11 @@ class SummaryService:
             flagged=flagged,
             summary=summary_text,
             recommendation=recommendation,
-            primary_concern=topic,
-            conversation_type="general",
-            appointment_recommendation=flagged,
+            primary_concern=(
+                appointment["category"] if not evidence and appointment else topic
+            ),
+            conversation_type="appointment" if not evidence else "general",
+            appointment_recommendation=bool(appointment),
             recommendations=recommendation,
             suggested_intervention=recommendation,
             total_messages=len(evidence),
@@ -157,6 +167,7 @@ class SummaryService:
         self,
         *,
         conversation: list[dict],
+        appointment: dict[str, str] | None,
     ) -> str:
         """
         Build the conversation summary.
@@ -177,6 +188,7 @@ class SummaryService:
 
         prompt = self._build_prompt(
             conversation=conversation,
+            appointment=appointment,
         )
 
         try:
@@ -184,10 +196,18 @@ class SummaryService:
 
         except RuntimeError:
             return (
-                "An AI summary could not be generated. Review the available "
-                "case metadata and contact the student through the approved "
-                "Guidance Office process."
+                "An AI summary could not be generated from the recorded session."
             )
+
+    @staticmethod
+    def _appointment_only_summary(appointment: dict[str, str] | None) -> str:
+        assert appointment is not None
+        return (
+            "The student submitted an appointment request regarding "
+            f"{appointment['category']} for {appointment['preferred_date']} at "
+            f"{appointment['preferred_time_slot']}. No additional chatbot "
+            "conversation occurred during this session."
+        )
     
     def _build_recommendation(
         self,
@@ -245,6 +265,7 @@ class SummaryService:
         self,
         *,
         conversation: list[dict],
+        appointment: dict[str, str] | None,
     ) -> str:
         """
         Build the prompt used to summarize the conversation.
@@ -254,6 +275,15 @@ class SummaryService:
             conversation=conversation,
         )
 
+        appointment_context = ""
+        if appointment is not None:
+            appointment_context = (
+                "\n\nConfirmed Appointment Request:\n"
+                f"Category: {appointment['category']}\n"
+                f"Preferred date: {appointment['preferred_date']}\n"
+                f"Preferred time: {appointment['preferred_time_slot']}"
+            )
+
         prompt = f"""\
         You are assisting the Holy Angel University Guidance Office.
 
@@ -262,14 +292,15 @@ class SummaryService:
         Instructions:
 
         - Write only one paragraph.
-        - Keep the summary between 100 and 150 words.
-        - Focus on the student's primary concern.
-        - Briefly describe the student's emotional state.
-        - Briefly mention the guidance or support that was provided.
+        - Keep the summary concise and no longer than the supplied facts require.
+                - Focus on the student's primary concern.
+                - Cover each distinct factual question and emotional concern expressed
+                    by the student when both are present.
+                - Mention emotion, guidance, support, or intervention only when it is
+                    explicitly present in the supplied facts.
                 - Do not invent, assume, or exaggerate information.
-                - Use only facts explicitly present in the conversation transcript.
-                - If no emotion, risk state, academic difficulty, or coping strategy is
-                    explicitly stated, do not mention one.
+                - Use only facts explicitly present in the conversation transcript and
+                    confirmed appointment request, if provided.
         - Do not diagnose any mental health condition.
         - Do not include greetings, introductions, or small talk.
         - Do not address the student directly.
@@ -278,6 +309,7 @@ class SummaryService:
         Conversation Transcript:
 
         {transcript}
+        {appointment_context}
         """.strip()
 
         return prompt

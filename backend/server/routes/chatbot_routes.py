@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 _ESCALATION_SESSION_KEY = "conversation_escalated"
 _ESCALATION_REASON_SESSION_KEY = "conversation_escalation_reason"
+_FINALIZATION_APPOINTMENT_KEY = "finalization_appointment"
 
 
 def _opaque_session_id() -> str:
@@ -122,7 +123,7 @@ def chat():
                     "emotion": result.emotion,
                     "sentiment": result.sentiment,
                     "language": result.language,
-                    "escalated": result.escalated,
+                    "escalated": should_escalate,
                     "confidence": round(result.confidence, 4),
                 },
             }
@@ -172,9 +173,11 @@ def finalize_chat():
             emotion=str(payload.get("emotion", "neutral")),
             flagged=bool(session.get(_ESCALATION_SESSION_KEY)),
             escalation_reason=session.get(_ESCALATION_REASON_SESSION_KEY),
+            appointment=session.get(_FINALIZATION_APPOINTMENT_KEY),
         )
         session.pop(_ESCALATION_SESSION_KEY, None)
         session.pop(_ESCALATION_REASON_SESSION_KEY, None)
+        session.pop(_FINALIZATION_APPOINTMENT_KEY, None)
         transient_chat_service.clear(_opaque_session_id(), user.get("id"))
 
         message = (

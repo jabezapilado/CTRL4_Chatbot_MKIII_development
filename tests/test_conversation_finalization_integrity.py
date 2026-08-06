@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 from flask import Flask
 
+from backend.server.routes.appointment_routes import appointment_bp
 from backend.server.routes.chatbot_routes import chatbot_bp
 from backend.server.services import conversation_service
 from backend.server.services.summary_service import SummaryService
@@ -31,11 +32,21 @@ class _FailedLlm:
         return SimpleNamespace(success=False, error="unavailable")
 
 
+class _CapturingLlm:
+    def __init__(self) -> None:
+        self.prompts: list[str] = []
+
+    def generate(self, prompt: str):  # type: ignore[no-untyped-def]
+        self.prompts.append(prompt)
+        return SimpleNamespace(success=True, text="Grounded case summary.")
+
+
 class ConversationFinalizationIntegrityTests(unittest.TestCase):
     def setUp(self) -> None:
         self.app = Flask(__name__)
         self.app.secret_key = "finalization-integrity"
         self.app.register_blueprint(chatbot_bp)
+        self.app.register_blueprint(appointment_bp)
 
     def _client(self, account_id: int = 1):
         client = self.app.test_client()
@@ -98,6 +109,86 @@ class ConversationFinalizationIntegrityTests(unittest.TestCase):
         self.assertEqual(finalize.call_args.kwargs["conversation"], [])
         clear.assert_called_once()
 
+    def test_successful_appointment_records_only_summary_safe_session_metadata(self) -> None:
+        client = self._client()
+        payload = {
+            "contact_number": "09171234567",
+            "appointment_category": "Career / Schooling",
+            "appointment_mode": "In-person",
+            "preferred_date": "2026-08-08",
+            "preferred_time_slot": "10:00 AM",
+            "reason": "Private appointment reason",
+        }
+        with patch(
+            "backend.server.routes.appointment_routes.create_student_appointment",
+            return_value=52,
+        ):
+            response = client.post("/api/appointments", json=payload)
+
+        self.assertEqual(response.status_code, 201)
+        with client.session_transaction() as session:
+            self.assertEqual(
+                session["finalization_appointment"],
+                {
+                    "category": "Career / Schooling",
+                    "preferred_date": "2026-08-08",
+                    "preferred_time_slot": "10:00 AM",
+                },
+            )
+            self.assertNotIn("Private appointment reason", str(session))
+
+    def test_appointment_only_summary_is_deterministic_and_not_flagged(self) -> None:
+        service = SummaryService(_FailedLlm())
+        appointment = {
+            "category": "Career / Schooling",
+            "preferred_date": "2026-08-08",
+            "preferred_time_slot": "10:00 AM",
+        }
+
+        summary = service.generate_summary(
+            student_name="Student",
+            conversation=[],
+            topic="general",
+            language="unknown",
+            emotion="neutral",
+            flagged=False,
+            appointment=appointment,
+        )
+
+        self.assertEqual(summary.conversation_type, "appointment")
+        self.assertFalse(summary.flagged)
+        self.assertEqual(summary.total_messages, 0)
+        self.assertIn("Career / Schooling", summary.summary)
+        self.assertIn("No additional chatbot conversation occurred", summary.summary)
+        for unsupported in ("anxiety", "stress", "counseling", "intervention"):
+            self.assertNotIn(unsupported, summary.summary.casefold())
+
+    def test_finalize_route_consumes_and_clears_appointment_metadata(self) -> None:
+        client = self._client()
+        appointment = {
+            "category": "Career / Schooling",
+            "preferred_date": "2026-08-08",
+            "preferred_time_slot": "10:00 AM",
+        }
+        with client.session_transaction() as session:
+            session["finalization_appointment"] = appointment
+
+        with patch(
+            "backend.server.routes.chatbot_routes.transient_chat_service.get_visible_history",
+            return_value=[],
+        ), patch(
+            "backend.server.routes.chatbot_routes.finalize_conversation",
+            return_value={"status": "saved", "summary_id": 18},
+        ) as finalize, patch(
+            "backend.server.routes.chatbot_routes.transient_chat_service.clear",
+        ):
+            response = client.post("/chat/finalize", json={})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(finalize.call_args.kwargs["appointment"], appointment)
+        with client.session_transaction() as session:
+            self.assertNotIn("finalization_appointment", session)
+
     def test_real_student_message_is_the_only_summary_evidence(self) -> None:
         summary = SimpleNamespace(
             primary_concern="appointment",
@@ -145,6 +236,30 @@ class ConversationFinalizationIntegrityTests(unittest.TestCase):
                 {"role": "assistant", "content": "I can help with that."},
             ],
         )
+
+    def test_chat_and_appointment_summary_uses_only_confirmed_appointment_facts(self) -> None:
+        llm = _CapturingLlm()
+        service = SummaryService(llm)
+        appointment = {
+            "category": "Career / Schooling",
+            "preferred_date": "2026-08-08",
+            "preferred_time_slot": "10:00 AM",
+        }
+
+        service.generate_summary(
+            student_name="Student",
+            conversation=[{"from": "user", "text": "I want to book an appointment."}],
+            topic="appointment",
+            language="english",
+            emotion="neutral",
+            flagged=False,
+            appointment=appointment,
+        )
+
+        self.assertIn("I want to book an appointment.", llm.prompts[0])
+        self.assertIn("Career / Schooling", llm.prompts[0])
+        self.assertIn("2026-08-08", llm.prompts[0])
+        self.assertNotIn("Private appointment reason", llm.prompts[0])
 
     def test_empty_new_session_does_not_reuse_previous_account_evidence(self) -> None:
         cache = _Cache()

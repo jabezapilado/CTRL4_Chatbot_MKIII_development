@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, session
 
 from ..request_validation import (
     require_any_role,
@@ -29,6 +29,8 @@ appointment_bp = Blueprint(
 )
 
 logger = logging.getLogger(__name__)
+
+_FINALIZATION_APPOINTMENT_KEY = "finalization_appointment"
 
 
 @appointment_bp.get("/booking-options")
@@ -118,6 +120,11 @@ def create_appointment():
             }
         ), status
 
+    session[_FINALIZATION_APPOINTMENT_KEY] = {
+        "category": str(payload["appointment_category"]).strip(),
+        "preferred_date": str(payload["preferred_date"]).strip(),
+        "preferred_time_slot": str(payload["preferred_time_slot"]).strip(),
+    }
     logger.info("Student %s created appointment %s", user["id"], appointment_id)
     return jsonify(
         {

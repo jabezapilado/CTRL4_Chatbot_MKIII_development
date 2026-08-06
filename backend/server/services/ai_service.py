@@ -51,6 +51,16 @@ logger = logging.getLogger(__name__)
 _COURSE_CODE_PATTERN: Final[re.Pattern[str]] = re.compile(
     r"\b(?:[A-Z]{5,}|[A-Z]{2,}[ -]?\d{2,4})\b"
 )
+_ROUTINE_DISTRESS_PATTERN: Final[re.Pattern[str]] = re.compile(
+    r"\b(?:overwhelmed|stress(?:ed)?|worried|nervous|pressure|pressured|"
+    r"tired|exhausted|drained|burn(?:ed)? out)\b",
+    re.IGNORECASE,
+)
+_ACADEMIC_CONTEXT_PATTERN: Final[re.Pattern[str]] = re.compile(
+    r"\b(?:schoolwork|school|academic(?:s)?|coursework|class(?:es)?|"
+    r"exam(?:s)?|deadline(?:s)?|project(?:s)?|assignment(?:s)?|grade(?:s)?)\b",
+    re.IGNORECASE,
+)
 
 
 
@@ -164,6 +174,38 @@ class AIService:
             )
 
         return llm.text
+
+    @classmethod
+    def _compose_deterministic_response(
+        cls,
+        factual_answer: str,
+        message: str,
+        normalized_emotion: str | None,
+    ) -> str:
+        """Add factual, routine empathy without replacing a source-owned answer."""
+        if not _ROUTINE_DISTRESS_PATTERN.search(message):
+            return factual_answer
+
+        if str(normalized_emotion or "").strip().lower() not in {
+            "distressed",
+            "negative",
+        }:
+            return factual_answer
+
+        if _ACADEMIC_CONTEXT_PATTERN.search(message):
+            acknowledgement = (
+                "I'm sorry you've been feeling overwhelmed by your schoolwork. "
+                "Managing several academic demands can feel difficult. We can "
+                "talk through what is making the workload feel unmanageable or "
+                "explore support available through the Guidance Office."
+            )
+        else:
+            acknowledgement = (
+                "I'm sorry you've been feeling overwhelmed. We can talk through "
+                "what has been making things feel difficult."
+            )
+
+        return f"{factual_answer}\n\n{acknowledgement}"
 
     def should_use_rag(
         self,
@@ -581,14 +623,19 @@ class AIService:
             # the deterministic response is returned.
             operational_answer = self.operational_guidance.answer(message, user)
             if operational_answer is not None:
-                response_safety = self.response_safety.validate(
+                composed_response = self._compose_deterministic_response(
                     operational_answer.response,
+                    message,
+                    emotion.normalized_emotion,
+                )
+                response_safety = self.response_safety.validate(
+                    composed_response,
                     [operational_answer],
                 )
                 response = (
                     response_safety.replacement
                     if not response_safety.allowed and response_safety.replacement
-                    else operational_answer.response
+                    else composed_response
                 )
                 return ChatResponse(
                     success=True,
@@ -598,10 +645,7 @@ class AIService:
                     language=language.language,
                     topic=conversation_topic.value,
                     state=conversation_state.value,
-                    escalated=(
-                        safety.should_escalate
-                        or emotion.normalized_emotion in {"crisis", "distressed"}
-                    ),
+                    escalated=safety.should_escalate,
                     confidence=emotion.confidence,
                     intent=intent,
                     normalized_emotion=emotion.normalized_emotion,
@@ -611,14 +655,19 @@ class AIService:
 
             faq_answer = self.faq_settings.answer_faq(message, user)
             if faq_answer is not None:
-                response_safety = self.response_safety.validate(
+                composed_response = self._compose_deterministic_response(
                     faq_answer.response,
+                    message,
+                    emotion.normalized_emotion,
+                )
+                response_safety = self.response_safety.validate(
+                    composed_response,
                     [faq_answer],
                 )
                 response = (
                     response_safety.replacement
                     if not response_safety.allowed and response_safety.replacement
-                    else faq_answer.response
+                    else composed_response
                 )
                 return ChatResponse(
                     success=True,
@@ -628,10 +677,7 @@ class AIService:
                     language=language.language,
                     topic=conversation_topic.value,
                     state=conversation_state.value,
-                    escalated=(
-                        safety.should_escalate
-                        or emotion.normalized_emotion in {"crisis", "distressed"}
-                    ),
+                    escalated=safety.should_escalate,
                     confidence=emotion.confidence,
                     intent=intent,
                     normalized_emotion=emotion.normalized_emotion,
@@ -758,10 +804,7 @@ class AIService:
                 language=language.language,
                 topic=conversation_topic.value,
                 state=conversation_state.value,
-                escalated=(
-                    safety.should_escalate
-                    or emotion.normalized_emotion in {"crisis", "distressed"}
-                ),
+                escalated=safety.should_escalate,
 
                 confidence=emotion.confidence,
                 intent=intent,

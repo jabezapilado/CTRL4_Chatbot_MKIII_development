@@ -100,6 +100,13 @@ class SafetyService:
         r"\bi wish i was dead\b",
         r"\bi don't want to wake up\b",
         r"\bnothing matters anymore\b",
+        r"\b(?:i am|i'm) being abused\b",
+        r"\b(?:someone|they) (?:is|are) hurting me\b",
+        r"\b(?:i want to|going to) hurt (?:someone|them)\b",
+        r"\b(?:i want to|going to) kill (?:someone|them)\b",
+        r"\bdanger to (?:myself|others)\b",
+        r"\bsevere depression\b",
+        r"\bpanic attacks?\b",
 
         # Filipino / Taglish
         r"\bmagpapakamatay\b",

@@ -117,6 +117,25 @@ class _Emotion:
         )
 
 
+class _CountingEmotion(_Emotion):
+    def __init__(self, normalized_emotion: str = "distressed") -> None:
+        super().__init__(normalized_emotion)
+        self.calls = 0
+
+    def predict(self, message: str) -> EmotionPrediction:
+        self.calls += 1
+        return super().predict(message)
+
+
+class _CountingSafety(_Safety):
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def check(self, message: str, language: str = "english") -> SafetyResult:
+        self.calls += 1
+        return super().check(message, language)
+
+
 class _CapturingLlm:
     def __init__(self, responses: list[str]) -> None:
         self.responses = iter(responses)
@@ -206,6 +225,99 @@ class ResponseValidationRegressionTests(unittest.TestCase):
 
 
 class ConversationHistoryRegressionTests(unittest.TestCase):
+    def test_mixed_office_hours_and_routine_stress_keeps_factual_answer_and_empathy(self) -> None:
+        settings = {"officeHours": "Monday to Friday, 7:00 AM to 5:00 PM"}
+        operational = OperationalGuidanceService(
+            load_settings=lambda _keys: settings,
+            fetch_student=lambda _account_id: {"program": "BSCS"},
+            fetch_staff_for_program=lambda _program: None,
+        )
+        emotion = _CountingEmotion()
+        safety = _CountingSafety()
+        llm = _CapturingLlm(["Provider output must not be used."])
+        rag = _RetrievedRag([SimpleNamespace(source="legacy.md", text="Wrong hours")])
+        message = (
+            "What are your office hours? I'm feeling really overwhelmed lately "
+            "because of my schoolwork and I don't know what to do."
+        )
+
+        result = _service(
+            llm,
+            emotion=emotion,
+            safety=safety,
+            rag=rag,
+            operational_guidance=operational,
+            response_safety=_AllowResponses(),
+        ).respond(message, user={"id": 7, "role": "student"})
+
+        self.assertIn("Monday to Friday, 7:00 AM to 5:00 PM", result.response)
+        self.assertIn("overwhelmed by your schoolwork", result.response)
+        self.assertFalse(result.escalated)
+        self.assertEqual(emotion.calls, 1)
+        self.assertEqual(safety.calls, 1)
+        self.assertEqual(llm.prompts, [])
+        self.assertEqual(rag.queries, [])
+
+    def test_pure_office_hours_question_stays_factual_without_empathy(self) -> None:
+        settings = {"officeHours": "Monday to Friday, 7:00 AM to 5:00 PM"}
+        operational = OperationalGuidanceService(
+            load_settings=lambda _keys: settings,
+            fetch_student=lambda _account_id: {"program": "BSCS"},
+            fetch_staff_for_program=lambda _program: None,
+        )
+        result = _service(
+            _CapturingLlm(["Provider output must not be used."]),
+            emotion=_CountingEmotion(),
+            operational_guidance=operational,
+            response_safety=_AllowResponses(),
+        ).respond("What are your office hours?", user={"id": 7, "role": "student"})
+
+        self.assertEqual(
+            result.response,
+            "The current SOC Guidance Office hours are: Monday to Friday, 7:00 AM to 5:00 PM.",
+        )
+        self.assertFalse(result.escalated)
+        self.assertNotIn("sorry", result.response.casefold())
+
+    def test_persisted_faq_and_routine_stress_keep_answer_and_empathy(self) -> None:
+        class FAQSettings:
+            def answer_faq(self, _message, _user):  # type: ignore[no-untyped-def]
+                return SimpleNamespace(
+                    response="The custom office policy is available through the Guidance Office.",
+                    source_context="The custom office policy is available through the Guidance Office.",
+                )
+
+        result = _service(
+            _CapturingLlm(["Provider output must not be used."]),
+            emotion=_CountingEmotion(),
+            faq_settings=FAQSettings(),
+            response_safety=_AllowResponses(),
+        ).respond(
+            "What is the custom office policy? I am stressed about my deadlines.",
+            user={"id": 7, "role": "student"},
+        )
+
+        self.assertIn("custom office policy", result.response)
+        self.assertIn("feeling overwhelmed", result.response)
+        self.assertFalse(result.escalated)
+
+    def test_mixed_operational_question_with_crisis_keeps_safety_priority(self) -> None:
+        class NeverCalledOperational:
+            def answer(self, _message, _user):  # type: ignore[no-untyped-def]
+                raise AssertionError("Operational lookup must not run after a crisis response.")
+
+        result = _service(
+            _CapturingLlm(["Provider output must not be used."]),
+            safety=SafetyService(),
+            operational_guidance=NeverCalledOperational(),
+        ).respond(
+            "What are your office hours? I am planning to hurt myself tonight.",
+            user={"id": 7, "role": "student"},
+        )
+
+        self.assertTrue(result.escalated)
+        self.assertIn("immediate danger", result.response.casefold())
+
     def test_active_persisted_faq_precedes_stale_rag_and_provider_output(self) -> None:
         class FAQSettings:
             def answer_faq(self, _message, _user):  # type: ignore[no-untyped-def]
@@ -448,6 +560,18 @@ class ConversationHistoryRegressionTests(unittest.TestCase):
 
 
 class EscalationRegressionTests(unittest.TestCase):
+    def test_routine_academic_stress_response_is_supportive_without_escalation(self) -> None:
+        response = (
+            "It sounds like several deadlines are creating a lot of pressure. "
+            "We can look at one manageable next step together."
+        )
+        result = _service(_CapturingLlm([response])).respond(
+            "I feel overwhelmed because I have several deadlines this week."
+        )
+
+        self.assertEqual(result.response, response)
+        self.assertFalse(result.escalated)
+
     def test_routine_academic_frustration_is_not_escalated(self) -> None:
         routine_messages = (
             FIRST_MESSAGE,
@@ -470,7 +594,7 @@ class EscalationRegressionTests(unittest.TestCase):
                 self.assertFalse(result.escalated)
                 self.assertEqual(result.normalized_emotion, "negative")
 
-    def test_distressed_and_crisis_signals_remain_escalation_eligible(self) -> None:
+    def test_only_explicit_safety_signals_escalate(self) -> None:
         distressed = _service(
             _CapturingLlm(["I am here with you."]),
             emotion=_Emotion("distressed"),
@@ -480,9 +604,21 @@ class EscalationRegressionTests(unittest.TestCase):
             safety=SafetyService(),
         ).respond("I want to die.")
 
-        self.assertTrue(distressed.escalated)
+        self.assertFalse(distressed.escalated)
         self.assertTrue(crisis.escalated)
         self.assertEqual(crisis.normalized_emotion, "crisis")
+
+    def test_high_severity_safety_signals_escalate(self) -> None:
+        safety = SafetyService()
+        for text in (
+            "I am being abused.",
+            "I want to hurt someone.",
+            "I have severe depression.",
+            "I am having panic attacks.",
+            "I am a danger to myself.",
+        ):
+            with self.subTest(text=text):
+                self.assertTrue(safety.check(text).should_escalate)
 
     def test_ambiguous_filipino_fatigue_requires_additional_high_risk_evidence(self) -> None:
         safety = SafetyService()
