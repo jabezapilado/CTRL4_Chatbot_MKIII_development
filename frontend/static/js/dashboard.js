@@ -6,8 +6,8 @@ if (window.requireAuth) {
 
 const API_BASE = window.location.origin;
 
-let sampleInquiries = [];
-let conversationSummaries = [];
+let staffInboxItems = [];
+let inboxLoadState = "loading";
 let flaggedConversations = [];
 let flaggedConversationsLoaded = false;
 let appointmentsLoaded = false;
@@ -37,44 +37,21 @@ async function fetchJson(url, options) {
   return data;
 }
 
-function mapInquiry(row) {
+function mapInboxItem(row) {
   const createdAt = row.created_at ? new Date(row.created_at) : null;
   return {
-    inquiryType: row.inquiry_type || "Unavailable",
-    emotionResult: row.emotion_result || "Unavailable",
-    escalated: Boolean(row.escalated),
-    createdAt,
-  };
-}
-
-function mapConversationSummary(row) {
-  const createdAt = row.created_at ? new Date(row.created_at) : new Date();
-  const now = new Date();
-  const displayTime =
-    createdAt.toDateString() === now.toDateString()
-      ? createdAt.toLocaleTimeString("en-US", {
-          hour: "numeric",
-          minute: "2-digit",
-        })
-      : createdAt.toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-        });
-  return {
-    id: row.id,
-    student: "Confidential conversation",
-    studentId: "",
-    email: "",
+    id: row.summary_id,
+    studentName: row.student_name || "Authorized student",
+    studentNumber: row.student_number || "—",
+    program: row.program || "—",
     category: row.primary_concern || "General inquiry",
-    message: "AI Summary Available",
     emotion: row.emotion_results || "Unavailable",
-    language: row.language_used || "Unavailable",
     flagged: Boolean(row.flagged_status),
-    status: row.flagged_status ? "pending" : "recorded",
-    summary: row.summary || "",
-    recommendation: row.recommendations || "",
+    status: row.review_status || "routine",
+    summary: row.summary_preview || "No AI summary preview is available.",
+    hasReferral: Boolean(row.has_referral),
+    hasIntervention: Boolean(row.has_intervention),
     createdAt,
-    time: displayTime,
   };
 }
 
@@ -1072,9 +1049,7 @@ function renderAppointmentHistory() {
 }
 
 function renderFlaggedAppointmentCases() {
-  const flaggedCases = conversationSummaries.filter(
-    (summary) => summary.flagged,
-  );
+  const flaggedCases = flaggedConversations;
 
   const container = document.getElementById(
     "flagged-appointment-cases-container",
@@ -1742,8 +1717,8 @@ function createFlaggedAppointmentCaseCard(summary) {
 
   card.innerHTML = `
     <div class="appointment-card-header">
-      <h4>${escapeHtml(summary.student)}</h4>
-      <p class="sub">${escapeHtml(summary.studentId)}</p>
+      <h4>${escapeHtml(summary.studentName || "Authorized student")}</h4>
+      <p class="sub">${escapeHtml(summary.studentNumber || "—")}</p>
     </div>
 
     <div class="appointment-card-body">
@@ -1756,7 +1731,7 @@ function createFlaggedAppointmentCaseCard(summary) {
 
       <p>
         Recommendation:
-        ${escapeHtml(summary.recommendation || "No recommendation available.")}
+        ${escapeHtml(summary.summary || "No AI summary preview available.")}
       </p>
 
       <p>
@@ -1777,7 +1752,7 @@ function createFlaggedAppointmentCaseCard(summary) {
   const viewButton = card.querySelector(".view-case-btn");
 
   viewButton?.addEventListener("click", () => {
-    switchView("flagged");
+    void openInboxItem(summary);
   });
 
   return card;
@@ -2139,16 +2114,19 @@ function createFaqEditorCard(faq) {
     save.disabled = true;
     setFaqStatus("Saving FAQ...");
     try {
-      await fetchJson(`${API_BASE}/api/settings/faqs/${encodeURIComponent(faq.id)}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: title.value,
-          question: question.value,
-          answer: answer.value,
-          active: active.checked,
-        }),
-      });
+      await fetchJson(
+        `${API_BASE}/api/settings/faqs/${encodeURIComponent(faq.id)}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: title.value,
+            question: question.value,
+            answer: answer.value,
+            active: active.checked,
+          }),
+        },
+      );
       await loadFaqs();
       setFaqStatus("FAQ saved.", "success");
     } catch (error) {
@@ -2163,9 +2141,12 @@ function createFaqEditorCard(faq) {
     remove.disabled = true;
     setFaqStatus("Removing FAQ...");
     try {
-      await fetchJson(`${API_BASE}/api/settings/faqs/${encodeURIComponent(faq.id)}`, {
-        method: "DELETE",
-      });
+      await fetchJson(
+        `${API_BASE}/api/settings/faqs/${encodeURIComponent(faq.id)}`,
+        {
+          method: "DELETE",
+        },
+      );
       await loadFaqs();
       setFaqStatus("FAQ removed.", "success");
     } catch (error) {
@@ -2193,7 +2174,9 @@ function renderFaqs(items) {
 async function loadFaqs() {
   setFaqStatus("Loading FAQs...");
   const response = await fetchJson(`${API_BASE}/api/settings/faqs`);
-  persistedFaqs = Array.isArray(response.data?.items) ? response.data.items : [];
+  persistedFaqs = Array.isArray(response.data?.items)
+    ? response.data.items
+    : [];
   renderFaqs(persistedFaqs);
   setFaqStatus("");
 }
@@ -2237,6 +2220,18 @@ function bindSettingsInteractions() {
     event.target
       .closest("[data-remove-unavailable-date]")
       ?.parentElement?.remove();
+  });
+}
+
+function bindInboxControls() {
+  document
+    .getElementById("inbox-search-input")
+    ?.addEventListener("input", renderInquiryTable);
+  document
+    .getElementById("inbox-filter")
+    ?.addEventListener("change", renderInquiryTable);
+  document.getElementById("inbox-retry")?.addEventListener("click", () => {
+    void loadBackendData();
   });
 }
 
@@ -2580,42 +2575,135 @@ function appendTableEmptyState(tbody, columnCount, message) {
   tbody.appendChild(row);
 }
 
-function formatInquiryType(value) {
-  return String(value || "Unavailable")
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (character) => character.toUpperCase());
-}
-
-function formatInquiryTimestamp(value) {
+function formatInboxTimestamp(value) {
   if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
     return "Unavailable";
   }
   return value.toLocaleString();
 }
 
+function setInboxState(message, type = "") {
+  const state = document.getElementById("inbox-state");
+  if (!state) return;
+  state.textContent = message || "";
+  state.classList.toggle("error", type === "error");
+}
+
+function inboxItemsForCurrentFilter() {
+  const query = String(
+    document.getElementById("inbox-search-input")?.value || "",
+  )
+    .trim()
+    .toLowerCase();
+  const filter = document.getElementById("inbox-filter")?.value || "all";
+
+  return staffInboxItems.filter((item) => {
+    const matchesFilter =
+      filter === "all" ||
+      (filter === "flagged" && item.flagged) ||
+      (filter === "routine" && !item.flagged) ||
+      item.status === filter;
+    if (!matchesFilter) return false;
+    if (!query) return true;
+    return [
+      item.studentName,
+      item.studentNumber,
+      item.program,
+      item.category,
+      item.summary,
+    ].some((value) => String(value || "").toLowerCase().includes(query));
+  });
+}
+
+function createInboxStatusBadge(item) {
+  const badge = document.createElement("span");
+  const status = String(item.status || "routine").toLowerCase();
+  badge.className = "badge";
+  if (status === "pending") {
+    badge.classList.add("negative");
+    badge.textContent = "Pending review";
+  } else if (status === "reviewed") {
+    badge.classList.add("resolved");
+    badge.textContent = "Reviewed";
+  } else if (item.flagged) {
+    badge.classList.add("negative");
+    badge.textContent = "Flagged";
+  } else {
+    badge.classList.add("neutral");
+    badge.textContent = "Routine";
+  }
+  return badge;
+}
+
 function renderInquiryTable() {
-  const tbody = document.getElementById("inquiry-tbody");
+  const tbody = document.getElementById("inbox-tbody");
   if (!tbody) return;
 
   tbody.replaceChildren();
-  if (!sampleInquiries.length) {
+  if (inboxLoadState === "loading") {
+    appendTableEmptyState(tbody, 7, "Loading current student summary items...");
+    return;
+  }
+  if (inboxLoadState === "error") {
     appendTableEmptyState(
       tbody,
-      5,
-      "No staff-permitted inquiry records are available yet.",
+      7,
+      "Inbox items are unavailable. Retry to load persisted summaries.",
     );
     return;
   }
 
-  sampleInquiries.forEach((inquiry) => {
+  const items = inboxItemsForCurrentFilter();
+  if (!items.length) {
+    appendTableEmptyState(
+      tbody,
+      7,
+      staffInboxItems.length
+        ? "No current student summary items match this filter."
+        : "No finalized student summary items are available yet.",
+    );
+    return;
+  }
+
+  items.forEach((item) => {
     const row = document.createElement("tr");
-    appendTableCell(row, "Confidential inquiry");
-    appendTableCell(row, formatInquiryType(inquiry.inquiryType));
-    appendTableCell(row, inquiry.emotionResult);
-    appendTableCell(row, inquiry.escalated ? "Escalated" : "Not escalated");
-    appendTableCell(row, formatInquiryTimestamp(inquiry.createdAt));
+    const student = document.createElement("td");
+    const studentName = document.createElement("strong");
+    const studentNumber = document.createElement("span");
+    studentName.className = "inbox-student-name";
+    studentName.textContent = item.studentName;
+    studentNumber.className = "inbox-student-number";
+    studentNumber.textContent = item.studentNumber;
+    student.append(studentName, studentNumber);
+    row.appendChild(student);
+    appendTableCell(row, item.program);
+    appendTableCell(row, item.category);
+    const preview = document.createElement("td");
+    const previewText = document.createElement("div");
+    previewText.className = "inbox-summary-preview";
+    previewText.textContent = item.summary;
+    preview.appendChild(previewText);
+    row.appendChild(preview);
+    const status = document.createElement("td");
+    status.appendChild(createInboxStatusBadge(item));
+    row.appendChild(status);
+    appendTableCell(row, formatInboxTimestamp(item.createdAt));
+    const action = document.createElement("td");
+    const open = document.createElement("button");
+    open.type = "button";
+    open.className = "action-link";
+    open.textContent = "Open";
+    open.addEventListener("click", () => {
+      void openInboxItem(item);
+    });
+    action.appendChild(open);
+    row.appendChild(action);
     tbody.appendChild(row);
   });
+
+  setInboxState(
+    `${items.length} current student summary ${items.length === 1 ? "item" : "items"} shown.`,
+  );
 }
 
 function renderAllTables() {
@@ -2646,7 +2734,7 @@ function renderFlaggedConversations() {
 
   flaggedConversations.forEach((conversation) => {
     const row = document.createElement("tr");
-    appendTableCell(row, "Confidential conversation");
+    appendTableCell(row, conversation.studentName || "Authorized student");
     appendTableCell(row, conversation.summary);
     appendTableCell(row, conversation.category);
     appendTableCell(
@@ -2666,68 +2754,11 @@ function renderFlaggedConversations() {
     viewButton.className = "action-link";
     viewButton.textContent = "View";
     viewButton.addEventListener("click", () => {
-      openFlaggedConversationDetails(conversation);
+      void openInboxItem(conversation);
     });
     actionCell.appendChild(viewButton);
     row.appendChild(actionCell);
     tbody.appendChild(row);
-  });
-}
-
-function renderConversationSummaries() {
-  const tbody = document.getElementById("conversation-summary-tbody");
-
-  if (!tbody) return;
-
-  tbody.innerHTML = "";
-
-  if (!conversationSummaries.length) {
-    appendTableEmptyState(
-      tbody,
-      6,
-      "No finalized conversation summaries are available yet.",
-    );
-    return;
-  }
-
-  conversationSummaries.forEach((summary) => {
-    const tr = document.createElement("tr");
-    const createdAt = summary.createdAt
-      ? summary.createdAt.toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        })
-      : "—";
-
-    tr.innerHTML = `
-      <td>${escapeHtml(summary.student)}</td>
-      <td>${escapeHtml(summary.category)}</td>
-      <td>${escapeHtml(capitalize(summary.emotion))}</td>
-      <td>${escapeHtml(createdAt)}</td>
-      <td>
-        <button
-          class="action-link view-summary-btn"
-          data-id="${escapeHtml(summary.id)}"
-        >
-          View
-        </button>
-      </td>
-    `;
-
-    tbody.appendChild(tr);
-  });
-
-  tbody.querySelectorAll(".view-summary-btn").forEach((button) => {
-    button.addEventListener("click", () => {
-      const summary = conversationSummaries.find(
-        (item) => String(item.id) === button.dataset.id,
-      );
-
-      if (summary) {
-        openConversationSummary(summary);
-      }
-    });
   });
 }
 
@@ -3606,12 +3637,98 @@ function renderCaseConfidentiality(confidentiality) {
   }
 }
 
-async function openFlaggedConversationDetails(conversation) {
+async function openInboxItem(item) {
   try {
     const response = await fetchJson(
-      `${API_BASE}/api/flagged-conversations/${conversation.id}`,
+      `${API_BASE}/api/staff/inbox/${encodeURIComponent(item.id)}`,
     );
     const detail = response.data;
+    const conversation = {
+      ...item,
+      id: detail.summary_id,
+      studentName: detail.student_name,
+      studentNumber: detail.student_number,
+      program: detail.program,
+      category: detail.primary_concern,
+      emotion: detail.emotion_results,
+      flagged: Boolean(detail.flagged_status),
+      status: detail.review_status,
+      summary: detail.summary_preview,
+    };
+
+    if (detail.flagged_status) {
+      await openFlaggedConversationDetails(conversation, detail);
+      return;
+    }
+    openRoutineInboxDetails(conversation, detail);
+  } catch (error) {
+    console.error(error);
+    createToast("Unable to open the authorized summary item.", "info");
+  }
+}
+
+function openRoutineInboxDetails(conversation, detail) {
+  const reviewButton = document.getElementById("case-resolve-btn");
+  const pendingButton = document.getElementById("case-pending-btn");
+  const notesCard = document.querySelector(".staff-notes-card");
+  const referralsCard = document.getElementById("case-referrals-card");
+  const interventionsCard = document.getElementById("case-interventions-card");
+  const confidentialityCard = document.getElementById("case-confidentiality-card");
+  const badge = document.getElementById("case-badge");
+
+  document.getElementById("case-avatar").textContent = initials(
+    detail.student_name || "Student",
+  );
+  document.getElementById("case-name").textContent =
+    detail.student_name || "Authorized student";
+  document.getElementById("case-meta").textContent = [
+    detail.student_number || "Student number unavailable",
+    detail.program || "Program unavailable",
+  ].join(" · ");
+  document.getElementById("case-message").textContent = detail.summary;
+  document.getElementById("case-category").textContent =
+    detail.primary_concern || "General inquiry";
+  document.getElementById("case-emotion").textContent = capitalize(
+    detail.emotion_results || "Unavailable",
+  );
+  document.getElementById("case-time").textContent = detail.created_at
+    ? new Date(detail.created_at).toLocaleString()
+    : "Unavailable";
+  document.getElementById("case-recommendation").textContent =
+    detail.recommendations || "No AI recommendation available.";
+  document.getElementById("case-total-messages").textContent = Number.isFinite(
+    Number(detail.total_messages),
+  )
+    ? String(detail.total_messages)
+    : "—";
+  document.getElementById("case-student-messages").textContent = "Not retained";
+  document.getElementById("case-ai-messages").textContent = "Not retained";
+  document.getElementById("case-escalation-status").textContent =
+    "No escalation record";
+  document.getElementById("case-escalation-reason").textContent =
+    "Routine summary item";
+  document.getElementById("case-status-label").textContent = "Routine";
+  badge.className = "badge neutral";
+  badge.textContent = "Routine";
+
+  reviewButton.hidden = true;
+  pendingButton.hidden = true;
+  notesCard.hidden = true;
+  referralsCard.hidden = true;
+  interventionsCard.hidden = true;
+  confidentialityCard.hidden = true;
+  switchView("case-details");
+}
+
+async function openFlaggedConversationDetails(conversation, inboxDetail = null) {
+  try {
+    const detail =
+      inboxDetail ||
+      (
+        await fetchJson(
+          `${API_BASE}/api/staff/inbox/${encodeURIComponent(conversation.id)}`,
+        )
+      ).data;
     const reviewButton = document.getElementById("case-resolve-btn");
     const pendingButton = document.getElementById("case-pending-btn");
     const notesCard = document.querySelector(".staff-notes-card");
@@ -3662,10 +3779,16 @@ async function openFlaggedConversationDetails(conversation) {
     let confidentiality = confidentialityResponse.data;
     let editingNoteId = null;
 
-    document.getElementById("case-avatar").textContent = "FC";
-    document.getElementById("case-name").textContent = "Flagged Conversation";
+    document.getElementById("case-avatar").textContent = initials(
+      detail.student_name || conversation.studentName || "Student",
+    );
+    document.getElementById("case-name").textContent =
+      detail.student_name || conversation.studentName || "Authorized student";
     document.getElementById("case-meta").textContent =
-      "Confidential staff conversation record";
+      [
+        detail.student_number || conversation.studentNumber || "Student number unavailable",
+        detail.program || conversation.program || "Program unavailable",
+      ].join(" · ");
     document.getElementById("case-message").textContent = detail.summary;
     document.getElementById("case-category").textContent =
       detail.primary_concern || "General inquiry";
@@ -4034,76 +4157,6 @@ async function openFlaggedConversationDetails(conversation) {
   }
 }
 
-function openConversationSummary(summary) {
-  if (!summary) {
-    createToast("Unable to open conversation summary.", "info");
-    return;
-  }
-
-  document.getElementById("summary-student").textContent =
-    summary.student_name || "Unknown";
-
-  document.getElementById("summary-topic").textContent =
-    summary.topic || "General";
-
-  document.getElementById("summary-emotion").textContent = capitalize(
-    summary.emotion,
-  );
-
-  document.getElementById("summary-language").textContent = capitalize(
-    summary.language,
-  );
-
-  document.getElementById("summary-flagged").innerHTML = summary.flagged
-    ? '<span class="badge negative">Flagged</span>'
-    : '<span class="badge neutral">Normal</span>';
-
-  document.getElementById("summary-created-at").textContent = summary.created_at
-    ? new Date(summary.created_at).toLocaleString()
-    : "—";
-
-  document.getElementById("summary-text").textContent =
-    summary.summary?.trim() || "No summary available.";
-
-  document.getElementById("summary-recommendation").textContent =
-    summary.recommendation?.trim() || "No recommendation available.";
-
-  let transcript = [];
-
-  try {
-    if (Array.isArray(summary.conversation_json)) {
-      transcript = summary.conversation_json;
-    } else if (typeof summary.conversation_json === "string") {
-      transcript = JSON.parse(summary.conversation_json);
-    }
-  } catch (error) {
-    transcript = [];
-    console.error("Unable to parse transcript:", error);
-  }
-
-  const totalMessages = transcript.length;
-
-  const studentMessages = transcript.filter(
-    (message) => message.from === "user",
-  ).length;
-
-  const aiMessages = transcript.filter(
-    (message) => message.from === "bot",
-  ).length;
-
-  document.getElementById("summary-total-messages").textContent = totalMessages;
-
-  document.getElementById("summary-student-messages").textContent =
-    studentMessages;
-
-  document.getElementById("summary-ai-messages").textContent = aiMessages;
-
-  document.getElementById("summary-escalation-status").textContent =
-    summary.flagged ? "Flagged for Review" : "No Escalation";
-
-  switchView("conversation-summary-details");
-}
-
 function openAppointmentDetails(appointment) {
   document.getElementById("appointment-avatar").textContent = initials(
     appointment.student,
@@ -4344,35 +4397,21 @@ function openAppointmentDetails(appointment) {
 }
 
 async function loadBackendData() {
+  inboxLoadState = "loading";
+  renderInquiryTable();
   try {
-    const inquiries = await fetchJson(`${API_BASE}/api/inquiries`);
-    sampleInquiries = (inquiries.data?.items || []).map(mapInquiry);
-  } catch (error) {
-    console.error(error);
-    sampleInquiries = [];
-  }
-
-  try {
-    const summaries = await fetchJson(`${API_BASE}/api/conversation-summaries`);
-
-    conversationSummaries = (summaries.data?.items || []).map(
-      mapConversationSummary,
-    );
-  } catch (error) {
-    console.error(error);
-    conversationSummaries = [];
-  }
-
-  try {
-    const flagged = await fetchJson(`${API_BASE}/api/flagged-conversations`);
-    flaggedConversations = (flagged.data?.items || []).map(
-      mapFlaggedConversation,
-    );
+    const inbox = await fetchJson(`${API_BASE}/api/staff/inbox`);
+    staffInboxItems = (inbox.data?.items || []).map(mapInboxItem);
+    flaggedConversations = staffInboxItems.filter((item) => item.flagged);
     flaggedConversationsLoaded = true;
+    inboxLoadState = "ready";
   } catch (error) {
     console.error(error);
+    staffInboxItems = [];
     flaggedConversations = [];
     flaggedConversationsLoaded = false;
+    inboxLoadState = "error";
+    setInboxState("Inbox items are unavailable. Retry to load persisted summaries.", "error");
   }
 
   try {
@@ -4457,7 +4496,6 @@ async function loadBackendData() {
 
   renderAllTables();
   updateFlaggedCount();
-  renderConversationSummaries();
   renderReports();
   renderAppointmentDashboard();
 }
@@ -4479,6 +4517,7 @@ window.addEventListener("error", (event) => {
 });
 
 bindSettingsInteractions();
+bindInboxControls();
 bindFaqManagement();
 bindAppointmentSearch();
 bindAppointmentCalendar();

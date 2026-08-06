@@ -80,22 +80,12 @@ class SecurityPrivacyContractTests(unittest.TestCase):
         self.assertNotIn("option.innerHTML", dashboard)
         self.assertNotIn('onclick="', dashboard)
 
-        expected_escaped_values = (
-            "${escapeHtml(summary.student)}",
-            "${escapeHtml(summary.studentId)}",
-            "${escapeHtml(summary.recommendation || \"No recommendation available.\")}",
-            "${escapeHtml(title)}",
-            "${escapeHtml(question)}",
-            "${escapeHtml(answer || \"\")}",
-            "${escapeHtml(summary.category)}",
-            "${escapeHtml(summary.id)}",
-        )
-        for escaped_value in expected_escaped_values:
-            with self.subTest(escaped_value=escaped_value):
-                self.assertIn(escaped_value, dashboard)
-
         self.assertIn("function renderInquiryTable()", dashboard)
-        self.assertIn('appendTableCell(row, "Confidential inquiry")', dashboard)
+        self.assertIn("studentName.textContent = item.studentName", dashboard)
+        self.assertIn("studentNumber.textContent = item.studentNumber", dashboard)
+        self.assertIn("previewText.textContent = item.summary", dashboard)
+        self.assertIn("function openInboxItem", dashboard)
+        self.assertNotIn("conversation_json", dashboard)
         self.assertIn("cell.textContent = value", dashboard)
 
         # Persisted case-management values use textContent / DOM construction.

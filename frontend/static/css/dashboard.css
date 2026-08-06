@@ -220,6 +220,64 @@
   scrollbar-width: thin;
 }
 
+.inbox-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 20px 16px;
+}
+
+.inbox-toolbar label {
+  color: var(--gray-600);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.inbox-toolbar select {
+  min-width: 150px;
+  padding: 8px 10px;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  color: var(--gray-800);
+  font: inherit;
+  font-size: 12px;
+}
+
+.inbox-state {
+  margin: 0;
+  padding: 0 20px 14px;
+  color: var(--gray-600);
+  font-size: 12px;
+}
+
+.inbox-state.error {
+  color: var(--danger-text);
+}
+
+.inbox-summary-preview {
+  display: -webkit-box;
+  overflow: hidden;
+  max-width: 360px;
+  color: var(--gray-700);
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.inbox-student-name {
+  display: block;
+  color: var(--gray-900);
+  font-weight: 700;
+}
+
+.inbox-student-number {
+  display: block;
+  margin-top: 3px;
+  color: var(--gray-500);
+  font-size: 11px;
+}
+
 .dashboard-section-tab {
   flex: 0 0 auto;
   min-height: 38px;
@@ -818,10 +876,9 @@ table.inquiry-table .table-empty-state {
 
 .appointment-availability-window {
   display: grid;
-  grid-template-columns: minmax(150px, 1.2fr) minmax(130px, 1fr) minmax(
-      130px,
-      1fr
-    ) auto;
+  grid-template-columns:
+    minmax(150px, 1.2fr) minmax(130px, 1fr) minmax(130px, 1fr)
+    auto;
   align-items: end;
   gap: 10px;
   margin-bottom: 12px;
@@ -1992,6 +2049,14 @@ table.inquiry-table .table-empty-state {
   .appointment-calendar-event {
     padding: 6px;
   }
+  .inbox-toolbar {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+  .inbox-toolbar select,
+  .inbox-toolbar .btn {
+    flex: 1 1 180px;
+  }
   .appointment-unavailable-date,
   .settings-list-heading {
     align-items: stretch;
@@ -2012,6 +2077,43 @@ table.inquiry-table .table-empty-state {
 }
 
 @media (max-width: 480px) {
+  .inbox-table thead {
+    display: none;
+  }
+  .inbox-table,
+  .inbox-table tbody,
+  .inbox-table tr,
+  .inbox-table td {
+    display: block;
+    width: 100%;
+  }
+  .inbox-table tr {
+    margin: 10px;
+    width: calc(100% - 20px);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-md);
+  }
+  .inbox-table td {
+    border: 0;
+    padding: 8px 12px;
+  }
+  .inbox-table td:nth-child(2)::before,
+  .inbox-table td:nth-child(3)::before,
+  .inbox-table td:nth-child(5)::before,
+  .inbox-table td:nth-child(6)::before {
+    display: inline-block;
+    min-width: 84px;
+    color: var(--gray-500);
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .inbox-table td:nth-child(2)::before { content: "Program"; }
+  .inbox-table td:nth-child(3)::before { content: "Concern"; }
+  .inbox-table td:nth-child(5)::before { content: "Status"; }
+  .inbox-table td:nth-child(6)::before { content: "Updated"; }
+  .inbox-summary-preview {
+    max-width: none;
+  }
   .appointment-availability-window {
     grid-template-columns: 1fr;
     align-items: stretch;

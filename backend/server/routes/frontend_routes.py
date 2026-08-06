@@ -72,7 +72,7 @@ def admin_accounts():
 
 @frontend_bp.get("/chatbot_admin")
 def chatbot_admin():
-    return render_template("chatbot_admin.html")
+    return redirect("/dashboard")
 
 
 @frontend_bp.before_request

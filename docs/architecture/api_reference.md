@@ -130,6 +130,8 @@ privacy-projected; student APIs do not receive these records.
 
 | Method | Path | Request | Success / important errors |
 | --- | --- | --- | --- |
+| GET | `/api/staff/inbox` | None | 200 current authorized student summary items, one latest item per student |
+| GET | `/api/staff/inbox/<summary_id>` | None | 200 privacy-projected summary detail; 404 outside staff program scope or missing |
 | GET | `/api/inquiries` | None | 200 `data.items` |
 | GET | `/api/conversation-summaries` | None | 200 `data.items` |
 | GET | `/api/escalations` | None | 200 `data.items` |

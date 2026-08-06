@@ -59,6 +59,21 @@ class FrontendLayoutContractTests(unittest.TestCase):
         self.assertNotIn("option.innerHTML", dashboard)
         self.assertIn("function appendTableEmptyState", dashboard)
 
+    def test_inbox_uses_summary_projection_without_raw_chat_or_takeover_navigation(self) -> None:
+        dashboard = _read("frontend/static/js/dashboard.js")
+        template = _read("frontend/templates/dashboard.html")
+        frontend_routes = _read("backend/server/routes/frontend_routes.py")
+
+        self.assertIn("/api/staff/inbox", dashboard)
+        self.assertIn("function inboxItemsForCurrentFilter", dashboard)
+        self.assertIn("function openInboxItem", dashboard)
+        self.assertNotIn("conversation_json", dashboard)
+        self.assertNotIn("/api/inquiries", dashboard)
+        self.assertNotIn("chatbot_admin", template)
+        self.assertIn('def chatbot_admin():\n    return redirect("/dashboard")', frontend_routes)
+        self.assertIn('id="inbox-search-input"', template)
+        self.assertIn('id="inbox-filter"', template)
+
     def test_chat_message_pane_keeps_footer_controls_in_the_flex_layout(self) -> None:
         template = _read("frontend/templates/chatbot.html")
         chat = _read("frontend/static/js/chat.js")

@@ -109,24 +109,50 @@
             <section class="panel">
               <div class="panel-header">
                 <h2>Inbox</h2>
+                <div class="search-box">
+                  <input
+                    id="inbox-search-input"
+                    type="search"
+                    placeholder="Search student, number, program, or concern"
+                    aria-label="Search staff inbox"
+                  />
+                </div>
               </div>
               <p class="sub">
-                Staff-permitted persisted inquiry records. Completed
-                conversation summaries and flagged-case work remain available
-                through their authorized staff views.
+                Current finalized student summary items in your authorized
+                programs. Each student appears once with their latest reviewable
+                summary.
+              </p>
+              <div class="inbox-toolbar">
+                <label for="inbox-filter">Show</label>
+                <select id="inbox-filter">
+                  <option value="all">All current items</option>
+                  <option value="flagged">Flagged</option>
+                  <option value="routine">Routine</option>
+                  <option value="pending">Pending review</option>
+                  <option value="reviewed">Reviewed</option>
+                </select>
+                <button id="inbox-retry" class="btn btn-outline btn-sm" type="button">
+                  Retry
+                </button>
+              </div>
+              <p id="inbox-state" class="inbox-state" role="status" aria-live="polite">
+                Loading current student summary items...
               </p>
               <div class="table-wrap">
-                <table class="inquiry-table">
+                <table class="inquiry-table inbox-table">
                   <thead>
                     <tr>
-                      <th>Record</th>
-                      <th>Type</th>
-                      <th>Persisted Emotion Result</th>
-                      <th>Escalation</th>
-                      <th>Received</th>
+                      <th>Student</th>
+                      <th>Program</th>
+                      <th>Concern</th>
+                      <th>Summary Preview</th>
+                      <th>Status</th>
+                      <th>Updated</th>
+                      <th></th>
                     </tr>
                   </thead>
-                  <tbody id="inquiry-tbody"></tbody>
+                  <tbody id="inbox-tbody"></tbody>
                 </table>
               </div>
             </section>
@@ -1179,7 +1205,6 @@
                   </div>
                 </div>
               </div>
-
             </div>
 
             <section class="settings-panel appointment-settings-panel">
@@ -1250,7 +1275,8 @@
                 <div>
                   <h3>FAQ Management</h3>
                   <p class="sub">
-                    Active FAQs answer common Guidance Office questions after live operational settings are checked.
+                    Active FAQs answer common Guidance Office questions after
+                    live operational settings are checked.
                   </p>
                 </div>
               </div>

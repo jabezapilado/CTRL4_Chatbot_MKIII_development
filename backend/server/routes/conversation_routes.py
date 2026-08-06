@@ -24,9 +24,9 @@ from ..services.confidentiality_service import (
     update_staff_case_confidentiality,
 )
 from ..services.conversation_service import (
-    get_staff_flagged_conversation,
+    get_staff_inbox_item,
+    list_staff_inbox_items,
     list_student_cases,
-    list_staff_flagged_conversations,
     list_staff_conversation_summaries,
     list_staff_escalations,
     list_staff_inquiries,
@@ -40,6 +40,63 @@ conversation_bp = Blueprint(
     __name__,
     url_prefix="/api",
 )
+
+
+@conversation_bp.get("/staff/inbox")
+def staff_inbox():
+    user, error = require_role("staff")
+    if error:
+        return error
+    try:
+        return jsonify(
+            {
+                "success": True,
+                "message": "Staff inbox retrieved successfully.",
+                "data": {"items": list_staff_inbox_items(user)},
+            }
+        ), 200
+    except Exception:
+        logger.exception("Failed to retrieve staff inbox.")
+        return jsonify(
+            {
+                "success": False,
+                "message": "Internal server error.",
+                "errors": None,
+            }
+        ), 500
+
+
+@conversation_bp.get("/staff/inbox/<int:summary_id>")
+def staff_inbox_detail(summary_id: int):
+    user, error = require_role("staff")
+    if error:
+        return error
+    try:
+        item = get_staff_inbox_item(user, summary_id)
+        if item is None:
+            return jsonify(
+                {
+                    "success": False,
+                    "message": "Inbox item not found.",
+                    "errors": None,
+                }
+            ), 404
+        return jsonify(
+            {
+                "success": True,
+                "message": "Inbox item retrieved successfully.",
+                "data": item,
+            }
+        ), 200
+    except Exception:
+        logger.exception("Failed to retrieve staff inbox item %s.", summary_id)
+        return jsonify(
+            {
+                "success": False,
+                "message": "Internal server error.",
+                "errors": None,
+            }
+        ), 500
 
 
 @conversation_bp.get("/inquiries")
@@ -125,11 +182,15 @@ def escalations():
 
 @conversation_bp.get("/flagged-conversations")
 def flagged_conversations():
-    _, error = require_role("staff")
+    user, error = require_role("staff")
     if error:
         return error
     try:
-        items = list_staff_flagged_conversations()
+        items = [
+            item
+            for item in list_staff_inbox_items(user)
+            if item.get("flagged_status")
+        ]
         return jsonify(
             {
                 "success": True,
@@ -177,12 +238,12 @@ def student_cases():
 
 @conversation_bp.get("/flagged-conversations/<int:summary_id>")
 def flagged_conversation(summary_id: int):
-    _, error = require_role("staff")
+    user, error = require_role("staff")
     if error:
         return error
     try:
-        item = get_staff_flagged_conversation(summary_id)
-        if item is None:
+        item = get_staff_inbox_item(user, summary_id)
+        if item is None or not item.get("flagged_status"):
             return jsonify(
                 {
                     "success": False,
@@ -210,10 +271,19 @@ def flagged_conversation(summary_id: int):
 
 @conversation_bp.patch("/flagged-conversations/<int:summary_id>/review")
 def review_flagged_conversation(summary_id: int):
-    _, error = require_role("staff")
+    user, error = require_role("staff")
     if error:
         return error
     try:
+        authorized_item = get_staff_inbox_item(user, summary_id)
+        if authorized_item is None or not authorized_item.get("flagged_status"):
+            return jsonify(
+                {
+                    "success": False,
+                    "message": "Flagged conversation not found.",
+                    "errors": None,
+                }
+            ), 404
         item = mark_staff_flagged_conversation_reviewed(summary_id)
         if item is None:
             return jsonify(

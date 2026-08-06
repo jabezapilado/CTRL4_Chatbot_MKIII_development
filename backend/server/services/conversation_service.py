@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 from collections import Counter
 from datetime import date, datetime, time, timedelta
@@ -7,8 +8,11 @@ from typing import Final
 
 from ..db import (
     current_time,
+    fetch_account_by_id,
     fetch_flagged_conversation,
+    fetch_staff_inbox_summary,
     list_flagged_conversations,
+    list_staff_inbox_summaries,
     list_conversation_summaries,
     list_conversation_finalizations_for_analytics,
     list_escalations_for_analytics,
@@ -255,10 +259,140 @@ _STUDENT_CASE_STATUS_DETAILS: Final[dict[str, tuple[str, str]]] = {
         "Your case has been reviewed. The Guidance Office will contact you if further support is needed.",
     ),
 }
+_STAFF_INBOX_FIELDS: Final[tuple[str, ...]] = (
+    "summary_id",
+    "student_name",
+    "student_number",
+    "program",
+    "primary_concern",
+    "emotion_results",
+    "flagged_status",
+    "review_status",
+    "created_at",
+    "summary_preview",
+    "has_referral",
+    "has_intervention",
+)
+_STAFF_INBOX_DETAIL_FIELDS: Final[tuple[str, ...]] = (
+    *_STAFF_INBOX_FIELDS,
+    "summary",
+    "recommendations",
+    "suggested_intervention",
+    "language_used",
+    "total_messages",
+    "escalation_status",
+    "escalation_reason",
+)
 
 
 def _project_fields(row: dict, fields: tuple[str, ...]) -> dict:
     return {field: row.get(field) for field in fields}
+
+
+def _staff_assigned_programs(staff_account: dict) -> set[str]:
+    account = fetch_account_by_id(int(staff_account["id"]), role="staff")
+    if not account:
+        return set()
+
+    programs = account.get("assigned_programs")
+    if isinstance(programs, bytes):
+        try:
+            programs = programs.decode("utf-8")
+        except UnicodeDecodeError:
+            return set()
+    if isinstance(programs, str):
+        try:
+            programs = json.loads(programs)
+        except json.JSONDecodeError:
+            return set()
+    if not isinstance(programs, list):
+        return set()
+    return {
+        str(program).strip().casefold()
+        for program in programs
+        if str(program).strip()
+    }
+
+
+def _inbox_review_status(row: dict) -> str:
+    escalation_status = str(row.get("escalation_status") or "").strip().lower()
+    if escalation_status in {"pending", "reviewed"}:
+        return escalation_status
+    return "routine"
+
+
+def _summary_preview(value: object) -> str:
+    text = " ".join(str(value or "").split())
+    if not text:
+        return (
+            "An AI summary could not be generated. Review the available case "
+            "metadata and contact the student through the approved Guidance Office process."
+        )
+    return text[:240] + ("..." if len(text) > 240 else "")
+
+
+def _project_staff_inbox_row(row: dict, *, detail: bool = False) -> dict:
+    projected = {
+        "summary_id": row.get("summary_id"),
+        "student_name": row.get("student_name"),
+        "student_number": row.get("student_number"),
+        "program": row.get("program"),
+        "primary_concern": row.get("primary_concern"),
+        "emotion_results": row.get("emotion_results"),
+        "flagged_status": bool(row.get("flagged_status")),
+        "review_status": _inbox_review_status(row),
+        "created_at": row.get("created_at"),
+        "summary_preview": _summary_preview(row.get("summary")),
+        "has_referral": bool(row.get("has_referral")),
+        "has_intervention": bool(row.get("has_intervention")),
+    }
+    if detail:
+        projected.update(
+            {
+                "summary": row.get("summary") or (
+                    "An AI summary could not be generated. Review the available case "
+                    "metadata and contact the student through the approved Guidance Office process."
+                ),
+                "recommendations": row.get("recommendations"),
+                "suggested_intervention": row.get("suggested_intervention"),
+                "language_used": row.get("language_used"),
+                "total_messages": row.get("total_messages"),
+                "escalation_status": row.get("escalation_status"),
+                "escalation_reason": row.get("escalation_reason"),
+            }
+        )
+    return _project_fields(
+        projected,
+        _STAFF_INBOX_DETAIL_FIELDS if detail else _STAFF_INBOX_FIELDS,
+    )
+
+
+def list_staff_inbox_items(staff_account: dict) -> list[dict]:
+    """Return one current finalized, reviewable summary per authorized student."""
+    programs = _staff_assigned_programs(staff_account)
+    if not programs:
+        return []
+
+    rows = list_staff_inbox_summaries(sorted(programs))
+    # The database query groups by account; preserve a service-owned final guard
+    # in case legacy data or a future join ever returns a duplicate summary row.
+    unique: dict[object, dict] = {}
+    for row in rows:
+        student_key = row.get("student_account_id") or row.get("student_number")
+        if not student_key:
+            continue
+        unique.setdefault(student_key, row)
+    return [_project_staff_inbox_row(row) for row in unique.values()]
+
+
+def get_staff_inbox_item(staff_account: dict, summary_id: int) -> dict | None:
+    row = fetch_staff_inbox_summary(summary_id)
+    if row is None:
+        return None
+    programs = _staff_assigned_programs(staff_account)
+    if str(row.get("program") or "").strip().casefold() not in programs:
+        return None
+    return _project_staff_inbox_row(row, detail=True)
 
 
 def list_staff_inquiries() -> list[dict]:

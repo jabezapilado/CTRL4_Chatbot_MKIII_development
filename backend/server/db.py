@@ -1137,6 +1137,142 @@ def list_conversation_summaries() -> list[dict[str, Any]]:
     )
 
 
+def _normalized_programs(programs: object) -> tuple[str, ...]:
+    if not isinstance(programs, (list, tuple, set)):
+        return ()
+    return tuple(
+        dict.fromkeys(
+            str(program).strip()
+            for program in programs
+            if str(program).strip()
+        )
+    )
+
+
+def list_staff_inbox_summaries(programs: object) -> list[dict[str, Any]]:
+    """Return the newest finalized summary per authorized student program."""
+    authorized_programs = _normalized_programs(programs)
+    if not authorized_programs:
+        return []
+
+    placeholders = ", ".join(["%s"] * len(authorized_programs))
+    return fetch_rows(
+        f"""
+        SELECT
+            conversation_summaries.id AS summary_id,
+            accounts.id AS student_account_id,
+            accounts.full_name AS student_name,
+            accounts.student_number,
+            accounts.program,
+            conversation_summaries.primary_concern,
+            conversation_summaries.emotion_results,
+            conversation_summaries.flagged_status,
+            conversation_summaries.appointment_recommendation,
+            conversation_summaries.recommendations,
+            conversation_summaries.suggested_intervention,
+            conversation_summaries.language_used,
+            conversation_summaries.total_messages,
+            conversation_summaries.summary,
+            conversation_summaries.created_at,
+            escalations.status AS escalation_status,
+            escalations.escalation_reason,
+            escalations.created_at AS escalation_created_at,
+            escalations.reviewed_at,
+            EXISTS(
+                SELECT 1
+                FROM referrals
+                WHERE referrals.conversation_summary_id = conversation_summaries.id
+            ) AS has_referral,
+            EXISTS(
+                SELECT 1
+                FROM interventions
+                WHERE interventions.conversation_summary_id = conversation_summaries.id
+            ) AS has_intervention
+        FROM conversation_summaries
+        INNER JOIN (
+            SELECT account_id, MAX(id) AS latest_summary_id
+            FROM conversation_summaries
+            WHERE account_id IS NOT NULL
+            GROUP BY account_id
+        ) AS latest_summary
+            ON latest_summary.latest_summary_id = conversation_summaries.id
+        INNER JOIN accounts
+            ON accounts.id = conversation_summaries.account_id
+        LEFT JOIN escalations
+            ON escalations.id = (
+                SELECT MAX(escalation.id)
+                FROM escalations AS escalation
+                WHERE escalation.summary_id = conversation_summaries.id
+            )
+        WHERE accounts.role = 'student'
+          AND accounts.status = 'active'
+          AND accounts.program IN ({placeholders})
+        ORDER BY
+            CASE
+                WHEN escalations.status = 'pending' THEN 0
+                WHEN conversation_summaries.flagged_status = 1 THEN 1
+                ELSE 2
+            END ASC,
+            conversation_summaries.created_at DESC,
+            conversation_summaries.id DESC
+        """,
+        authorized_programs,
+    )
+
+
+def fetch_staff_inbox_summary(summary_id: int) -> dict[str, Any] | None:
+    """Return one finalized summary with its student and safe case indicators."""
+    rows = fetch_rows(
+        """
+        SELECT
+            conversation_summaries.id AS summary_id,
+            accounts.id AS student_account_id,
+            accounts.full_name AS student_name,
+            accounts.student_number,
+            accounts.program,
+            conversation_summaries.primary_concern,
+            conversation_summaries.emotion_results,
+            conversation_summaries.flagged_status,
+            conversation_summaries.appointment_recommendation,
+            conversation_summaries.recommendations,
+            conversation_summaries.suggested_intervention,
+            conversation_summaries.language_used,
+            conversation_summaries.total_messages,
+            conversation_summaries.summary,
+            conversation_summaries.created_at,
+            escalations.status AS escalation_status,
+            escalations.escalation_reason,
+            escalations.created_at AS escalation_created_at,
+            escalations.reviewed_at,
+            EXISTS(
+                SELECT 1
+                FROM referrals
+                WHERE referrals.conversation_summary_id = conversation_summaries.id
+            ) AS has_referral,
+            EXISTS(
+                SELECT 1
+                FROM interventions
+                WHERE interventions.conversation_summary_id = conversation_summaries.id
+            ) AS has_intervention
+        FROM conversation_summaries
+        INNER JOIN accounts
+            ON accounts.id = conversation_summaries.account_id
+        LEFT JOIN escalations
+            ON escalations.id = (
+                SELECT MAX(escalation.id)
+                FROM escalations AS escalation
+                WHERE escalation.summary_id = conversation_summaries.id
+            )
+        WHERE conversation_summaries.id = %s
+          AND accounts.role = 'student'
+          AND accounts.status = 'active'
+        LIMIT 1
+        """,
+        (summary_id,),
+    )
+    return rows[0] if rows else None
+
+
 def list_inquiries() -> list[dict[str, Any]]:
     """Return inquiry records for service-owned privacy filtering."""
     initialize_database()

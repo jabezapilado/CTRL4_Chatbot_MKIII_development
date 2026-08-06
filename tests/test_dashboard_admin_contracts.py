@@ -40,10 +40,14 @@ class DashboardDataIntegrityContractTests(unittest.TestCase):
         dashboard = _read("frontend/static/js/dashboard.js")
         template = _read("frontend/templates/dashboard.html")
 
-        self.assertIn("(inquiries.data?.items || []).map(mapInquiry)", dashboard)
-        self.assertIn("(summaries.data?.items || []).map(", dashboard)
-        self.assertIn('appendTableCell(row, "Confidential inquiry")', dashboard)
-        self.assertIn("Persisted Emotion Result", template)
+        self.assertIn("/api/staff/inbox", dashboard)
+        self.assertIn("(inbox.data?.items || []).map(mapInboxItem)", dashboard)
+        self.assertIn("function inboxItemsForCurrentFilter", dashboard)
+        self.assertIn("summary_preview", dashboard)
+        self.assertIn("Summary Preview", template)
+        self.assertNotIn("Persisted Emotion Result", template)
+        self.assertNotIn("/api/inquiries", dashboard)
+        self.assertNotIn("conversation_json", dashboard)
         self.assertNotIn('"Total Inquiries Today"', template)
         self.assertNotIn("Avg. Response Time", template)
 
