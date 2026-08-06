@@ -160,6 +160,9 @@ class ProtectedChatLoggingTests(unittest.TestCase):
         with patch(
             "backend.server.routes.chatbot_routes.finalize_conversation",
             side_effect=RuntimeError(f"finalization failed: {SENTINEL}"),
+        ), patch(
+            "backend.server.routes.chatbot_routes.transient_chat_service.get_visible_history",
+            return_value=[{"from": "user", "text": SENTINEL}],
         ):
             with self.assertLogs(
                 "backend.server.routes.chatbot_routes", logging.ERROR

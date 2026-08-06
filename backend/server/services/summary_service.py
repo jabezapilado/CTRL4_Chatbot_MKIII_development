@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Final
+from .conversation_history import summary_conversation_evidence
 from .llm_service import LLMService
 
 FLAGGED_RECOMMENDATION: Final[str] = (
@@ -126,9 +127,11 @@ class SummaryService:
         ConversationSummary
         """
 
-        summary_text = self._build_summary(
-            conversation=conversation,
-        )
+        evidence = summary_conversation_evidence(conversation)
+        if not evidence:
+            raise ValueError("A summary requires student-authored evidence.")
+
+        summary_text = self._build_summary(conversation=evidence)
 
         recommendation = self._build_recommendation(
             flagged=flagged,
@@ -147,7 +150,7 @@ class SummaryService:
             appointment_recommendation=flagged,
             recommendations=recommendation,
             suggested_intervention=recommendation,
-            total_messages=len(conversation),
+            total_messages=len(evidence),
         )
     
     def _build_summary(
@@ -263,7 +266,10 @@ class SummaryService:
         - Focus on the student's primary concern.
         - Briefly describe the student's emotional state.
         - Briefly mention the guidance or support that was provided.
-        - Do not invent, assume, or exaggerate information.
+                - Do not invent, assume, or exaggerate information.
+                - Use only facts explicitly present in the conversation transcript.
+                - If no emotion, risk state, academic difficulty, or coping strategy is
+                    explicitly stated, do not mention one.
         - Do not diagnose any mental health condition.
         - Do not include greetings, introductions, or small talk.
         - Do not address the student directly.

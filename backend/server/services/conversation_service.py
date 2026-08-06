@@ -32,6 +32,7 @@ from ..db import (
 )
 
 from . import summary_service
+from .conversation_history import summary_conversation_evidence
 
 logger = logging.getLogger(__name__)
 
@@ -514,6 +515,11 @@ def should_escalate_conversation(
     )
 
 
+def _meaningful_summary_evidence(conversation: object) -> list[dict[str, str]]:
+    """Return canonical transient evidence only when a student actually spoke."""
+    return summary_conversation_evidence(conversation)
+
+
 def _save_escalation(
     summary_id: int,
     account_id: int,
@@ -540,10 +546,22 @@ def finalize_conversation(
     flagged: bool,
     escalation_reason: str | None = None,
 ) -> dict:
+    evidence = _meaningful_summary_evidence(conversation)
+    if not evidence:
+        logger.info("Conversation finalization skipped (no student-authored evidence).")
+        return {
+            "success": True,
+            "status": "skipped",
+            "reason": "no_meaningful_student_message",
+            "summary_id": None,
+            "student_message_count": 0,
+            "assistant_message_count": 0,
+        }
+
     logger.info("Conversation finalization started (flagged=%s).", flagged)
     summary = summary_service.generate_summary(
         student_name=user["full_name"],
-        conversation=conversation,
+        conversation=evidence,
         topic=topic,
         language=language,
         emotion=emotion,
@@ -584,4 +602,11 @@ def finalize_conversation(
     return {
         "success": True,
         "summary_id": summary_id,
+        "status": "saved",
+        "student_message_count": sum(
+            item["role"] == "user" for item in evidence
+        ),
+        "assistant_message_count": sum(
+            item["role"] == "assistant" for item in evidence
+        ),
     }

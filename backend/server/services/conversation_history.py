@@ -59,8 +59,22 @@ def normalize_conversation_history(entries: object) -> list[dict[str, str]]:
     return normalized
 
 
+def summary_conversation_evidence(entries: object) -> list[dict[str, str]]:
+    """Return canonical evidence beginning with the first student message."""
+    evidence: list[dict[str, str]] = []
+    has_student_message = False
+    for item in normalize_conversation_history(entries):
+        if item["role"] == "user":
+            has_student_message = True
+            evidence.append(item)
+        elif has_student_message:
+            evidence.append(item)
+    return evidence
+
+
 __all__ = [
     "MAX_HISTORY_MESSAGES",
     "MAX_HISTORY_MESSAGE_CHARACTERS",
     "normalize_conversation_history",
+    "summary_conversation_evidence",
 ]

@@ -156,19 +156,12 @@ def finalize_chat():
             }
         ), 401
 
+    # Finalization trusts only server-owned transient exchanges. The browser
+    # welcome is display-only and must never become summary evidence.
     conversation = transient_chat_service.get_visible_history(
         _opaque_session_id(),
         user.get("id"),
-    ) or payload.get("conversation", [])
-
-    if not conversation:
-        return jsonify(
-            {
-                "success": False,
-                "message": "Conversation is required.",
-                "errors": None,
-            }
-        ), 400
+    )
 
     try:
         result = finalize_conversation(
@@ -184,10 +177,16 @@ def finalize_chat():
         session.pop(_ESCALATION_REASON_SESSION_KEY, None)
         transient_chat_service.clear(_opaque_session_id(), user.get("id"))
 
+        message = (
+            "No meaningful student message was recorded."
+            if result.get("status") == "skipped"
+            else "Conversation finalized successfully."
+        )
+
         return jsonify(
             {
                 "success": True,
-                "message": "Conversation finalized successfully.",
+                "message": message,
                 "data": result,
             }
         ), 200
