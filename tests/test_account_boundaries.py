@@ -8,6 +8,17 @@ from backend.server.services import account_service
 
 
 class AccountBoundaryTests(unittest.TestCase):
+    def test_verified_profile_seed_uses_only_documented_rooms_and_schedule_windows(self) -> None:
+        from backend.server import db
+
+        self.assertEqual(db.APPROVED_CONSULTATION_ROOMS, ("SJH-206", "PGN-105"))
+        self.assertEqual(
+            db.APPROVED_CONSULTATION_SCHEDULES,
+            (
+                {"room": "SJH-206", "days": "Monday-Friday", "time": "7:00 AM - 5:00 PM"},
+                {"room": "PGN-105", "days": "Monday-Friday", "time": "7:00 AM - 9:00 PM"},
+            ),
+        )
     def test_admin_staff_update_rejects_operational_profile_fields(self) -> None:
         with self.assertRaisesRegex(ValueError, "Unsupported account update field"):
             account_service.update_staff_account_service(

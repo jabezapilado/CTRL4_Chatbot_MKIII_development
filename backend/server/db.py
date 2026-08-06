@@ -139,6 +139,73 @@ def _json_column_value(value: Any) -> Any:
     return value
 
 
+APPROVED_CONSULTATION_ROOMS: Final[tuple[str, ...]] = (
+    "SJH-206",
+    "PGN-105",
+)
+APPROVED_CONSULTATION_SCHEDULES: Final[tuple[dict[str, str], ...]] = (
+    {"room": "SJH-206", "days": "Monday-Friday", "time": "7:00 AM - 5:00 PM"},
+    {"room": "PGN-105", "days": "Monday-Friday", "time": "7:00 AM - 9:00 PM"},
+)
+
+
+def _is_empty_json_list(value: object) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, bytes):
+        try:
+            value = value.decode("utf-8")
+        except UnicodeDecodeError:
+            return False
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except json.JSONDecodeError:
+            return not value.strip()
+    return isinstance(value, list) and not value
+
+
+def seed_missing_staff_operational_profiles() -> list[int]:
+    """Populate only completely unconfigured staff schedules from verified MK II metadata."""
+    initialize_database()
+    updated_ids: list[int] = []
+    with _database_connection() as connection:
+        with connection.cursor(dictionary=True) as cursor:
+            cursor.execute(
+                """
+                SELECT id, consultation_rooms, consultation_schedules
+                FROM accounts
+                WHERE role = 'staff'
+                  AND status = 'active'
+                """
+            )
+            staff_rows = cursor.fetchall()
+            for staff in staff_rows:
+                if not (
+                    _is_empty_json_list(staff.get("consultation_rooms"))
+                    and _is_empty_json_list(staff.get("consultation_schedules"))
+                ):
+                    continue
+                cursor.execute(
+                    """
+                    UPDATE accounts
+                    SET consultation_rooms = %s,
+                        consultation_schedules = %s
+                    WHERE id = %s
+                      AND role = 'staff'
+                    """,
+                    (
+                        _json_column_value(list(APPROVED_CONSULTATION_ROOMS)),
+                        _json_column_value(list(APPROVED_CONSULTATION_SCHEDULES)),
+                        staff["id"],
+                    ),
+                )
+                if cursor.rowcount == 1:
+                    updated_ids.append(int(staff["id"]))
+        connection.commit()
+    return updated_ids
+
+
 def _seed_accounts() -> list[tuple[Any, ...]]:
     accounts = [
         {

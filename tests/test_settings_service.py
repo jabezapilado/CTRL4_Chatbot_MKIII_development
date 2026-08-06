@@ -513,6 +513,42 @@ class AppointmentSettingsIntegrationTests(unittest.TestCase):
 
         self.assertEqual(options["availableSlots"], ["09:00 AM"])
 
+    def test_date_specific_slots_report_missing_counselor_schedule(self) -> None:
+        from backend.server.services import appointment_service
+
+        configuration = configured_availability()
+        configuration["appointmentSlots"] = ["09:00 AM"]
+        with patch.object(
+            appointment_service.settings_service,
+            "get_student_booking_options",
+            return_value={
+                "state": "available",
+                "bookingEnabled": True,
+                "officeAvailability": configuration["officeAvailability"],
+                "unavailableDates": [],
+                "appointmentSlots": configuration["appointmentSlots"],
+            },
+        ), patch.object(
+            appointment_service.settings_service,
+            "get_appointment_configuration",
+            return_value=configuration,
+        ), patch.object(
+            appointment_service,
+            "get_student_by_id",
+            return_value={"id": 7, "program": "BSCS"},
+        ), patch.object(
+            appointment_service,
+            "get_staff_by_program",
+            return_value={"id": 8, "consultation_rooms": None, "consultation_schedules": None},
+        ):
+            options = appointment_service.get_booking_options_service(
+                {"id": 7, "role": "student"},
+                preferred_date="2026-08-10",
+            )
+
+        self.assertEqual(options["availableSlots"], [])
+        self.assertEqual(options["slotState"], "counselor_schedule_unconfigured")
+
     def test_manipulated_slot_is_rejected_by_appointment_service(self) -> None:
         from backend.server.services import appointment_service
 

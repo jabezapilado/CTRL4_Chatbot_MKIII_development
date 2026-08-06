@@ -505,6 +505,26 @@ def _has_valid_consultation_schedule(
     return has_matching_schedule
 
 
+def _has_configured_consultation_schedule(counselor: dict) -> bool:
+    """Fail closed when the routed counselor has no usable schedule metadata."""
+    raw_rooms = _decode_consultation_metadata_list(
+        counselor.get("consultation_rooms")
+    )
+    raw_schedules = _decode_consultation_metadata_list(
+        counselor.get("consultation_schedules")
+    )
+    if not raw_rooms or not raw_schedules:
+        return False
+    return any(
+        isinstance(schedule, dict)
+        and set(schedule) == CONSULTATION_SCHEDULE_FIELDS
+        and isinstance(schedule.get("room"), str)
+        and isinstance(schedule.get("days"), str)
+        and isinstance(schedule.get("time"), str)
+        for schedule in raw_schedules
+    )
+
+
 def _validate_consultation_schedule(
     counselor: dict,
     preferred_date: object,
@@ -750,6 +770,10 @@ def get_booking_options_service(
     )
     configuration = settings_service.get_appointment_configuration()
     if configuration is None:
+        return options
+
+    if not _has_configured_consultation_schedule(counselor):
+        options["slotState"] = "counselor_schedule_unconfigured"
         return options
 
     slots = configuration.get("appointmentSlots")

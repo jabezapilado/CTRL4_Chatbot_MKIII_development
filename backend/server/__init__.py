@@ -8,7 +8,7 @@ from flask_cors import CORS
 from flask_session import Session
 
 from .config import Config
-from .db import initialize_database
+from .db import initialize_database, seed_missing_staff_operational_profiles
 from .logging_config import configure_application_logging
 from .routes import register_blueprints
 
@@ -69,6 +69,11 @@ def create_app() -> Flask:
                 "Program catalog seed completed (seeded=%s preserved=%s).",
                 program_seed_report["seeded"],
                 program_seed_report["preserved"],
+            )
+            seeded_staff_profiles = seed_missing_staff_operational_profiles()
+            app.logger.info(
+                "Counselor operational profile seed completed (updated_staff=%s).",
+                seeded_staff_profiles,
             )
 
     return app
