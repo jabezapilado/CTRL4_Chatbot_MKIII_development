@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 
 from flask import Blueprint, current_app, jsonify, request, session
+from .csrf import get_csrf_token
 from .services import transient_chat_service
 from .services.account_service import login_service
 
@@ -47,6 +48,7 @@ def login():
         session["hau_user"] = user
         _rotate_authenticated_session()
         session.permanent = True
+        get_csrf_token()
     except ValueError as exc:
         logger.warning("Login validation failed.")
         return jsonify(

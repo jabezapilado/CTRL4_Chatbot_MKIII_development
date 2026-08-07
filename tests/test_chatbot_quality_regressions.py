@@ -279,6 +279,28 @@ class ConversationHistoryRegressionTests(unittest.TestCase):
         self.assertFalse(result.escalated)
         self.assertNotIn("sorry", result.response.casefold())
 
+    def test_mixed_appointment_and_anxiety_keeps_booking_answer_and_support(self) -> None:
+        operational = OperationalGuidanceService(
+            load_settings=lambda _keys: {},
+            fetch_student=lambda _account_id: {"program": "BSCS"},
+            fetch_staff_for_program=lambda _program: {"full_name": "Guidance Staff"},
+        )
+        message = (
+            "I'd like to book a counseling appointment. I've been feeling really "
+            "anxious because my grades have been getting worse lately."
+        )
+        result = _service(
+            _CapturingLlm(["Provider output must not be used."]),
+            emotion=_CountingEmotion(),
+            operational_guidance=operational,
+            response_safety=_AllowResponses(),
+        ).respond(message, user={"id": 7, "role": "student"})
+
+        self.assertEqual(result.intent, "appointment_booking")
+        self.assertIn("Use the Appointment page", result.response)
+        self.assertIn("feeling anxious about your grades", result.response)
+        self.assertFalse(result.escalated)
+
     def test_persisted_faq_and_routine_stress_keep_answer_and_empathy(self) -> None:
         class FAQSettings:
             def answer_faq(self, _message, _user):  # type: ignore[no-untyped-def]
@@ -560,6 +582,57 @@ class ConversationHistoryRegressionTests(unittest.TestCase):
 
 
 class EscalationRegressionTests(unittest.TestCase):
+    def test_indirect_suicidal_ideation_escalates_with_crisis_metadata(self) -> None:
+        service = _service(_CapturingLlm(["Provider output must not be used."]), safety=SafetyService())
+        for text in (
+            "I want to finish my life.",
+            "I'm tired, I wanna finish my life.",
+            "I'm done with my life.",
+            "I don't want to exist anymore.",
+            "I don't think I want to live anymore.",
+            "I wish I would not wake up.",
+            "I am tired of living.",
+            "I should end everything.",
+            "Life isn't worth it.",
+            "Hindi ko na kaya.",
+            "Pagod na pagod na ako. Ayoko na.",
+            "Gusto ko na mawala.",
+            "I'll kill myself.",
+        ):
+            with self.subTest(text=text):
+                result = service.respond(text)
+                self.assertTrue(result.escalated)
+                self.assertEqual(result.emotion, "Crisis")
+                self.assertEqual(result.topic, "Crisis Concern")
+                self.assertEqual(result.normalized_emotion, "crisis")
+                self.assertNotEqual(result.emotion, "Unknown")
+
+    def test_later_crisis_message_overrides_prior_normal_exchange(self) -> None:
+        service = _service(
+            _CapturingLlm(["It sounds like you're under pressure."]),
+            safety=SafetyService(),
+        )
+        first = service.respond("I'm stressed.")
+        later = service.respond(
+            "Actually, I don't think I want to live anymore.",
+            conversation=[
+                {"from": "user", "text": "I'm stressed."},
+                {"from": "bot", "text": first.response},
+            ],
+        )
+
+        self.assertFalse(first.escalated)
+        self.assertTrue(later.escalated)
+        self.assertEqual(later.normalized_emotion, "crisis")
+        self.assertIn("immediate danger", later.response.casefold())
+
+    def test_routine_anxiety_remains_non_escalated(self) -> None:
+        result = _service(
+            _CapturingLlm(["It sounds like your grades have been weighing on you."])
+        ).respond("I've been feeling anxious because my grades are getting worse.")
+
+        self.assertFalse(result.escalated)
+
     def test_routine_academic_stress_response_is_supportive_without_escalation(self) -> None:
         response = (
             "It sounds like several deadlines are creating a lot of pressure. "
@@ -629,6 +702,12 @@ class EscalationRegressionTests(unittest.TestCase):
         self.assertTrue(
             safety.check(
                 "Pagod na pagod na ako at gusto ko nang mawala.",
+                language="filipino",
+            ).should_escalate
+        )
+        self.assertTrue(
+            safety.check(
+                "Pagod na pagod na ako. Ayoko na.",
                 language="filipino",
             ).should_escalate
         )

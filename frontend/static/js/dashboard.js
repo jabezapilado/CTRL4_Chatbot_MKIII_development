@@ -13,6 +13,7 @@ let flaggedConversationsLoaded = false;
 let appointmentsLoaded = false;
 let appointmentAnalytics = null;
 let chatbotAnalytics = null;
+let inboxStatistics = null;
 let counselorWorkloadAnalytics = null;
 let flaggedCaseAnalytics = null;
 let reportsAnalytics = null;
@@ -565,6 +566,43 @@ function renderChatbotAnalytics() {
     "month",
     "No persisted inquiry records for this period.",
   );
+}
+
+function todayAnalyticsQuery() {
+  const today = new Date().toISOString().slice(0, 10);
+  return `?${new URLSearchParams({ start_date: today, end_date: today })}`;
+}
+
+function renderInboxStatistics() {
+  const setValue = (elementId, value) => {
+    const element = document.getElementById(elementId);
+    if (element) element.textContent = displayAggregateValue(value);
+  };
+  const status = document.getElementById("inbox-stat-status");
+
+  if (!inboxStatistics) {
+    setValue("inbox-stat-inquiries", "—");
+    setValue("inbox-stat-flagged", "—");
+    setValue("inbox-stat-routine", "—");
+    if (status) status.textContent = "Unavailable";
+    return;
+  }
+
+  const finalizations =
+    Number(inboxStatistics.conversation_finalization_count) || 0;
+  const escalations = Number(inboxStatistics.escalation_count) || 0;
+  setValue("inbox-stat-inquiries", inboxStatistics.total_chatbot_messages || 0);
+  setValue("inbox-stat-flagged", escalations);
+  setValue("inbox-stat-routine", Math.max(0, finalizations - escalations));
+  if (status) status.textContent = "Online";
+}
+
+async function loadInboxStatistics() {
+  const result = await fetchJson(
+    `${API_BASE}/api/dashboard/chatbot/analytics${todayAnalyticsQuery()}`,
+  );
+  inboxStatistics = result.data || null;
+  renderInboxStatistics();
 }
 
 async function loadChatbotAnalytics() {
@@ -1146,7 +1184,10 @@ function isManualBookingSelectionAvailable(dateValue, timeValue, options) {
   return Boolean(options.availableSlots?.includes(timeValue));
 }
 
-async function refreshAppointmentBookingOptions(preferredDate = "", studentNumber = "") {
+async function refreshAppointmentBookingOptions(
+  preferredDate = "",
+  studentNumber = "",
+) {
   const query = new URLSearchParams();
   if (preferredDate) query.set("date", preferredDate);
   if (studentNumber) query.set("student_number", studentNumber);
@@ -1162,7 +1203,12 @@ async function refreshAppointmentBookingOptions(preferredDate = "", studentNumbe
   return appointmentBookingOptions;
 }
 
-function populateManualSlotSelect(select, slots, placeholder, disabled = false) {
+function populateManualSlotSelect(
+  select,
+  slots,
+  placeholder,
+  disabled = false,
+) {
   if (!select) return;
   const previousValue = select.value;
   select.replaceChildren();
@@ -1211,7 +1257,9 @@ function renderManualAppointmentOptions(container) {
   populateManualSlotSelect(
     time,
     [],
-    available ? "Select a student and date first" : "Appointment configuration unavailable",
+    available
+      ? "Select a student and date first"
+      : "Appointment configuration unavailable",
     true,
   );
   if (status) {
@@ -1397,7 +1445,8 @@ function renderManualAppointmentEntry() {
     if (!students.length) {
       const empty = document.createElement("p");
       empty.className = "manual-student-search-empty";
-      empty.textContent = "No students in your assigned programs match this search.";
+      empty.textContent =
+        "No students in your assigned programs match this search.";
       studentSearchResults.appendChild(empty);
       studentSearchResults.hidden = false;
       studentSearchInput.setAttribute("aria-expanded", "true");
@@ -1560,7 +1609,10 @@ function renderManualAppointmentEntry() {
         "Unable to load available time slots",
         true,
       );
-      createToast(error.message || "Unable to load available time slots.", "info");
+      createToast(
+        error.message || "Unable to load available time slots.",
+        "info",
+      );
     }
   });
 
@@ -1668,7 +1720,9 @@ function renderManualAppointmentEntry() {
         reason: appointmentReasonInput.value.trim(),
       };
 
-      const saveButton = container.querySelector("#save-manual-appointment-btn");
+      const saveButton = container.querySelector(
+        "#save-manual-appointment-btn",
+      );
       saveButton.disabled = true;
       try {
         await fetchJson(`${API_BASE}/api/appointments/manual`, {
@@ -2130,12 +2184,17 @@ function renderCounselorProfile(profile) {
 function collectCounselorSchedules() {
   const schedules = [];
   for (const row of document.querySelectorAll(".counselor-schedule-row")) {
-    const room = row.querySelector("[data-counselor-schedule-room]")?.value || "";
-    const days = row.querySelector("[data-counselor-schedule-day]")?.value || "";
-    const start = row.querySelector("[data-counselor-schedule-start]")?.value || "";
+    const room =
+      row.querySelector("[data-counselor-schedule-room]")?.value || "";
+    const days =
+      row.querySelector("[data-counselor-schedule-day]")?.value || "";
+    const start =
+      row.querySelector("[data-counselor-schedule-start]")?.value || "";
     const end = row.querySelector("[data-counselor-schedule-end]")?.value || "";
     if (!room || !days || !start || !end || start >= end) {
-      throw new Error("Each consultation schedule needs a room, day, and valid start/end time.");
+      throw new Error(
+        "Each consultation schedule needs a room, day, and valid start/end time.",
+      );
     }
     schedules.push({
       room,
@@ -2152,39 +2211,55 @@ async function loadCounselorProfile() {
 }
 
 function bindCounselorProfile() {
-  document.getElementById("add-counselor-schedule")?.addEventListener("click", () => {
-    document
-      .getElementById("counselor-schedule-list")
-      ?.appendChild(createCounselorScheduleRow());
-  });
-  document.getElementById("counselor-profile-rooms")?.addEventListener("change", () => {
-    const list = document.getElementById("counselor-schedule-list");
-    const existing = Array.from(list?.children || [], (row) => ({
-      room: row.querySelector("[data-counselor-schedule-room]")?.value || "",
-      days: row.querySelector("[data-counselor-schedule-day]")?.value || "",
-      time: `${inputTimeToCanonical(row.querySelector("[data-counselor-schedule-start]")?.value || "")} - ${inputTimeToCanonical(row.querySelector("[data-counselor-schedule-end]")?.value || "")}`,
-    }));
-    list?.replaceChildren(...existing.map(createCounselorScheduleRow));
-  });
-  document.getElementById("save-counselor-profile")?.addEventListener("click", async () => {
-    try {
-      setCounselorProfileStatus("Saving counselor profile...");
-      const response = await fetchJson(`${API_BASE}/api/accounts/staff/profile`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          office: document.getElementById("counselor-profile-office")?.value || "",
-          support_statement: document.getElementById("counselor-profile-support")?.value || "",
-          consultation_rooms: counselorRooms(),
-          consultation_schedules: collectCounselorSchedules(),
-        }),
-      });
-      renderCounselorProfile(response.data || {});
-      setCounselorProfileStatus("Counselor profile saved.", "success");
-    } catch (error) {
-      setCounselorProfileStatus(error.message || "Unable to save counselor profile.", "error");
-    }
-  });
+  document
+    .getElementById("add-counselor-schedule")
+    ?.addEventListener("click", () => {
+      document
+        .getElementById("counselor-schedule-list")
+        ?.appendChild(createCounselorScheduleRow());
+    });
+  document
+    .getElementById("counselor-profile-rooms")
+    ?.addEventListener("change", () => {
+      const list = document.getElementById("counselor-schedule-list");
+      const existing = Array.from(list?.children || [], (row) => ({
+        room: row.querySelector("[data-counselor-schedule-room]")?.value || "",
+        days: row.querySelector("[data-counselor-schedule-day]")?.value || "",
+        time: `${inputTimeToCanonical(row.querySelector("[data-counselor-schedule-start]")?.value || "")} - ${inputTimeToCanonical(row.querySelector("[data-counselor-schedule-end]")?.value || "")}`,
+      }));
+      list?.replaceChildren(...existing.map(createCounselorScheduleRow));
+    });
+  document
+    .getElementById("save-counselor-profile")
+    ?.addEventListener("click", async () => {
+      try {
+        setCounselorProfileStatus("Saving counselor profile...");
+        const response = await fetchJson(
+          `${API_BASE}/api/accounts/staff/profile`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              office:
+                document.getElementById("counselor-profile-office")?.value ||
+                "",
+              support_statement:
+                document.getElementById("counselor-profile-support")?.value ||
+                "",
+              consultation_rooms: counselorRooms(),
+              consultation_schedules: collectCounselorSchedules(),
+            }),
+          },
+        );
+        renderCounselorProfile(response.data || {});
+        setCounselorProfileStatus("Counselor profile saved.", "success");
+      } catch (error) {
+        setCounselorProfileStatus(
+          error.message || "Unable to save counselor profile.",
+          "error",
+        );
+      }
+    });
 }
 
 function renderAvailabilityConfiguration(availability) {
@@ -2901,7 +2976,11 @@ function inboxItemsForCurrentFilter() {
       item.program,
       item.category,
       item.summary,
-    ].some((value) => String(value || "").toLowerCase().includes(query));
+    ].some((value) =>
+      String(value || "")
+        .toLowerCase()
+        .includes(query),
+    );
   });
 }
 
@@ -3024,8 +3103,23 @@ function renderFlaggedConversations() {
 
   flaggedConversations.forEach((conversation) => {
     const row = document.createElement("tr");
-    appendTableCell(row, conversation.studentName || "Authorized student");
-    appendTableCell(row, conversation.summary);
+    const student = document.createElement("td");
+    const studentName = document.createElement("strong");
+    const studentNumber = document.createElement("span");
+    studentName.className = "flagged-student-name";
+    studentName.textContent = conversation.studentName || "Authorized student";
+    studentNumber.className = "flagged-student-number";
+    studentNumber.textContent = conversation.studentNumber || "—";
+    student.append(studentName, studentNumber);
+    row.appendChild(student);
+
+    const summary = document.createElement("td");
+    const summaryText = document.createElement("div");
+    summaryText.className = "flagged-summary-preview";
+    summaryText.textContent = conversation.summary;
+    summary.appendChild(summaryText);
+    row.appendChild(summary);
+
     appendTableCell(row, conversation.category);
     appendTableCell(
       row,
@@ -3927,6 +4021,64 @@ function renderCaseConfidentiality(confidentiality) {
   }
 }
 
+function formatReviewedCaseTimestamp(value) {
+  if (!value) return "Reviewed date unavailable";
+  const timestamp = new Date(value);
+  return Number.isNaN(timestamp.getTime())
+    ? "Reviewed date unavailable"
+    : timestamp.toLocaleString();
+}
+
+async function renderReviewedCaseHistory(summaryId) {
+  const card = document.getElementById("case-history-card");
+  const list = document.getElementById("case-history-list");
+  if (!card || !list) return;
+
+  card.hidden = true;
+  list.replaceChildren();
+  try {
+    const response = await fetchJson(
+      `${API_BASE}/api/staff/inbox/${encodeURIComponent(summaryId)}/history`,
+      { cache: "no-store" },
+    );
+    const items = response.data?.items || [];
+    if (!items.length) return;
+
+    items.forEach((item) => {
+      const row = document.createElement("div");
+      row.className = "case-history-row";
+      const content = document.createElement("div");
+      content.className = "case-history-content";
+      const title = document.createElement("strong");
+      title.textContent = item.primary_concern || "Guidance Office case";
+      const meta = document.createElement("span");
+      meta.textContent = `Reviewed ${formatReviewedCaseTimestamp(item.reviewed_at)}`;
+      const preview = document.createElement("p");
+      preview.textContent = item.summary_preview || "No AI summary preview is available.";
+      content.append(title, meta, preview);
+
+      const actions = document.createElement("div");
+      actions.className = "case-history-actions";
+      const status = document.createElement("span");
+      status.className = "badge resolved";
+      status.textContent = "Reviewed";
+      const open = document.createElement("button");
+      open.type = "button";
+      open.className = "action-link";
+      open.textContent = "Open";
+      open.addEventListener("click", () => {
+        void openInboxItem({ id: item.summary_id });
+      });
+      actions.append(status, open);
+      row.append(content, actions);
+      list.appendChild(row);
+    });
+    card.hidden = false;
+  } catch (error) {
+    console.error(error);
+  }
+}
+
 async function openInboxItem(item) {
   try {
     const response = await fetchJson(
@@ -3950,21 +4102,24 @@ async function openInboxItem(item) {
       await openFlaggedConversationDetails(conversation, detail);
       return;
     }
-    openRoutineInboxDetails(conversation, detail);
+    await openRoutineInboxDetails(conversation, detail);
   } catch (error) {
     console.error(error);
     createToast("Unable to open the authorized summary item.", "info");
   }
 }
 
-function openRoutineInboxDetails(conversation, detail) {
+async function openRoutineInboxDetails(conversation, detail) {
   const reviewButton = document.getElementById("case-resolve-btn");
   const pendingButton = document.getElementById("case-pending-btn");
   const notesCard = document.querySelector(".staff-notes-card");
   const referralsCard = document.getElementById("case-referrals-card");
   const interventionsCard = document.getElementById("case-interventions-card");
-  const confidentialityCard = document.getElementById("case-confidentiality-card");
+  const confidentialityCard = document.getElementById(
+    "case-confidentiality-card",
+  );
   const badge = document.getElementById("case-badge");
+  const staffActionsNote = document.getElementById("case-staff-actions-note");
 
   document.getElementById("case-avatar").textContent = initials(
     detail.student_name || "Student",
@@ -3981,6 +4136,7 @@ function openRoutineInboxDetails(conversation, detail) {
   document.getElementById("case-emotion").textContent = capitalize(
     detail.emotion_results || "Unavailable",
   );
+  applySafetyRisk(detail);
   document.getElementById("case-time").textContent = detail.created_at
     ? new Date(detail.created_at).toLocaleString()
     : "Unavailable";
@@ -4000,6 +4156,8 @@ function openRoutineInboxDetails(conversation, detail) {
   document.getElementById("case-status-label").textContent = "Routine";
   badge.className = "badge neutral";
   badge.textContent = "Routine";
+  staffActionsNote.textContent =
+    "No immediate intervention is required. Continue with the requested appointment and monitor the student's progress.";
 
   reviewButton.hidden = true;
   pendingButton.hidden = true;
@@ -4007,10 +4165,44 @@ function openRoutineInboxDetails(conversation, detail) {
   referralsCard.hidden = true;
   interventionsCard.hidden = true;
   confidentialityCard.hidden = true;
+  await renderReviewedCaseHistory(detail.summary_id);
   switchView("case-details");
 }
 
-async function openFlaggedConversationDetails(conversation, inboxDetail = null) {
+function displayCaseEmotion(detail) {
+  return capitalize(detail.emotion_results || "Unavailable");
+}
+
+function safetyRiskPresentation(detail) {
+  if (!detail.flagged_status) {
+    return { label: "No immediate safety concern", badgeClass: "neutral" };
+  }
+
+  const safetyMetadata = [detail.escalation_reason, detail.primary_concern]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  const isImmediateRisk =
+    /safety escalation|crisis|self[ -]?harm|suicid|high-risk/.test(
+      safetyMetadata,
+    );
+
+  return isImmediateRisk
+    ? { label: "Immediate safety concern", badgeClass: "negative" }
+    : { label: "Elevated concern", badgeClass: "pending" };
+}
+
+function applySafetyRisk(detail) {
+  const risk = safetyRiskPresentation(detail);
+  const element = document.getElementById("case-safety-risk");
+  element.className = `badge ${risk.badgeClass}`;
+  element.textContent = risk.label;
+}
+
+async function openFlaggedConversationDetails(
+  conversation,
+  inboxDetail = null,
+) {
   try {
     const detail =
       inboxDetail ||
@@ -4074,17 +4266,18 @@ async function openFlaggedConversationDetails(conversation, inboxDetail = null) 
     );
     document.getElementById("case-name").textContent =
       detail.student_name || conversation.studentName || "Authorized student";
-    document.getElementById("case-meta").textContent =
-      [
-        detail.student_number || conversation.studentNumber || "Student number unavailable",
-        detail.program || conversation.program || "Program unavailable",
-      ].join(" · ");
+    document.getElementById("case-meta").textContent = [
+      detail.student_number ||
+        conversation.studentNumber ||
+        "Student number unavailable",
+      detail.program || conversation.program || "Program unavailable",
+    ].join(" · ");
     document.getElementById("case-message").textContent = detail.summary;
     document.getElementById("case-category").textContent =
       detail.primary_concern || "General inquiry";
-    document.getElementById("case-emotion").textContent = capitalize(
-      detail.emotion_results || "neutral",
-    );
+    document.getElementById("case-emotion").textContent =
+      displayCaseEmotion(detail);
+    applySafetyRisk(detail);
     document.getElementById("case-time").textContent = detail.created_at
       ? new Date(detail.created_at).toLocaleString()
       : "Unavailable";
@@ -4104,12 +4297,15 @@ async function openFlaggedConversationDetails(conversation, inboxDetail = null) 
       detail.escalation_status === "reviewed" ? "Reviewed" : "Pending review";
 
     const badge = document.getElementById("case-badge");
+    const staffActionsNote = document.getElementById("case-staff-actions-note");
     badge.className =
       detail.escalation_status === "reviewed"
         ? "badge resolved"
         : "badge negative";
     badge.textContent =
       detail.escalation_status === "reviewed" ? "Reviewed" : "Pending review";
+    staffActionsNote.textContent =
+      "Immediate Guidance Office review is recommended. Assess the student's immediate safety, follow the approved Guidance Office protocol, and document the action taken.";
 
     pendingButton.hidden = true;
     notesCard.hidden = false;
@@ -4126,8 +4322,7 @@ async function openFlaggedConversationDetails(conversation, inboxDetail = null) 
           { method: "PATCH" },
         );
         conversation.status = reviewed.data.escalation_status;
-        renderFlaggedConversations();
-        updateFlaggedCount();
+        await loadBackendData();
         await openFlaggedConversationDetails(conversation);
         createToast("Flagged conversation marked as reviewed.", "success");
       } catch (error) {
@@ -4440,6 +4635,7 @@ async function openFlaggedConversationDetails(conversation, inboxDetail = null) 
     };
     updateConfidentialityControls();
 
+    await renderReviewedCaseHistory(detail.summary_id);
     switchView("case-details");
   } catch (error) {
     console.error(error);
@@ -4690,9 +4886,13 @@ async function loadBackendData() {
   inboxLoadState = "loading";
   renderInquiryTable();
   try {
-    const inbox = await fetchJson(`${API_BASE}/api/staff/inbox`);
+    const inbox = await fetchJson(`${API_BASE}/api/staff/inbox`, {
+      cache: "no-store",
+    });
     staffInboxItems = (inbox.data?.items || []).map(mapInboxItem);
-    flaggedConversations = staffInboxItems.filter((item) => item.flagged);
+    flaggedConversations = staffInboxItems.filter(
+      (item) => item.flagged && item.status === "pending",
+    );
     flaggedConversationsLoaded = true;
     inboxLoadState = "ready";
   } catch (error) {
@@ -4705,6 +4905,14 @@ async function loadBackendData() {
       "Inbox items are unavailable. Retry to load persisted summaries.",
       "error",
     );
+  }
+
+  try {
+    await loadInboxStatistics();
+  } catch (error) {
+    console.error(error);
+    inboxStatistics = null;
+    renderInboxStatistics();
   }
 
   try {
@@ -4801,14 +5009,21 @@ async function loadBackendData() {
 }
 
 function logout() {
+  let redirected = false;
+  const redirectToLogin = () => {
+    if (redirected) return;
+    redirected = true;
+    sessionStorage.removeItem("hau_user");
+    window.location.replace("/login?reason=logged-out");
+  };
+  const fallbackTimer = setTimeout(redirectToLogin, 1500);
+
   fetch(`${API_BASE}/auth/logout`, { method: "POST" })
     .catch(() => {})
     .finally(() => {
-      sessionStorage.removeItem("hau_user");
+      clearTimeout(fallbackTimer);
       createToast("Logged out.", "info");
-      if (window.getLoginUrl) {
-        setTimeout(() => window.location.replace(window.getLoginUrl()), 700);
-      }
+      setTimeout(redirectToLogin, 300);
     });
 }
 

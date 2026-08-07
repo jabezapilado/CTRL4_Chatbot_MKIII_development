@@ -236,6 +236,7 @@ def _seed_accounts() -> list[tuple[Any, ...]]:
             "password": config.SEED_STAFF_PASSWORD,
             "role": "staff",
             "program": None,  
+            "assigned_programs": [config.SEED_STUDENT_PROGRAM],
             "gender": config.SEED_STAFF_GENDER,
         },
         {
@@ -246,6 +247,7 @@ def _seed_accounts() -> list[tuple[Any, ...]]:
             "password": config.SEED_STAFF2_PASSWORD,
             "role": "staff",
             "program": None,
+            "assigned_programs": [config.SEED_STUDENT2_PROGRAM],
             "gender": config.SEED_STAFF2_GENDER,
         },
         {
@@ -270,8 +272,7 @@ def _seed_accounts() -> list[tuple[Any, ...]]:
         staff_number = account.get("staff_number")
         gender = account.get("gender")
         program = account.get("program", None)
-        # All counselor fields initialized to None
-        assigned_programs = None
+        assigned_programs = account.get("assigned_programs")
         office = None
         support_statement = None
         consultation_rooms = None
@@ -290,7 +291,7 @@ def _seed_accounts() -> list[tuple[Any, ...]]:
                 staff_number,
                 gender,
                 program,
-                assigned_programs,
+                _json_column_value(assigned_programs),
                 office,
                 support_statement,
                 consultation_rooms,
@@ -336,6 +337,23 @@ def seed_database() -> None:
                 """,
                 seed_rows,
             )
+            for email, programs in (
+                (config.SEED_STAFF_EMAIL, [config.SEED_STUDENT_PROGRAM]),
+                (config.SEED_STAFF2_EMAIL, [config.SEED_STUDENT2_PROGRAM]),
+            ):
+                cursor.execute(
+                    """
+                    UPDATE accounts
+                    SET assigned_programs = %s
+                    WHERE email = %s
+                      AND role = 'staff'
+                      AND (
+                          assigned_programs IS NULL
+                          OR JSON_LENGTH(assigned_programs) = 0
+                      )
+                    """,
+                    (_json_column_value(programs), email),
+                )
             cursor.execute(
                 """
                 INSERT INTO settings (setting_key, setting_value, updated_at)
@@ -1192,6 +1210,53 @@ def save_conversation_summary(payload: dict[str, Any]) -> int:
 
     return int(summary_id)
 
+
+def fetch_open_conversation_case(account_id: int) -> dict[str, Any] | None:
+    """Return the student's current pending flagged case without transcript data."""
+    rows = fetch_rows(
+        """
+        SELECT
+            conversation_summaries.id AS summary_id,
+            conversation_summaries.summary,
+            conversation_summaries.total_messages,
+            conversation_summaries.created_at
+        FROM conversation_summaries
+        INNER JOIN escalations
+            ON escalations.summary_id = conversation_summaries.id
+        WHERE conversation_summaries.account_id = %s
+          AND conversation_summaries.flagged_status = 1
+          AND escalations.status = 'pending'
+        ORDER BY escalations.created_at DESC, escalations.id DESC
+        LIMIT 1
+        """,
+        (account_id,),
+    )
+    return rows[0] if rows else None
+
+
+def refresh_open_conversation_summary(
+    summary_id: int,
+    summary: str,
+    total_messages: int,
+) -> bool:
+    """Refresh an open case summary while retaining its original timestamp."""
+    initialize_database()
+    with _database_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE conversation_summaries
+                SET summary = %s,
+                    total_messages = %s
+                WHERE id = %s
+                  AND flagged_status = 1
+                """,
+                (summary, total_messages, summary_id),
+            )
+            updated = cursor.rowcount == 1
+        connection.commit()
+    return updated
+
 def list_conversation_summaries() -> list[dict[str, Any]]:
     initialize_database()
 
@@ -1213,6 +1278,103 @@ def _normalized_programs(programs: object) -> tuple[str, ...]:
             for program in programs
             if str(program).strip()
         )
+    )
+
+
+def _student_program_scope_clause(
+    account_column: str,
+    programs: object | None,
+) -> tuple[str, tuple[str, ...]]:
+    """Build a fail-closed student-program filter for internal scoped queries."""
+    if programs is None:
+        return "", ()
+
+    authorized_programs = _normalized_programs(programs)
+    if not authorized_programs:
+        return " AND 1 = 0", ()
+
+    placeholders = ", ".join(["%s"] * len(authorized_programs))
+    return (
+        f"""
+        AND {account_column} IN (
+            SELECT id
+            FROM accounts
+            WHERE role = 'student'
+              AND status = 'active'
+              AND program IN ({placeholders})
+        )
+        """,
+        authorized_programs,
+    )
+
+
+def list_inquiries_for_programs(programs: object) -> list[dict[str, Any]]:
+    """Return inquiry metadata only for students in the supplied programs."""
+    authorized_programs = _normalized_programs(programs)
+    if not authorized_programs:
+        return []
+
+    placeholders = ", ".join(["%s"] * len(authorized_programs))
+    return fetch_rows(
+        f"""
+        SELECT inquiries.*
+        FROM inquiries
+        INNER JOIN accounts
+            ON accounts.id = inquiries.account_id
+        WHERE accounts.role = 'student'
+          AND accounts.status = 'active'
+          AND accounts.program IN ({placeholders})
+        ORDER BY inquiries.id DESC
+        LIMIT 100
+        """,
+        authorized_programs,
+    )
+
+
+def list_conversation_summaries_for_programs(programs: object) -> list[dict[str, Any]]:
+    """Return finalized summaries only for students in the supplied programs."""
+    authorized_programs = _normalized_programs(programs)
+    if not authorized_programs:
+        return []
+
+    placeholders = ", ".join(["%s"] * len(authorized_programs))
+    return fetch_rows(
+        f"""
+        SELECT conversation_summaries.*
+        FROM conversation_summaries
+        INNER JOIN accounts
+            ON accounts.id = conversation_summaries.account_id
+        WHERE accounts.role = 'student'
+          AND accounts.status = 'active'
+          AND accounts.program IN ({placeholders})
+        ORDER BY conversation_summaries.created_at DESC
+        """,
+        authorized_programs,
+    )
+
+
+def list_escalations_for_programs(programs: object) -> list[dict[str, Any]]:
+    """Return escalation metadata only for students in the supplied programs."""
+    authorized_programs = _normalized_programs(programs)
+    if not authorized_programs:
+        return []
+
+    placeholders = ", ".join(["%s"] * len(authorized_programs))
+    return fetch_rows(
+        f"""
+        SELECT escalations.*
+        FROM escalations
+        INNER JOIN conversation_summaries
+            ON conversation_summaries.id = escalations.summary_id
+        INNER JOIN accounts
+            ON accounts.id = conversation_summaries.account_id
+        WHERE accounts.role = 'student'
+          AND accounts.status = 'active'
+          AND accounts.program IN ({placeholders})
+        ORDER BY escalations.id DESC
+        LIMIT 100
+        """,
+        authorized_programs,
     )
 
 
@@ -1257,12 +1419,26 @@ def list_staff_inbox_summaries(programs: object) -> list[dict[str, Any]]:
             ) AS has_intervention
         FROM conversation_summaries
         INNER JOIN (
-            SELECT account_id, MAX(id) AS latest_summary_id
-            FROM conversation_summaries
-            WHERE account_id IS NOT NULL
-            GROUP BY account_id
-        ) AS latest_summary
-            ON latest_summary.latest_summary_id = conversation_summaries.id
+            SELECT
+                summaries.account_id,
+                COALESCE(
+                    MAX(
+                        CASE
+                            WHEN pending_escalations.status = 'pending'
+                             AND summaries.flagged_status = 1
+                            THEN summaries.id
+                        END
+                    ),
+                    MAX(summaries.id)
+                ) AS selected_summary_id
+            FROM conversation_summaries AS summaries
+            LEFT JOIN escalations AS pending_escalations
+                ON pending_escalations.summary_id = summaries.id
+               AND pending_escalations.status = 'pending'
+            WHERE summaries.account_id IS NOT NULL
+            GROUP BY summaries.account_id
+        ) AS selected_summary
+            ON selected_summary.selected_summary_id = conversation_summaries.id
         INNER JOIN accounts
             ON accounts.id = conversation_summaries.account_id
         LEFT JOIN escalations
@@ -1284,6 +1460,54 @@ def list_staff_inbox_summaries(programs: object) -> list[dict[str, Any]]:
             conversation_summaries.id DESC
         """,
         authorized_programs,
+    )
+
+
+def list_staff_reviewed_case_history(
+    anchor_summary_id: int,
+    programs: object,
+) -> list[dict[str, Any]]:
+    """Return reviewed flagged cases for the student attached to one safe anchor."""
+    authorized_programs = _normalized_programs(programs)
+    if not authorized_programs:
+        return []
+
+    placeholders = ", ".join(["%s"] * len(authorized_programs))
+    return fetch_rows(
+        f"""
+        SELECT
+            reviewed_summaries.id AS summary_id,
+            accounts.full_name AS student_name,
+            accounts.student_number,
+            accounts.program,
+            reviewed_summaries.primary_concern,
+            reviewed_summaries.emotion_results,
+            reviewed_summaries.flagged_status,
+            reviewed_summaries.summary,
+            reviewed_summaries.created_at,
+            reviewed_escalations.status AS escalation_status,
+            reviewed_escalations.reviewed_at
+        FROM conversation_summaries AS anchor_summary
+        INNER JOIN conversation_summaries AS reviewed_summaries
+            ON reviewed_summaries.account_id = anchor_summary.account_id
+        INNER JOIN accounts
+            ON accounts.id = reviewed_summaries.account_id
+        INNER JOIN escalations AS reviewed_escalations
+            ON reviewed_escalations.id = (
+                SELECT MAX(escalation.id)
+                FROM escalations AS escalation
+                WHERE escalation.summary_id = reviewed_summaries.id
+            )
+        WHERE anchor_summary.id = %s
+          AND reviewed_summaries.flagged_status = 1
+          AND reviewed_escalations.status = 'reviewed'
+          AND accounts.role = 'student'
+          AND accounts.status = 'active'
+          AND accounts.program IN ({placeholders})
+        ORDER BY reviewed_escalations.reviewed_at DESC,
+                 reviewed_summaries.id DESC
+        """,
+        (anchor_summary_id, *authorized_programs),
     )
 
 
@@ -1371,122 +1595,165 @@ def list_escalations() -> list[dict[str, Any]]:
 def list_chatbot_inquiries_for_analytics(
     start_at: datetime | None,
     end_at: datetime | None,
+    programs: object | None = None,
 ) -> list[dict[str, Any]]:
     """Return only the persisted fields needed for chatbot-message analytics."""
+    scope_clause, scope_params = _student_program_scope_clause(
+        "inquiries.account_id",
+        programs,
+    )
     return fetch_rows(
-        """
+        f"""
         SELECT created_at, emotion_result
         FROM inquiries
         WHERE inquiry_type = 'ai_chat'
+          {scope_clause}
           AND (%s IS NULL OR created_at >= %s)
           AND (%s IS NULL OR created_at < %s)
         ORDER BY created_at ASC
         """,
-        (start_at, start_at, end_at, end_at),
+        (*scope_params, start_at, start_at, end_at, end_at),
     )
 
 
 def list_conversation_finalizations_for_analytics(
     start_at: datetime | None,
     end_at: datetime | None,
+    programs: object | None = None,
 ) -> list[dict[str, Any]]:
     """Return only finalized-conversation aggregate input fields."""
+    scope_clause, scope_params = _student_program_scope_clause(
+        "conversation_summaries.account_id",
+        programs,
+    )
     return fetch_rows(
-        """
+        f"""
         SELECT created_at, total_messages
         FROM conversation_summaries
-        WHERE (%s IS NULL OR created_at >= %s)
+        WHERE 1 = 1
+          {scope_clause}
+          AND (%s IS NULL OR created_at >= %s)
           AND (%s IS NULL OR created_at < %s)
         ORDER BY created_at ASC
         """,
-        (start_at, start_at, end_at, end_at),
+        (*scope_params, start_at, start_at, end_at, end_at),
     )
 
 
 def list_escalations_for_analytics(
     start_at: datetime | None,
     end_at: datetime | None,
+    programs: object | None = None,
 ) -> list[dict[str, Any]]:
     """Return only escalation timestamps needed for aggregate analytics."""
+    scope_clause, scope_params = _student_program_scope_clause(
+        "escalations.account_id",
+        programs,
+    )
     return fetch_rows(
-        """
+        f"""
         SELECT created_at
         FROM escalations
-        WHERE (%s IS NULL OR created_at >= %s)
+        WHERE 1 = 1
+          {scope_clause}
+          AND (%s IS NULL OR created_at >= %s)
           AND (%s IS NULL OR created_at < %s)
         ORDER BY created_at ASC
         """,
-        (start_at, start_at, end_at, end_at),
+        (*scope_params, start_at, start_at, end_at, end_at),
     )
 
 
 def list_flagged_case_statuses_for_analytics(
     start_at: datetime | None,
     end_at: datetime | None,
+    programs: object | None = None,
 ) -> list[dict[str, Any]]:
     """Return persisted status values for flagged cases created in a range."""
+    scope_clause, scope_params = _student_program_scope_clause(
+        "conversation_summaries.account_id",
+        programs,
+    )
     return fetch_rows(
-        """
+        f"""
         SELECT escalations.status, conversation_summaries.created_at
         FROM conversation_summaries
         INNER JOIN escalations
             ON escalations.summary_id = conversation_summaries.id
         WHERE conversation_summaries.flagged_status = 1
+          {scope_clause}
           AND (%s IS NULL OR conversation_summaries.created_at >= %s)
           AND (%s IS NULL OR conversation_summaries.created_at < %s)
         ORDER BY conversation_summaries.created_at ASC
         """,
-        (start_at, start_at, end_at, end_at),
+        (*scope_params, start_at, start_at, end_at, end_at),
     )
 
 
 def list_flagged_case_referrals_for_analytics(
     start_at: datetime | None,
     end_at: datetime | None,
+    programs: object | None = None,
 ) -> list[dict[str, Any]]:
     """Return timestamps for referrals attached to flagged cases."""
+    scope_clause, scope_params = _student_program_scope_clause(
+        "conversation_summaries.account_id",
+        programs,
+    )
     return fetch_rows(
-        """
+        f"""
         SELECT referrals.created_at
         FROM referrals
         INNER JOIN conversation_summaries
             ON conversation_summaries.id = referrals.conversation_summary_id
         WHERE conversation_summaries.flagged_status = 1
+          {scope_clause}
           AND (%s IS NULL OR referrals.created_at >= %s)
           AND (%s IS NULL OR referrals.created_at < %s)
         ORDER BY referrals.created_at ASC
         """,
-        (start_at, start_at, end_at, end_at),
+        (*scope_params, start_at, start_at, end_at, end_at),
     )
 
 
 def list_flagged_case_interventions_for_analytics(
     start_at: datetime | None,
     end_at: datetime | None,
+    programs: object | None = None,
 ) -> list[dict[str, Any]]:
     """Return timestamps for interventions attached to flagged cases."""
+    scope_clause, scope_params = _student_program_scope_clause(
+        "conversation_summaries.account_id",
+        programs,
+    )
     return fetch_rows(
-        """
+        f"""
         SELECT interventions.created_at
         FROM interventions
         INNER JOIN conversation_summaries
             ON conversation_summaries.id = interventions.conversation_summary_id
         WHERE conversation_summaries.flagged_status = 1
+          {scope_clause}
           AND (%s IS NULL OR interventions.created_at >= %s)
           AND (%s IS NULL OR interventions.created_at < %s)
         ORDER BY interventions.created_at ASC
         """,
-        (start_at, start_at, end_at, end_at),
+        (*scope_params, start_at, start_at, end_at, end_at),
     )
 
 
 def list_flagged_case_confidentiality_for_analytics(
     start_at: datetime | None,
     end_at: datetime | None,
+    programs: object | None = None,
 ) -> list[dict[str, Any]]:
     """Return current confidentiality states for flagged-case records."""
+    scope_clause, scope_params = _student_program_scope_clause(
+        "conversation_summaries.account_id",
+        programs,
+    )
     return fetch_rows(
-        """
+        f"""
         SELECT case_confidentiality.confidentiality_status,
                case_confidentiality.created_at
         FROM case_confidentiality
@@ -1494,31 +1761,38 @@ def list_flagged_case_confidentiality_for_analytics(
             ON conversation_summaries.id =
                case_confidentiality.conversation_summary_id
         WHERE conversation_summaries.flagged_status = 1
+          {scope_clause}
           AND (%s IS NULL OR case_confidentiality.created_at >= %s)
           AND (%s IS NULL OR case_confidentiality.created_at < %s)
         ORDER BY case_confidentiality.created_at ASC
         """,
-        (start_at, start_at, end_at, end_at),
+        (*scope_params, start_at, start_at, end_at, end_at),
     )
 
 
 def list_flagged_case_escalations_for_analytics(
     start_at: datetime | None,
     end_at: datetime | None,
+    programs: object | None = None,
 ) -> list[dict[str, Any]]:
     """Return escalation timestamps for flagged cases."""
+    scope_clause, scope_params = _student_program_scope_clause(
+        "conversation_summaries.account_id",
+        programs,
+    )
     return fetch_rows(
-        """
+        f"""
         SELECT escalations.created_at
         FROM escalations
         INNER JOIN conversation_summaries
             ON conversation_summaries.id = escalations.summary_id
         WHERE conversation_summaries.flagged_status = 1
+          {scope_clause}
           AND (%s IS NULL OR escalations.created_at >= %s)
           AND (%s IS NULL OR escalations.created_at < %s)
         ORDER BY escalations.created_at ASC
         """,
-        (start_at, start_at, end_at, end_at),
+        (*scope_params, start_at, start_at, end_at, end_at),
     )
 
 
@@ -2900,62 +3174,92 @@ def list_student_appointments(
         (student_id,),
     )
 
-def get_dashboard_stats() -> dict[str, Any]:
+def get_dashboard_stats(programs: object | None = None) -> dict[str, Any]:
     initialize_database()
+
+    appointment_scope, appointment_params = _student_program_scope_clause(
+        "appointments.account_id",
+        programs,
+    )
+    escalation_scope, escalation_params = _student_program_scope_clause(
+        "escalations.account_id",
+        programs,
+    )
+    summary_scope, summary_params = _student_program_scope_clause(
+        "conversation_summaries.account_id",
+        programs,
+    )
+    student_scope, student_params = _student_program_scope_clause(
+        "accounts.id",
+        programs,
+    )
 
     with _database_connection() as connection:
         with connection.cursor() as cursor:
             cursor.execute(
-                """
+                f"""
                 SELECT COUNT(*)
                 FROM appointments
                 WHERE preferred_date = CURDATE()
-                """
+                  {appointment_scope}
+                """,
+                appointment_params,
             )
             appointments_today = cursor.fetchone()[0]
 
             cursor.execute(
-                """
+                f"""
                 SELECT COUNT(*)
                 FROM appointments
                 WHERE status = 'pending'
-                """
+                  {appointment_scope}
+                """,
+                appointment_params,
             )
             pending_appointments = cursor.fetchone()[0]
 
             cursor.execute(
-                """
+                f"""
                 SELECT COUNT(*)
                 FROM appointments
                 WHERE status = 'completed'
                   AND preferred_date = CURDATE()
-                """
+                  {appointment_scope}
+                """,
+                appointment_params,
             )
             completed_today = cursor.fetchone()[0]
 
             cursor.execute(
-                """
+                f"""
                 SELECT COUNT(*)
                 FROM escalations
                 WHERE status = 'pending'
-                """
+                  {escalation_scope}
+                """,
+                escalation_params,
             )
             active_escalations = cursor.fetchone()[0]
 
             cursor.execute(
-                """
+                f"""
                 SELECT COUNT(*)
                 FROM conversation_summaries
-                """
+                WHERE 1 = 1
+                  {summary_scope}
+                """,
+                summary_params,
             )
             conversation_summaries = cursor.fetchone()[0]
 
             cursor.execute(
-                """
+                f"""
                 SELECT COUNT(*)
                 FROM accounts
                 WHERE role = 'student'
-                """
+                  {student_scope}
+                """,
+                student_params,
             )
             total_students = cursor.fetchone()[0]
 

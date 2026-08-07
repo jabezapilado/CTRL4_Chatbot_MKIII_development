@@ -52,8 +52,12 @@ _COURSE_CODE_PATTERN: Final[re.Pattern[str]] = re.compile(
     r"\b(?:[A-Z]{5,}|[A-Z]{2,}[ -]?\d{2,4})\b"
 )
 _ROUTINE_DISTRESS_PATTERN: Final[re.Pattern[str]] = re.compile(
-    r"\b(?:overwhelmed|stress(?:ed)?|worried|nervous|pressure|pressured|"
-    r"tired|exhausted|drained|burn(?:ed)? out)\b",
+    r"\b(?:overwhelmed|anxious|anxiety|stress(?:ed)?|worried|nervous|"
+    r"pressure|pressured|tired|exhausted|drained|burn(?:ed)? out)\b",
+    re.IGNORECASE,
+)
+_ANXIETY_PATTERN: Final[re.Pattern[str]] = re.compile(
+    r"\b(?:anxious|anxiety|worried|nervous)\b",
     re.IGNORECASE,
 )
 _ACADEMIC_CONTEXT_PATTERN: Final[re.Pattern[str]] = re.compile(
@@ -193,12 +197,20 @@ class AIService:
             return factual_answer
 
         if _ACADEMIC_CONTEXT_PATTERN.search(message):
-            acknowledgement = (
-                "I'm sorry you've been feeling overwhelmed by your schoolwork. "
-                "Managing several academic demands can feel difficult. We can "
-                "talk through what is making the workload feel unmanageable or "
-                "explore support available through the Guidance Office."
-            )
+            if _ANXIETY_PATTERN.search(message):
+                acknowledgement = (
+                    "I'm sorry you've been feeling anxious about your grades. "
+                    "Academic challenges can feel overwhelming, and it's "
+                    "understandable to seek support. We can also talk about "
+                    "what has been making things especially difficult."
+                )
+            else:
+                acknowledgement = (
+                    "I'm sorry you've been feeling overwhelmed by your schoolwork. "
+                    "Managing several academic demands can feel difficult. We can "
+                    "talk through what is making the workload feel unmanageable or "
+                    "explore support available through the Guidance Office."
+                )
         else:
             acknowledgement = (
                 "I'm sorry you've been feeling overwhelmed. We can talk through "
@@ -568,22 +580,23 @@ class AIService:
             metadata = self.metadata_extractor.extract(message)
 
             if safety.response:
+                is_crisis = safety.reason == "crisis"
 
                 return ChatResponse(
                     success=True,
                     response=safety.response,
-                    emotion="Unknown",
-                    sentiment="Unknown",
+                    emotion="Crisis" if is_crisis else "Support Request",
+                    sentiment="Negative" if is_crisis else "Neutral",
                     language=language.language,
-                    topic="Unknown",
-                    state="Unknown",
+                    topic="Crisis Concern" if is_crisis else "General inquiry",
+                    state="Crisis" if is_crisis else "Support request",
                     escalated=safety.should_escalate,
                     confidence=0.0,
                     intent=intent,
                     normalized_emotion=(
                         "crisis" if safety.should_escalate else None
                     ),
-                    normalized_topic=normalized_topic,
+                    normalized_topic=("crisis" if is_crisis else normalized_topic),
                     metadata=metadata.to_dict(),
                 )
 

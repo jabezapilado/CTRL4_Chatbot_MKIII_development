@@ -9,11 +9,16 @@ from typing import Final
 from ..db import (
     current_time,
     fetch_account_by_id,
+    fetch_open_conversation_case,
+    get_staff_by_program,
+    get_dashboard_stats,
+    get_student_by_id,
     fetch_flagged_conversation,
     fetch_staff_inbox_summary,
     list_flagged_conversations,
     list_staff_inbox_summaries,
-    list_conversation_summaries,
+    list_staff_reviewed_case_history as list_staff_reviewed_case_history_rows,
+    list_conversation_summaries_for_programs,
     list_conversation_finalizations_for_analytics,
     list_escalations_for_analytics,
     list_flagged_case_confidentiality_for_analytics,
@@ -22,13 +27,15 @@ from ..db import (
     list_flagged_case_referrals_for_analytics,
     list_flagged_case_statuses_for_analytics,
     list_student_case_statuses,
-    list_escalations,
+    list_escalations_for_programs,
     list_chatbot_inquiries_for_analytics,
-    list_inquiries,
+    list_inquiries_for_programs,
     mark_escalation_reviewed,
     save_conversation_summary,
+    refresh_open_conversation_summary,
     save_escalation,
     save_inquiry,
+    save_notification,
 )
 
 from . import summary_service
@@ -38,6 +45,10 @@ logger = logging.getLogger(__name__)
 
 ESCALATION_PENDING: Final[str] = "pending"
 INQUIRY_TYPE_AI_CHAT: Final[str] = "ai_chat"
+HIGH_RISK_NOTIFICATION_TITLE: Final[str] = "High-risk student conversation detected."
+HIGH_RISK_NOTIFICATION_MESSAGE: Final[str] = (
+    "High-risk student conversation detected. Immediate Guidance Office review is required."
+)
 def _parse_analytics_filter_date(value: object, field_name: str) -> date | None:
     if value is None or not str(value).strip():
         return None
@@ -99,21 +110,24 @@ def _message_volume(rows: list[dict]) -> dict[str, list[dict]]:
 
 
 def get_chatbot_analytics_service(
+    staff_account: dict,
     *,
     start_date: object = None,
     end_date: object = None,
 ) -> dict:
-    """Return aggregate-only analytics derived from persisted chatbot records."""
+    """Return aggregate-only analytics for the staff member's program scope."""
     start, end, start_at, end_at = _analytics_date_range(
         start_date,
         end_date,
     )
-    inquiries = list_chatbot_inquiries_for_analytics(start_at, end_at)
+    programs = sorted(_staff_assigned_programs(staff_account))
+    inquiries = list_chatbot_inquiries_for_analytics(start_at, end_at, programs)
     finalizations = list_conversation_finalizations_for_analytics(
         start_at,
         end_at,
+        programs,
     )
-    escalations = list_escalations_for_analytics(start_at, end_at)
+    escalations = list_escalations_for_analytics(start_at, end_at, programs)
 
     emotion_results = Counter(
         str(inquiry.get("emotion_result") or "").strip()
@@ -147,23 +161,42 @@ def get_chatbot_analytics_service(
 
 
 def get_flagged_case_analytics_service(
+    staff_account: dict,
     *,
     start_date: object = None,
     end_date: object = None,
 ) -> dict:
-    """Return aggregate-only analytics from persisted flagged-case records."""
+    """Return aggregate-only flagged-case analytics for the staff program scope."""
     start, end, start_at, end_at = _analytics_date_range(
         start_date,
         end_date,
     )
-    case_statuses = list_flagged_case_statuses_for_analytics(start_at, end_at)
-    referrals = list_flagged_case_referrals_for_analytics(start_at, end_at)
-    interventions = list_flagged_case_interventions_for_analytics(start_at, end_at)
+    programs = sorted(_staff_assigned_programs(staff_account))
+    case_statuses = list_flagged_case_statuses_for_analytics(
+        start_at,
+        end_at,
+        programs,
+    )
+    referrals = list_flagged_case_referrals_for_analytics(
+        start_at,
+        end_at,
+        programs,
+    )
+    interventions = list_flagged_case_interventions_for_analytics(
+        start_at,
+        end_at,
+        programs,
+    )
     confidentiality_records = list_flagged_case_confidentiality_for_analytics(
         start_at,
         end_at,
+        programs,
     )
-    escalations = list_flagged_case_escalations_for_analytics(start_at, end_at)
+    escalations = list_flagged_case_escalations_for_analytics(
+        start_at,
+        end_at,
+        programs,
+    )
 
     status_distribution = Counter(
         str(case.get("status") or "").strip()
@@ -192,6 +225,11 @@ def get_flagged_case_analytics_service(
             for status, count in sorted(status_distribution.items())
         ],
     }
+
+
+def get_staff_dashboard_stats(staff_account: dict) -> dict:
+    """Return dashboard counters limited to the staff member's program scope."""
+    return get_dashboard_stats(sorted(_staff_assigned_programs(staff_account)))
 
 _INQUIRY_FIELDS: Final[tuple[str, ...]] = (
     "id",
@@ -277,6 +315,19 @@ _STAFF_INBOX_DETAIL_FIELDS: Final[tuple[str, ...]] = (
     "total_messages",
     "escalation_status",
     "escalation_reason",
+)
+_STAFF_CASE_HISTORY_FIELDS: Final[tuple[str, ...]] = (
+    "summary_id",
+    "student_name",
+    "student_number",
+    "program",
+    "primary_concern",
+    "emotion_results",
+    "flagged_status",
+    "review_status",
+    "created_at",
+    "reviewed_at",
+    "summary_preview",
 )
 
 
@@ -390,22 +441,62 @@ def get_staff_inbox_item(staff_account: dict, summary_id: int) -> dict | None:
     return _project_staff_inbox_row(row, detail=True)
 
 
-def list_staff_inquiries() -> list[dict]:
-    """Return the staff-permitted inquiry history without account linkage data."""
-    return [_project_fields(row, _INQUIRY_FIELDS) for row in list_inquiries()]
+def list_staff_reviewed_case_history(
+    staff_account: dict,
+    summary_id: int,
+) -> list[dict] | None:
+    """Return privacy-safe reviewed cases for one authorized student's history."""
+    if get_staff_inbox_item(staff_account, summary_id) is None:
+        return None
 
-
-def list_staff_conversation_summaries() -> list[dict]:
-    """Return the staff-permitted counselor summaries without account linkage data."""
+    programs = _staff_assigned_programs(staff_account)
+    rows = list_staff_reviewed_case_history_rows(summary_id, sorted(programs))
     return [
-        _project_fields(row, _SUMMARY_FIELDS)
-        for row in list_conversation_summaries()
+        _project_fields(
+            {
+                "summary_id": row.get("summary_id"),
+                "student_name": row.get("student_name"),
+                "student_number": row.get("student_number"),
+                "program": row.get("program"),
+                "primary_concern": row.get("primary_concern"),
+                "emotion_results": row.get("emotion_results"),
+                "flagged_status": bool(row.get("flagged_status")),
+                "review_status": _inbox_review_status(row),
+                "created_at": row.get("created_at"),
+                "reviewed_at": row.get("reviewed_at"),
+                "summary_preview": _summary_preview(row.get("summary")),
+            },
+            _STAFF_CASE_HISTORY_FIELDS,
+        )
+        for row in rows
     ]
 
 
-def list_staff_escalations() -> list[dict]:
+def list_staff_inquiries(staff_account: dict) -> list[dict]:
+    """Return the staff-permitted inquiry history without account linkage data."""
+    programs = _staff_assigned_programs(staff_account)
+    return [
+        _project_fields(row, _INQUIRY_FIELDS)
+        for row in list_inquiries_for_programs(sorted(programs))
+    ]
+
+
+def list_staff_conversation_summaries(staff_account: dict) -> list[dict]:
+    """Return the staff-permitted counselor summaries without account linkage data."""
+    programs = _staff_assigned_programs(staff_account)
+    return [
+        _project_fields(row, _SUMMARY_FIELDS)
+        for row in list_conversation_summaries_for_programs(sorted(programs))
+    ]
+
+
+def list_staff_escalations(staff_account: dict) -> list[dict]:
     """Return the staff-permitted escalations without internal linkage data."""
-    return [_project_fields(row, _ESCALATION_FIELDS) for row in list_escalations()]
+    programs = _staff_assigned_programs(staff_account)
+    return [
+        _project_fields(row, _ESCALATION_FIELDS)
+        for row in list_escalations_for_programs(sorted(programs))
+    ]
 
 
 def determine_escalation_reason(
@@ -421,10 +512,12 @@ def determine_escalation_reason(
 
 
 def list_staff_flagged_conversations() -> list[dict]:
-    """Return staff-visible flagged conversation summaries only."""
+    """Return staff-visible pending flagged conversation summaries only."""
     return [
         _project_fields(row, _FLAGGED_CONVERSATION_FIELDS)
         for row in list_flagged_conversations()
+        if str(row.get("escalation_status") or "").strip().lower()
+        == ESCALATION_PENDING
     ]
 
 
@@ -536,6 +629,27 @@ def _save_escalation(
     )
 
 
+def _notify_high_risk_conversation_safely(account_id: int) -> None:
+    """Notify the student's routed counselor without affecting case persistence."""
+    try:
+        student = get_student_by_id(account_id) or {}
+        program = str(student.get("program") or "").strip()
+        counselor = get_staff_by_program(program) if program else None
+        if not counselor:
+            return
+        save_notification(
+            {
+                "recipient_account_id": int(counselor["id"]),
+                "title": HIGH_RISK_NOTIFICATION_TITLE,
+                "message": HIGH_RISK_NOTIFICATION_MESSAGE,
+                "type": "high_risk_conversation",
+                "created_at": current_time(),
+            }
+        )
+    except Exception:
+        logger.exception("Failed to persist high-risk conversation notification.")
+
+
 def finalize_conversation(
     *,
     user: dict,
@@ -558,6 +672,31 @@ def finalize_conversation(
             "summary_id": None,
             "student_message_count": 0,
             "assistant_message_count": 0,
+        }
+
+    open_case = fetch_open_conversation_case(user["id"]) if flagged else None
+    if open_case is not None:
+        refreshed_summary = summary_service.refresh_open_case_summary(
+            prior_summary=open_case.get("summary"),
+            conversation=evidence,
+        )
+        previous_total = int(open_case.get("total_messages") or 0)
+        updated = refresh_open_conversation_summary(
+            int(open_case["summary_id"]),
+            refreshed_summary,
+            previous_total + len(evidence),
+        )
+        if not updated:
+            raise RuntimeError("Open flagged case could not be refreshed.")
+
+        logger.info("Open flagged conversation summary refreshed.")
+        return {
+            "success": True,
+            "summary_id": int(open_case["summary_id"]),
+            "status": "updated_open_case",
+            "student_message_count": sum(item["role"] == "user" for item in evidence),
+            "assistant_message_count": sum(item["role"] == "assistant" for item in evidence),
+            "appointment_recorded": appointment_context is not None,
         }
 
     logger.info("Conversation finalization started (flagged=%s).", flagged)
@@ -599,6 +738,7 @@ def finalize_conversation(
             )
             or "AI safety escalation.",
         )
+        _notify_high_risk_conversation_safely(user["id"])
 
     logger.info("Conversation finalization completed.")
 

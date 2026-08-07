@@ -104,6 +104,7 @@ def chat():
             escalated=result.escalated,
             normalized_emotion=result.normalized_emotion,
         )
+        session_escalated = bool(session.get(_ESCALATION_SESSION_KEY))
         if should_escalate:
             session[_ESCALATION_SESSION_KEY] = True
             session[_ESCALATION_REASON_SESSION_KEY] = (
@@ -123,7 +124,9 @@ def chat():
                     "emotion": result.emotion,
                     "sentiment": result.sentiment,
                     "language": result.language,
+                    "topic": result.topic,
                     "escalated": should_escalate,
+                    "session_escalated": session_escalated or should_escalate,
                     "confidence": round(result.confidence, 4),
                 },
             }

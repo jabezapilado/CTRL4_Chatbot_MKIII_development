@@ -128,7 +128,15 @@ function parseAppointmentTime(value) {
 function dateMatchesAvailabilityWindow(dateValue, window) {
   const selectedDate = new Date(`${dateValue}T00:00:00`);
   if (Number.isNaN(selectedDate.getTime())) return false;
-  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const days = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ];
   const selectedDay = days[selectedDate.getDay()];
   const range = String(window.days || "").split(" to ");
   if (range.length === 1) return range[0] === selectedDay;
@@ -151,7 +159,7 @@ function isConfiguredDateAvailable(dateValue, options = bookingOptions) {
 function isConfiguredTimeAvailable(dateValue, value, options = bookingOptions) {
   return Boolean(
     isConfiguredDateAvailable(dateValue, options) &&
-      options.availableSlots?.includes(value),
+    options.availableSlots?.includes(value),
   );
 }
 
@@ -498,7 +506,9 @@ form.addEventListener("submit", async (e) => {
     const result = await response.json();
 
     if (!response.ok) {
-      throw new Error(result.message || "Unable to submit appointment request.");
+      throw new Error(
+        result.message || "Unable to submit appointment request.",
+      );
     }
 
     if (window.finalizeConversation) {
@@ -532,8 +542,7 @@ function collectFormData() {
 
     preferredDate: document.getElementById("prefDate").value,
 
-    preferredTime:
-      document.getElementById("prefTime").value,
+    preferredTime: document.getElementById("prefTime").value,
 
     appointmentCategory: document.getElementById("appointmentCategory").value,
 
@@ -663,8 +672,7 @@ function getStudentAppointmentDateTime(appointment) {
     }
 
     hour =
-      (inputHour % 12) +
-      (twelveHourMatch[3].toUpperCase() === "PM" ? 12 : 0);
+      (inputHour % 12) + (twelveHourMatch[3].toUpperCase() === "PM" ? 12 : 0);
   } else {
     hour = Number(twentyFourHourMatch[1]);
     minute = Number(twentyFourHourMatch[2]);
@@ -691,7 +699,7 @@ function canStudentModifyAppointment(appointment) {
   const appointmentDate = getStudentAppointmentDateTime(appointment);
   return Boolean(
     appointmentDate &&
-      appointmentDate.getTime() - Date.now() >= STUDENT_MODIFICATION_DEADLINE_MS,
+    appointmentDate.getTime() - Date.now() >= STUDENT_MODIFICATION_DEADLINE_MS,
   );
 }
 
@@ -838,7 +846,9 @@ function renderStudentAppointments(appointments) {
   }
 
   appointments.forEach((appointment) => {
-    studentAppointmentsList.appendChild(createStudentAppointmentCard(appointment));
+    studentAppointmentsList.appendChild(
+      createStudentAppointmentCard(appointment),
+    );
   });
 }
 

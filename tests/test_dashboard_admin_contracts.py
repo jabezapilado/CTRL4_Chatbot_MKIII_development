@@ -19,7 +19,6 @@ class DashboardDataIntegrityContractTests(unittest.TestCase):
 
         for value in (
             "Total Resolved",
-            "Auto-Resolved",
             "Staff Resolved",
             "72.8% resolution rate",
             "Inquiry Categories",
@@ -48,7 +47,15 @@ class DashboardDataIntegrityContractTests(unittest.TestCase):
         self.assertNotIn("Persisted Emotion Result", template)
         self.assertNotIn("/api/inquiries", dashboard)
         self.assertNotIn("conversation_json", dashboard)
-        self.assertNotIn('"Total Inquiries Today"', template)
+        self.assertIn("Total Inquiries Today", template)
+        self.assertIn("Flagged Cases / Negative Emotion", template)
+        self.assertIn("Routine / Auto-Resolved Conversations", template)
+        self.assertIn("Chatbot Status", template)
+        self.assertIn("function loadInboxStatistics()", dashboard)
+        self.assertIn("/api/dashboard/chatbot/analytics", dashboard)
+        self.assertIn("/api/staff/inbox/${encodeURIComponent(summaryId)}/history", dashboard)
+        self.assertIn('id="case-history-card"', template)
+        self.assertIn("Reviewed Case History", template)
         self.assertNotIn("Avg. Response Time", template)
 
     def test_reports_continue_to_use_only_the_four_approved_aggregate_endpoints(self) -> None:
@@ -65,8 +72,11 @@ class DashboardDataIntegrityContractTests(unittest.TestCase):
 
         self.assertNotIn("reports-flagged-tbody", dashboard)
         self.assertNotIn("total_appointments || 0", dashboard)
-        self.assertNotIn("total_chatbot_messages || 0", dashboard)
         self.assertNotIn("total_flagged_cases || 0", dashboard)
+        self.assertIn("function loadInboxStatistics()", dashboard)
+        self.assertIn("function todayAnalyticsQuery()", dashboard)
+        self.assertIn('item.flagged && item.status === "pending"', dashboard)
+        self.assertIn('cache: "no-store"', dashboard)
 
 
 class AdministratorAccountManagementContractTests(unittest.TestCase):

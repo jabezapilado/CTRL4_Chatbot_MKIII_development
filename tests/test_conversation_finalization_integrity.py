@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import unittest
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from flask import Flask
 
+from backend.server import db
 from backend.server.routes.appointment_routes import appointment_bp
 from backend.server.routes.chatbot_routes import chatbot_bp
 from backend.server.services import conversation_service
@@ -213,6 +214,10 @@ class ConversationFinalizationIntegrityTests(unittest.TestCase):
             return_value=summary,
         ) as generate, patch.object(
             conversation_service,
+            "fetch_open_conversation_case",
+            return_value=None,
+        ), patch.object(
+            conversation_service,
             "save_conversation_summary",
             return_value=17,
         ):
@@ -296,6 +301,345 @@ class ConversationFinalizationIntegrityTests(unittest.TestCase):
         self.assertIn("could not be generated", summary.summary)
         for unsupported in ("anxiety", "distress", "overwhelm", "self-doubt", "academic pressure", "coping"):
             self.assertNotIn(unsupported, summary.summary.casefold())
+
+    def test_flagged_finalization_creates_high_priority_staff_notification(self) -> None:
+        summary = SimpleNamespace(
+            primary_concern="Crisis Concern",
+            conversation_type="general",
+            emotion="Crisis",
+            flagged=True,
+            appointment_recommendation=False,
+            recommendations="Immediate Guidance Office review is recommended.",
+            suggested_intervention="Immediate Guidance Office review is recommended.",
+            language="english",
+            total_messages=2,
+            summary="Clinical crisis summary.",
+        )
+        with patch.object(
+            conversation_service.summary_service,
+            "generate_summary",
+            return_value=summary,
+        ), patch.object(
+            conversation_service,
+            "fetch_open_conversation_case",
+            return_value=None,
+        ), patch.object(
+            conversation_service,
+            "save_conversation_summary",
+            return_value=44,
+        ), patch.object(
+            conversation_service,
+            "save_escalation",
+        ) as save_escalation, patch.object(
+            conversation_service,
+            "get_student_by_id",
+            return_value={"program": "BSCS"},
+        ), patch.object(
+            conversation_service,
+            "get_staff_by_program",
+            return_value={"id": 9},
+        ), patch.object(
+            conversation_service,
+            "save_notification",
+        ) as save_notification:
+            conversation_service.finalize_conversation(
+                user={"id": 1, "full_name": "Student"},
+                conversation=[
+                    {"from": "user", "text": "I wanna finish my life."},
+                    {"from": "bot", "text": "Please contact the Guidance Office."},
+                ],
+                topic="Crisis Concern",
+                language="english",
+                emotion="Crisis",
+                flagged=True,
+            )
+
+        self.assertEqual(save_escalation.call_args.args[0]["status"], "pending")
+        notification = save_notification.call_args.args[0]
+        self.assertEqual(notification["recipient_account_id"], 9)
+        self.assertEqual(notification["title"], "High-risk student conversation detected.")
+        self.assertEqual(notification["type"], "high_risk_conversation")
+
+    def test_first_crisis_response_immediately_marks_session_for_pending_review(self) -> None:
+        client = self._client()
+        crisis_result = SimpleNamespace(
+            success=True,
+            response="Please contact the Guidance Office immediately.",
+            emotion="Crisis",
+            sentiment="Negative",
+            language="english",
+            topic="Crisis Concern",
+            state="Crisis",
+            escalated=True,
+            confidence=0.0,
+            intent="emergency",
+            normalized_emotion="crisis",
+            normalized_topic="crisis",
+            metadata={},
+        )
+        with patch(
+            "backend.server.routes.chatbot_routes.ai_service.respond",
+            return_value=crisis_result,
+        ), patch(
+            "backend.server.routes.chatbot_routes.record_chat_inquiry",
+        ), patch(
+            "backend.server.routes.chatbot_routes.transient_chat_service.record_exchange",
+        ):
+            response = client.post(
+                "/chat",
+                json={"message": "I wanna finish my life.", "conversation": []},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.get_json()["data"]["escalated"])
+        self.assertEqual(response.get_json()["data"]["topic"], "Crisis Concern")
+        with client.session_transaction() as session:
+            self.assertTrue(session["conversation_escalated"])
+            self.assertEqual(session["conversation_escalation_reason"], "AI safety escalation.")
+
+    def test_later_neutral_message_cannot_clear_high_risk_session_state(self) -> None:
+        client = self._client()
+        high_risk = SimpleNamespace(
+            success=True, response="Safety response.", emotion="Crisis",
+            sentiment="Negative", language="english", topic="Crisis Concern",
+            state="Crisis", escalated=True, confidence=0.0, intent="emergency",
+            normalized_emotion="crisis", normalized_topic="crisis", metadata={},
+        )
+        neutral = SimpleNamespace(
+            success=True, response="You're welcome.", emotion="Neutral",
+            sentiment="Neutral", language="english", topic="General",
+            state="Closing", escalated=False, confidence=0.9, intent="unknown",
+            normalized_emotion="neutral", normalized_topic="general", metadata={},
+        )
+        with patch(
+            "backend.server.routes.chatbot_routes.ai_service.respond",
+            side_effect=[high_risk, neutral],
+        ), patch(
+            "backend.server.routes.chatbot_routes.record_chat_inquiry",
+        ), patch(
+            "backend.server.routes.chatbot_routes.transient_chat_service.record_exchange",
+        ):
+            first = client.post("/chat", json={"message": "I want to finish my life.", "conversation": []})
+            second = client.post("/chat", json={"message": "okay", "conversation": []})
+
+        self.assertTrue(first.get_json()["data"]["escalated"])
+        self.assertFalse(second.get_json()["data"]["escalated"])
+        self.assertTrue(second.get_json()["data"]["session_escalated"])
+        with client.session_transaction() as session:
+            self.assertTrue(session["conversation_escalated"])
+
+    def test_notification_failure_does_not_roll_back_flagged_case_persistence(self) -> None:
+        summary = SimpleNamespace(
+            primary_concern="Crisis Concern", conversation_type="general",
+            emotion="Crisis", flagged=True, appointment_recommendation=False,
+            recommendations="Immediate Guidance Office review is recommended.",
+            suggested_intervention="Immediate Guidance Office review is recommended.",
+            language="english", total_messages=1, summary="Clinical crisis summary.",
+        )
+        with patch.object(conversation_service.summary_service, "generate_summary", return_value=summary), patch.object(
+            conversation_service, "fetch_open_conversation_case", return_value=None
+        ), patch.object(
+            conversation_service, "save_conversation_summary", return_value=45
+        ) as save_summary, patch.object(conversation_service, "save_escalation") as save_escalation, patch.object(
+            conversation_service, "get_student_by_id", return_value={"program": "BSCS"}
+        ), patch.object(conversation_service, "get_staff_by_program", return_value={"id": 9}), patch.object(
+            conversation_service, "save_notification", side_effect=RuntimeError("notification unavailable")
+        ):
+            result = conversation_service.finalize_conversation(
+                user={"id": 1, "full_name": "Student"},
+                conversation=[{"from": "user", "text": "I should end everything."}],
+                topic="Crisis Concern", language="english", emotion="Crisis", flagged=True,
+            )
+
+        self.assertEqual(result["status"], "saved")
+        save_summary.assert_called_once()
+        save_escalation.assert_called_once()
+
+    def test_routine_follow_up_does_not_mutate_existing_pending_case(self) -> None:
+        open_case = {
+            "summary_id": 72,
+            "summary": "The student expressed suicidal ideation and received a safety response.",
+            "total_messages": 2,
+        }
+        routine_summary = SimpleNamespace(
+            primary_concern="Guidance Office",
+            conversation_type="general",
+            emotion="Neutral",
+            flagged=False,
+            appointment_recommendation=False,
+            recommendations="No escalation was required based on the recorded session.",
+            suggested_intervention="No escalation was required based on the recorded session.",
+            language="english",
+            total_messages=2,
+            summary="The student asked about Guidance Office hours.",
+        )
+        follow_up = [
+            {"from": "user", "text": "What are your office hours?"},
+            {"from": "bot", "text": "The office is open on weekdays."},
+        ]
+        with patch.object(
+            conversation_service,
+            "fetch_open_conversation_case",
+            return_value=open_case,
+        ) as fetch_open, patch.object(
+            conversation_service.summary_service,
+            "generate_summary",
+            return_value=routine_summary,
+        ) as generate_summary, patch.object(
+            conversation_service.summary_service,
+            "refresh_open_case_summary",
+        ) as refresh_summary, patch.object(
+            conversation_service,
+            "refresh_open_conversation_summary",
+        ) as refresh_persistence, patch.object(
+            conversation_service,
+            "save_conversation_summary",
+            return_value=73,
+        ) as create_summary, patch.object(
+            conversation_service,
+            "save_escalation",
+        ) as save_escalation:
+            result = conversation_service.finalize_conversation(
+                user={"id": 1, "full_name": "Student"},
+                conversation=follow_up,
+                topic="Guidance Office",
+                language="english",
+                emotion="Neutral",
+                flagged=False,
+            )
+
+        self.assertEqual(result["status"], "saved")
+        self.assertEqual(result["summary_id"], 73)
+        fetch_open.assert_not_called()
+        refresh_summary.assert_not_called()
+        refresh_persistence.assert_not_called()
+        save_escalation.assert_not_called()
+        generate_summary.assert_called_once()
+        payload = create_summary.call_args.args[0]
+        self.assertFalse(payload["flagged_status"])
+        self.assertEqual(payload["summary"], "The student asked about Guidance Office hours.")
+
+    def test_genuine_flagged_follow_up_refreshes_existing_pending_case_without_duplicate(self) -> None:
+        open_case = {
+            "summary_id": 72,
+            "summary": "The student expressed suicidal ideation and received a safety response.",
+            "total_messages": 2,
+        }
+        follow_up = [
+            {"from": "user", "text": "I still feel like I might hurt myself."},
+            {"from": "bot", "text": "Please contact the Guidance Office immediately."},
+        ]
+        with patch.object(
+            conversation_service,
+            "fetch_open_conversation_case",
+            return_value=open_case,
+        ), patch.object(
+            conversation_service.summary_service,
+            "refresh_open_case_summary",
+            return_value=(
+                "The student previously expressed suicidal ideation and later reported "
+                "continued high-risk safety concerns."
+            ),
+        ) as refresh_summary, patch.object(
+            conversation_service,
+            "refresh_open_conversation_summary",
+            return_value=True,
+        ) as refresh_persistence, patch.object(
+            conversation_service,
+            "save_conversation_summary",
+        ) as create_summary, patch.object(
+            conversation_service,
+            "save_escalation",
+        ) as save_escalation:
+            result = conversation_service.finalize_conversation(
+                user={"id": 1, "full_name": "Student"},
+                conversation=follow_up,
+                topic="Crisis Concern",
+                language="english",
+                emotion="Crisis",
+                flagged=True,
+            )
+
+        self.assertEqual(result["status"], "updated_open_case")
+        self.assertEqual(result["summary_id"], 72)
+        self.assertEqual(result["student_message_count"], 1)
+        refresh_summary.assert_called_once()
+        refresh_persistence.assert_called_once_with(
+            72,
+            "The student previously expressed suicidal ideation and later reported continued high-risk safety concerns.",
+            4,
+        )
+        create_summary.assert_not_called()
+        save_escalation.assert_not_called()
+
+    def test_refresh_open_case_preserves_original_created_at_column(self) -> None:
+        cursor = MagicMock()
+        cursor.rowcount = 1
+        cursor_context = MagicMock()
+        cursor_context.__enter__.return_value = cursor
+        connection = MagicMock()
+        connection.cursor.return_value = cursor_context
+        connection_context = MagicMock()
+        connection_context.__enter__.return_value = connection
+
+        with patch.object(db, "initialize_database"), patch.object(
+            db,
+            "_database_connection",
+            return_value=connection_context,
+        ):
+            updated = db.refresh_open_conversation_summary(
+                72,
+                "Updated active case summary.",
+                4,
+            )
+
+        self.assertTrue(updated)
+        sql, params = cursor.execute.call_args.args
+        self.assertNotIn("created_at", sql.casefold())
+        self.assertEqual(params, ("Updated active case summary.", 4, 72))
+        connection.commit.assert_called_once()
+
+    def test_reviewed_case_allows_the_next_conversation_to_create_a_new_summary(self) -> None:
+        summary = SimpleNamespace(
+            primary_concern="Guidance Office",
+            conversation_type="general",
+            emotion="Neutral",
+            flagged=False,
+            appointment_recommendation=False,
+            recommendations="No escalation was required based on the recorded session.",
+            suggested_intervention="No escalation was required based on the recorded session.",
+            language="english",
+            total_messages=2,
+            summary="The student asked about office hours.",
+        )
+        with patch.object(
+            conversation_service,
+            "fetch_open_conversation_case",
+            return_value=None,
+        ), patch.object(
+            conversation_service.summary_service,
+            "generate_summary",
+            return_value=summary,
+        ), patch.object(
+            conversation_service,
+            "save_conversation_summary",
+            return_value=73,
+        ) as create_summary:
+            result = conversation_service.finalize_conversation(
+                user={"id": 1, "full_name": "Student"},
+                conversation=[
+                    {"from": "user", "text": "What are your office hours?"},
+                    {"from": "bot", "text": "Weekday office hours."},
+                ],
+                topic="Guidance Office",
+                language="english",
+                emotion="Neutral",
+                flagged=False,
+            )
+
+        self.assertEqual(result["status"], "saved")
+        self.assertEqual(result["summary_id"], 73)
+        create_summary.assert_called_once()
 
 
 if __name__ == "__main__":

@@ -16,7 +16,6 @@ const legacyProtectedStorageKeys = [
   "hau_escalation_event",
   "hau_escalation_staff_msg",
   "hau_escalation_user_msg",
-  "hau_takeover_case",
 ];
 
 legacyProtectedStorageKeys.forEach((key) => localStorage.removeItem(key));
@@ -151,7 +150,7 @@ function appendEscalationNotice() {
   wrap.innerHTML = `
     <div class="escalation-notice">
       <span class="icon"></span>
-      <span>Your message has been flagged and referred to a Guidance Office counselor. A staff member will follow up with you shortly.</span>
+      <span>For your safety, your conversation has been referred to the Guidance Office. A counselor will review your message and follow up as soon as possible. If you are in immediate danger, contact local emergency services or a trusted adult immediately.</span>
     </div>`;
   chatArea.appendChild(wrap);
   scrollToBottom();
@@ -403,7 +402,9 @@ async function initializeChat() {
 }
 
 document.querySelectorAll("[data-quick-message]").forEach((button) => {
-  button.addEventListener("click", () => sendQuick(button.dataset.quickMessage || ""));
+  button.addEventListener("click", () =>
+    sendQuick(button.dataset.quickMessage || ""),
+  );
 });
 document.getElementById("send-message")?.addEventListener("click", sendMessage);
 

@@ -12,6 +12,11 @@ global 404/500 fallback handlers retain their pre-existing `{"error": "..."}`
 payload; they are not a documented alternative endpoint contract and were not
 redesigned by this documentation issue.
 
+All `POST`, `PUT`, `PATCH`, and `DELETE` requests made from a browser session,
+including login, must send the page bootstrap `X-CSRF-Token` header. The shared
+browser fetch layer supplies it for same-origin requests. Token failures return
+the standard JSON envelope with HTTP 403.
+
 ## Rendered frontend routes
 
 These are page routes, not JSON APIs. Their server-side route guard redirects
@@ -26,7 +31,6 @@ unauthenticated users to login and enforces the listed role boundary.
 | GET | `/case-status` | Student | Student case-status page |
 | GET | `/dashboard` | Guidance staff | Staff dashboard |
 | GET | `/admin` | Administrator | Account-management portal only |
-| GET | `/chatbot_admin` | Guidance staff | Legacy staff compatibility page; it has no persisted takeover workflow |
 
 ## Authentication and health
 
@@ -148,6 +152,7 @@ privacy-projected; student APIs do not receive these records.
 | --- | --- | --- | --- |
 | GET | `/api/staff/inbox` | None | 200 current authorized student summary items, one latest item per student |
 | GET | `/api/staff/inbox/<summary_id>` | None | 200 privacy-projected summary detail; 404 outside staff program scope or missing |
+| GET | `/api/staff/inbox/<summary_id>/history` | None | 200 reviewed flagged-case history for the same authorized student; 404 outside staff program scope or missing |
 | GET | `/api/inquiries` | None | 200 `data.items` |
 | GET | `/api/conversation-summaries` | None | 200 `data.items` |
 | GET | `/api/escalations` | None | 200 `data.items` |

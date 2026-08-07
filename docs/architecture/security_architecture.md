@@ -45,9 +45,27 @@ authenticated-user data and escalation markers remain server-side.
 - `Secure` is configurable and required in production.
 - Permanent sessions expire after eight hours.
 - Login clears and rotates/replaces the session identifier to prevent session
-  fixation; logout clears and invalidates the session.
+  fixation and issues a new CSRF token; logout clears and invalidates the
+  session.
 - The currently supported deployment is one application instance. Horizontal
   scaling requires an approved shared server-side session backend first.
+
+## CSRF and cross-origin request protection
+
+Rendered pages receive an opaque CSRF token bound to their server-side session.
+The shared browser fetch interceptor sends it only as the `X-CSRF-Token` header
+for same-origin `POST`, `PUT`, `PATCH`, and `DELETE` requests. The server
+validates the token with constant-time comparison before authenticated
+mutations; login validates its pre-authentication page token, and logout is
+covered like every other authenticated mutation. `GET`, `HEAD`, and `OPTIONS`
+remain read-only and do not require a token. Expired sessions continue to use
+the established route-guard response rather than receiving a CSRF error.
+
+The supported thesis deployment is same-origin. Global Flask-CORS middleware is
+not enabled, so authenticated endpoints do not send wildcard or credentialed
+CORS headers. A cross-origin browser cannot supply the required non-simple
+CSRF header without an explicit CORS policy, and therefore cannot perform an
+authenticated mutation.
 
 ## Data and conversation privacy
 
@@ -92,7 +110,6 @@ psychological diagnosis, treatment, or prescription authority.
 
 ## Deferred security improvements
 
-The following are documented future work, not implemented controls: CSRF
-protection, restrictive production CORS policy, and a shared session store for
-multi-instance deployment. Dependency modernization, including the
-`google-generativeai` migration, is also deferred.
+The following are documented future work, not implemented controls: a shared
+session store for multi-instance deployment and dependency modernization,
+including the `google-generativeai` migration.

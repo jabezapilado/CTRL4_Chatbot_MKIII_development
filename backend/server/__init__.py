@@ -4,10 +4,10 @@ from pathlib import Path
 
 from cachelib.file import FileSystemCache
 from flask import Flask, jsonify
-from flask_cors import CORS
 from flask_session import Session
 
 from .config import Config
+from .csrf import install_csrf_protection
 from .db import initialize_database, seed_missing_staff_operational_profiles
 from .logging_config import configure_application_logging
 from .routes import register_blueprints
@@ -39,8 +39,7 @@ def create_app() -> Flask:
         mode=0o700,
     )
     Session(app)
-    
-    CORS(app)
+    install_csrf_protection(app)
 
     register_blueprints(app)
 

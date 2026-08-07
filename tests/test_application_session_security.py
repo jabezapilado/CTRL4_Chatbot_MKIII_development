@@ -35,6 +35,12 @@ class ApplicationSessionSecurityTests(unittest.TestCase):
         self.assertIsNotNone(cookie)
         return cookie.value
 
+    def _csrf_headers(self) -> dict[str, str]:
+        with self.client.session_transaction() as browser_session:
+            token = browser_session.get("_csrf_token")
+        self.assertIsInstance(token, str)
+        return {"X-CSRF-Token": token}
+
     def test_real_login_logout_and_role_guard_use_an_opaque_server_session(self) -> None:
         from backend.server import auth
 
@@ -45,6 +51,7 @@ class ApplicationSessionSecurityTests(unittest.TestCase):
         }
         with self.client.session_transaction() as browser_session:
             browser_session["pre_auth"] = True
+            browser_session["_csrf_token"] = "pre-auth-token"
         pre_login_cookie = self._cookie_value()
 
         with patch.object(auth, "login_service", return_value=user):
@@ -52,6 +59,7 @@ class ApplicationSessionSecurityTests(unittest.TestCase):
                 "/auth/login",
                 json={"email": user["email"], "password": "not-persisted"},
                 base_url="https://localhost",
+                headers=self._csrf_headers(),
             )
 
         login_cookie = self._cookie_value()
@@ -85,7 +93,11 @@ class ApplicationSessionSecurityTests(unittest.TestCase):
         self.assertEqual(forbidden.get_json()["message"], "Staff access required.")
 
         self.assertEqual(
-            self.client.post("/auth/logout", base_url="https://localhost").status_code,
+            self.client.post(
+                "/auth/logout",
+                base_url="https://localhost",
+                headers=self._csrf_headers(),
+            ).status_code,
             200,
         )
         self.assertEqual(
@@ -109,9 +121,14 @@ class ApplicationSessionSecurityTests(unittest.TestCase):
                 "email": "student72@example.test",
                 "role": "student",
             }
+            browser_session["_csrf_token"] = "logout-token"
 
         with patch.object(auth.transient_chat_service, "clear") as clear_active_chat:
-            response = self.client.post("/auth/logout", base_url="https://localhost")
+            response = self.client.post(
+                "/auth/logout",
+                base_url="https://localhost",
+                headers=self._csrf_headers(),
+            )
 
         self.assertEqual(response.status_code, 200)
         clear_active_chat.assert_called_once()

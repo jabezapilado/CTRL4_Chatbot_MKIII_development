@@ -14,7 +14,9 @@ const accountForm = document.getElementById("account-form");
 const accountFormMessage = document.getElementById("account-form-message");
 const accountRole = document.getElementById("account-role");
 const accountProgram = document.getElementById("account-program");
-const accountAssignedPrograms = document.getElementById("account-assigned-programs");
+const accountAssignedPrograms = document.getElementById(
+  "account-assigned-programs",
+);
 const studentProfileFields = document.getElementById("student-profile-fields");
 const staffProfileFields = document.getElementById("staff-profile-fields");
 const accountPasswordField = document.getElementById("account-password-field");
@@ -49,11 +51,13 @@ function accountPrograms(account) {
 }
 
 function roleLabel(role) {
-  return {
-    student: "Student",
-    staff: "Guidance staff",
-    admin: "Administrator",
-  }[role] || "Unknown";
+  return (
+    {
+      student: "Student",
+      staff: "Guidance staff",
+      admin: "Administrator",
+    }[role] || "Unknown"
+  );
 }
 
 function setFeedback(element, message = "", type = "") {
@@ -150,7 +154,11 @@ function renderAccounts(accounts) {
     row.appendChild(statusCell);
 
     appendAccountCell(row, accountNumber(account), "Account number");
-    appendAccountCell(row, accountPrograms(account), "Program / assigned programs");
+    appendAccountCell(
+      row,
+      accountPrograms(account),
+      "Program / assigned programs",
+    );
 
     const actionsCell = document.createElement("td");
     actionsCell.dataset.label = "Actions";
@@ -204,7 +212,10 @@ async function loadAccounts() {
     const response = await fetch(
       `${ADMIN_API_BASE}/api/accounts${params.size ? `?${params}` : ""}`,
     );
-    const payload = await responsePayload(response, "Unable to retrieve accounts.");
+    const payload = await responsePayload(
+      response,
+      "Unable to retrieve accounts.",
+    );
     renderAccounts(payload.data?.items || []);
     setFeedback(accountListMessage);
   } catch (error) {
@@ -264,7 +275,10 @@ function renderProgramCatalog(catalog) {
       () => void updateProgram(program.code, { active: !program.active }),
     );
     const edit = createActionButton("Edit", "btn btn-outline btn-sm", () => {
-      const displayName = window.prompt("Program display name", program.display_name);
+      const displayName = window.prompt(
+        "Program display name",
+        program.display_name,
+      );
       if (displayName && displayName.trim() !== program.display_name) {
         void updateProgram(program.code, { display_name: displayName.trim() });
       }
@@ -282,7 +296,10 @@ async function loadPrograms() {
   setFeedback(message, "Loading program catalog…");
   try {
     const response = await fetch(`${ADMIN_API_BASE}/api/accounts/programs`);
-    const payload = await responsePayload(response, "Unable to retrieve programs.");
+    const payload = await responsePayload(
+      response,
+      "Unable to retrieve programs.",
+    );
     const catalog = payload.data?.items || [];
     programs = catalog.filter((program) => program.active);
     populateProgramSelect();
@@ -295,19 +312,29 @@ async function loadPrograms() {
     programs = [];
     populateProgramSelect();
     renderAssignedPrograms();
-    setFeedback(message, error.message || "Unable to retrieve programs.", "error");
+    setFeedback(
+      message,
+      error.message || "Unable to retrieve programs.",
+      "error",
+    );
   }
 }
 
 async function updateProgram(code, updates) {
   const message = document.getElementById("program-catalog-message");
   try {
-    const response = await fetch(`${ADMIN_API_BASE}/api/accounts/programs/${encodeURIComponent(code)}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updates),
-    });
-    const payload = await responsePayload(response, "Unable to update program.");
+    const response = await fetch(
+      `${ADMIN_API_BASE}/api/accounts/programs/${encodeURIComponent(code)}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      },
+    );
+    const payload = await responsePayload(
+      response,
+      "Unable to update program.",
+    );
     setFeedback(message, payload.message, "success");
     await loadPrograms();
   } catch (error) {
@@ -336,7 +363,8 @@ function setFormValues(account = null) {
     document.getElementById("account-dialog-title").textContent =
       "Edit account";
     accountFormSubmit.textContent = "Save changes";
-    document.getElementById("account-full-name").value = account.full_name || "";
+    document.getElementById("account-full-name").value =
+      account.full_name || "";
     document.getElementById("account-email").value = account.email || "";
     document.getElementById("account-gender").value = account.gender || "";
     accountRole.value = account.role || "student";
@@ -372,7 +400,9 @@ function formRole() {
 
 function selectedPrograms() {
   return Array.from(
-    accountAssignedPrograms.querySelectorAll('input[name="assigned_programs"]:checked'),
+    accountAssignedPrograms.querySelectorAll(
+      'input[name="assigned_programs"]:checked',
+    ),
     (checkbox) => checkbox.value,
   );
 }
@@ -426,7 +456,10 @@ async function saveAccount(event) {
 
   const isEdit = Boolean(editingAccount);
   accountFormSubmit.disabled = true;
-  setFeedback(accountFormMessage, isEdit ? "Saving changes…" : "Creating account…");
+  setFeedback(
+    accountFormMessage,
+    isEdit ? "Saving changes…" : "Creating account…",
+  );
 
   try {
     const response = await fetch(
@@ -448,7 +481,8 @@ async function saveAccount(event) {
   } catch (error) {
     setFeedback(
       accountFormMessage,
-      error.message || (isEdit ? "Unable to update account." : "Unable to create account."),
+      error.message ||
+        (isEdit ? "Unable to update account." : "Unable to create account."),
       "error",
     );
   } finally {
@@ -468,7 +502,10 @@ async function deactivateAccount(account) {
       `${ADMIN_API_BASE}${accountEndpoint(account)}`,
       { method: "DELETE" },
     );
-    const result = await responsePayload(response, "Unable to deactivate account.");
+    const result = await responsePayload(
+      response,
+      "Unable to deactivate account.",
+    );
     await loadAccounts();
     setFeedback(accountListMessage, result.message, "success");
   } catch (error) {
@@ -488,9 +525,15 @@ function resetFilters() {
 document.getElementById("create-account-btn").addEventListener("click", () => {
   openAccountForm();
 });
-document.getElementById("account-reset-btn").addEventListener("click", resetFilters);
-document.getElementById("account-dialog-close").addEventListener("click", closeAccountForm);
-document.getElementById("account-form-cancel").addEventListener("click", closeAccountForm);
+document
+  .getElementById("account-reset-btn")
+  .addEventListener("click", resetFilters);
+document
+  .getElementById("account-dialog-close")
+  .addEventListener("click", closeAccountForm);
+document
+  .getElementById("account-form-cancel")
+  .addEventListener("click", closeAccountForm);
 accountRole.addEventListener("change", () => {
   renderAssignedPrograms();
   syncRoleFields();
@@ -507,28 +550,37 @@ document.getElementById("admin-logout-btn").addEventListener("click", () => {
   window.logout();
 });
 
-document.getElementById("program-catalog-form").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const code = document.getElementById("program-code");
-  const displayName = document.getElementById("program-display-name");
-  const message = document.getElementById("program-catalog-message");
-  try {
-    const response = await fetch(`${ADMIN_API_BASE}/api/accounts/programs`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        code: code.value,
-        display_name: displayName.value,
-      }),
-    });
-    const payload = await responsePayload(response, "Unable to create program.");
-    event.currentTarget.reset();
-    setFeedback(message, payload.message, "success");
-    await loadPrograms();
-  } catch (error) {
-    setFeedback(message, error.message || "Unable to create program.", "error");
-  }
-});
+document
+  .getElementById("program-catalog-form")
+  .addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const code = document.getElementById("program-code");
+    const displayName = document.getElementById("program-display-name");
+    const message = document.getElementById("program-catalog-message");
+    try {
+      const response = await fetch(`${ADMIN_API_BASE}/api/accounts/programs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: code.value,
+          display_name: displayName.value,
+        }),
+      });
+      const payload = await responsePayload(
+        response,
+        "Unable to create program.",
+      );
+      event.currentTarget.reset();
+      setFeedback(message, payload.message, "success");
+      await loadPrograms();
+    } catch (error) {
+      setFeedback(
+        message,
+        error.message || "Unable to create program.",
+        "error",
+      );
+    }
+  });
 
 void loadPrograms();
 loadAccounts();

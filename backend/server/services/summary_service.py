@@ -1,16 +1,28 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Final
 from .conversation_history import summary_conversation_evidence
 from .llm_service import LLMService
 
 FLAGGED_RECOMMENDATION: Final[str] = (
-    "Guidance Office follow-up is recommended."
+    "Immediate Guidance Office review is recommended. Assess the student's immediate "
+    "safety, follow the approved Guidance Office protocol, and document the action taken."
 )
 
 NORMAL_RECOMMENDATION: Final[str] = (
     "No escalation was required based on the recorded session."
+)
+_UNSUPPORTED_SUMMARY_PATTERNS: Final[tuple[re.Pattern[str], ...]] = (
+    re.compile(r"[\"`]") ,
+    re.compile(
+        r"\b(?:agreed|accepted help|accepted counseling|willing to|"
+        r"was willing|committed to|intends to commit suicide|is suicidal)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(r"\b(?:hotline|phone number|system prompt|internal prompt)\b", re.IGNORECASE),
+    re.compile(r"\b(?:\+?\d[\d\s-]{6,}\d)\b"),
 )
 
 @dataclass
@@ -133,11 +145,14 @@ class SummaryService:
             raise ValueError("A summary requires student-authored evidence.")
 
         summary_text = (
-            self._appointment_only_summary(appointment)
+            self._crisis_summary()
+            if flagged and str(topic).strip().casefold() == "crisis concern"
+            else self._appointment_only_summary(appointment)
             if not evidence
             else self._build_summary(
                 conversation=evidence,
                 appointment=appointment,
+                flagged=flagged,
             )
         )
 
@@ -162,12 +177,33 @@ class SummaryService:
             suggested_intervention=recommendation,
             total_messages=len(evidence),
         )
+
+    def refresh_open_case_summary(
+        self,
+        *,
+        prior_summary: object,
+        conversation: list[dict],
+    ) -> str:
+        """Refresh an open case from its prior abstract summary and new evidence."""
+        evidence = summary_conversation_evidence(conversation)
+        prior = " ".join(str(prior_summary or "").split())
+        if not evidence:
+            return prior
+
+        prompt = self._build_open_case_prompt(prior, evidence)
+        try:
+            generated = self.generate_text(prompt)
+            refreshed = self._conservative_generated_summary(generated, flagged=True)
+            return prior if refreshed.startswith("A conservative summary") else refreshed
+        except RuntimeError:
+            return prior
     
     def _build_summary(
         self,
         *,
         conversation: list[dict],
         appointment: dict[str, str] | None,
+        flagged: bool,
     ) -> str:
         """
         Build the conversation summary.
@@ -192,12 +228,24 @@ class SummaryService:
         )
 
         try:
-            return self.generate_text(prompt)
+            generated = self.generate_text(prompt)
+            return self._conservative_generated_summary(generated, flagged=flagged)
 
         except RuntimeError:
             return (
                 "An AI summary could not be generated from the recorded session."
             )
+
+    @staticmethod
+    def _conservative_generated_summary(text: object, *, flagged: bool) -> str:
+        """Keep provider summaries abstract, factual, and appropriately brief."""
+        summary = " ".join(str(text or "").split())
+        if not summary or any(pattern.search(summary) for pattern in _UNSUPPORTED_SUMMARY_PATTERNS):
+            return "A conservative summary could not be generated from the recorded session."
+
+        sentences = re.split(r"(?<=[.!?])\s+", summary)
+        maximum_sentences = 2 if flagged else 1
+        return " ".join(sentences[:maximum_sentences])
 
     @staticmethod
     def _appointment_only_summary(appointment: dict[str, str] | None) -> str:
@@ -207,6 +255,14 @@ class SummaryService:
             f"{appointment['category']} for {appointment['preferred_date']} at "
             f"{appointment['preferred_time_slot']}. No additional chatbot "
             "conversation occurred during this session."
+        )
+
+    @staticmethod
+    def _crisis_summary() -> str:
+        return (
+            "The student expressed suicidal ideation or other high-risk safety "
+            "concerns. The assistant provided an immediate safety response, and the "
+            "conversation was referred to the Guidance Office for urgent review."
         )
     
     def _build_recommendation(
@@ -291,16 +347,25 @@ class SummaryService:
 
         Instructions:
 
-        - Write only one paragraph.
-        - Keep the summary concise and no longer than the supplied facts require.
-                - Focus on the student's primary concern.
-                - Cover each distinct factual question and emotional concern expressed
-                    by the student when both are present.
-                - Mention emotion, guidance, support, or intervention only when it is
-                    explicitly present in the supplied facts.
-                - Do not invent, assume, or exaggerate information.
-                - Use only facts explicitly present in the conversation transcript and
+                - Write one abstract, professional paragraph with no quotations.
+                - Routine summaries must be one sentence. Mixed and high-risk summaries
+                    may use two sentences, but never more.
+                - Preserve chronology: describe a student request or concern before the
+                    assistant action that followed it.
+                - Cover each distinct factual question and emotional concern when both
+                    are present.
+                - Describe only observable facts from the supplied conversation and
                     confirmed appointment request, if provided.
+                - Do not infer agreement, willingness, acceptance of help, intent,
+                    diagnosis, counseling history, or future behavior.
+                - Use cautious language such as "expressed", "reported", "requested",
+                    and "replied" rather than certainty about internal state.
+                - Mention an assistant action only when it is material: appointment
+                    guidance for a routine appointment request, or an immediate safety
+                    response and Guidance Office referral for high-risk safety handling.
+                - Never include message quotations, a transcript, phone numbers, hotline
+                    text, internal prompts, IDs, or internal configuration.
+                - Do not invent, assume, or exaggerate information.
         - Do not diagnose any mental health condition.
         - Do not include greetings, introductions, or small talk.
         - Do not address the student directly.
@@ -313,3 +378,26 @@ class SummaryService:
         """.strip()
 
         return prompt
+
+    def _build_open_case_prompt(
+        self,
+        prior_summary: str,
+        conversation: list[dict],
+    ) -> str:
+        transcript = self._format_conversation(conversation=conversation)
+        return f"""\
+        You are assisting the Holy Angel University Guidance Office.
+
+        Update an existing open case summary using the prior abstract summary and
+        the new conversation evidence below. Write no more than two factual,
+        professional sentences. Retain the prior safety concern, preserve
+        chronology, and describe the new student message only as an observable
+        follow-up. Do not quote messages, infer agreement or future behavior,
+        include phone numbers, or expose a transcript.
+
+        Prior Abstract Summary:
+        {prior_summary}
+
+        New Conversation Evidence:
+        {transcript}
+        """.strip()

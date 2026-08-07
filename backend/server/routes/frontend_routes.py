@@ -68,11 +68,6 @@ def admin_accounts():
     )
 
 
-@frontend_bp.get("/chatbot_admin")
-def chatbot_admin():
-    return redirect("/dashboard")
-
-
 @frontend_bp.before_request
 def require_login_for_private_routes():
     public_paths = {"/", "/login", "/health", "/auth/login", "/auth/logout"}
@@ -107,9 +102,7 @@ def require_login_for_private_routes():
         return redirect("/dashboard")
     if path == "/dashboard" and role == ROLE_ADMIN:
         return redirect("/admin")
-    if path == "/chatbot_admin" and role != ROLE_STAFF:
-        return redirect(role_landing_path(user))
-    if path in {"/dashboard", "/chatbot_admin"} and role == ROLE_STUDENT:
+    if path == "/dashboard" and role == ROLE_STUDENT:
         return redirect("/chatbot")
     if path == "/admin" and role != ROLE_ADMIN:
         return redirect(role_landing_path(user))

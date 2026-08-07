@@ -2,11 +2,11 @@ import logging
 from flask import Blueprint, jsonify, request
 
 from ..request_validation import require_role
-from ..db import get_dashboard_stats
 from ..services.appointment_service import get_appointment_analytics_service
 from ..services.conversation_service import (
     get_chatbot_analytics_service,
     get_flagged_case_analytics_service,
+    get_staff_dashboard_stats,
 )
 from ..services.counselor_workload_service import (
     get_counselor_workload_analytics_service,
@@ -63,12 +63,13 @@ def appointment_analytics():
 
 @dashboard_bp.get("/chatbot/analytics")
 def chatbot_analytics():
-    _, error = require_role("staff")
+    user, error = require_role("staff")
     if error:
         return error
 
     try:
         analytics = get_chatbot_analytics_service(
+            user,
             start_date=request.args.get("start_date"),
             end_date=request.args.get("end_date"),
         )
@@ -140,12 +141,13 @@ def counselor_workload():
 
 @dashboard_bp.get("/flagged-cases/analytics")
 def flagged_case_analytics():
-    _, error = require_role("staff")
+    user, error = require_role("staff")
     if error:
         return error
 
     try:
         analytics = get_flagged_case_analytics_service(
+            user,
             start_date=request.args.get("start_date"),
             end_date=request.args.get("end_date"),
         )
@@ -183,7 +185,7 @@ def dashboard_stats():
         return error
 
     try:
-        stats = get_dashboard_stats()
+        stats = get_staff_dashboard_stats(user)
         return jsonify(
             {
                 "success": True,

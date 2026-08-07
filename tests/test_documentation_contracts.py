@@ -56,6 +56,7 @@ class DocumentationContractTests(unittest.TestCase):
             "/api/notifications",
             "/api/notifications/<notification_id>/read",
             "/api/settings",
+            "/api/staff/inbox/<summary_id>/history",
             "/api/inquiries",
             "/api/conversation-summaries",
             "/api/escalations",
