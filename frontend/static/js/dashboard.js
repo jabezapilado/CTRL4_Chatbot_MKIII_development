@@ -3036,29 +3036,34 @@ function renderInquiryTable() {
 
   items.forEach((item) => {
     const row = document.createElement("tr");
+    row.className = "inbox-record";
     const student = document.createElement("td");
     const studentName = document.createElement("strong");
     const studentNumber = document.createElement("span");
+    student.dataset.label = "Student";
     studentName.className = "inbox-student-name";
     studentName.textContent = item.studentName;
     studentNumber.className = "inbox-student-number";
     studentNumber.textContent = item.studentNumber;
     student.append(studentName, studentNumber);
     row.appendChild(student);
-    appendTableCell(row, item.program);
-    appendTableCell(row, item.category);
+    appendTableCell(row, item.program, "Program");
+    appendTableCell(row, item.category, "Concern");
     const preview = document.createElement("td");
     const previewText = document.createElement("div");
+    preview.dataset.label = "Summary Preview";
     previewText.className = "inbox-summary-preview";
     previewText.textContent = item.summary;
     preview.appendChild(previewText);
     row.appendChild(preview);
     const status = document.createElement("td");
+    status.dataset.label = "Status";
     status.appendChild(createInboxStatusBadge(item));
     row.appendChild(status);
-    appendTableCell(row, formatInboxTimestamp(item.createdAt));
+    appendTableCell(row, formatInboxTimestamp(item.createdAt), "Updated");
     const action = document.createElement("td");
     const open = document.createElement("button");
+    action.dataset.label = "Action";
     open.type = "button";
     open.className = "action-link";
     open.textContent = "Open";
@@ -3080,9 +3085,12 @@ function renderAllTables() {
   renderFlaggedConversations();
 }
 
-function appendTableCell(row, value) {
+function appendTableCell(row, value, label = "") {
   const cell = document.createElement("td");
   cell.textContent = value;
+  if (label) {
+    cell.dataset.label = label;
+  }
   row.appendChild(cell);
 }
 

@@ -77,6 +77,7 @@ class FrontendLayoutContractTests(unittest.TestCase):
 
     def test_inbox_dashboard_uses_balanced_desktop_layout(self) -> None:
         template = _read("frontend/templates/dashboard.html")
+        dashboard = _read("frontend/static/js/dashboard.js")
         stylesheet = _read("frontend/static/css/dashboard.css")
 
         self.assertIn("min-height: 100dvh", stylesheet)
@@ -87,12 +88,56 @@ class FrontendLayoutContractTests(unittest.TestCase):
         self.assertIn(".inbox-table {", stylesheet)
         self.assertIn("table-layout: fixed;", stylesheet)
         self.assertIn(".inbox-table th:nth-child(4)", stylesheet)
-        self.assertIn("width: 27%;", stylesheet)
+        self.assertIn("width: 24%;", stylesheet)
+        self.assertRegex(
+            stylesheet,
+            r"\.inbox-table th:nth-child\(6\),\s*"
+            r"\.inbox-table td:nth-child\(6\) \{\s*width: 16%;",
+        )
+        self.assertRegex(
+            stylesheet,
+            r"\.inbox-table td:nth-child\(6\) \{[^}]*"
+            r"overflow-wrap: anywhere;[^}]*white-space: normal;",
+        )
+        self.assertRegex(
+            stylesheet,
+            r"\.inbox-table th:nth-child\(7\),\s*"
+            r"\.inbox-table td:nth-child\(7\) \{\s*"
+            r"width: 7%;\s*overflow: hidden;",
+        )
         self.assertIn("white-space: nowrap;", stylesheet)
         self.assertIn("padding-right: 22px;", stylesheet)
         self.assertIn("line-clamp: 2;", stylesheet)
         self.assertIn(".inbox-table thead th", stylesheet)
         self.assertIn("position: sticky;", stylesheet)
+        self.assertIn('row.className = "inbox-record";', dashboard)
+        self.assertIn('student.dataset.label = "Student";', dashboard)
+        self.assertIn('preview.dataset.label = "Summary Preview";', dashboard)
+        self.assertIn('action.dataset.label = "Action";', dashboard)
+        self.assertRegex(
+            stylesheet,
+            r"@media \(max-width: 1279px\) \{\s*"
+            r"#view-inbox \.table-wrap \{\s*max-height: none;",
+        )
+        self.assertIn("min-width: 0;\n    table-layout: auto;", stylesheet)
+        self.assertIn("content: attr(data-label);", stylesheet)
+        self.assertIn("grid-template-columns: 92px minmax(0, 1fr);", stylesheet)
+        self.assertIn(".inbox-table .action-link", stylesheet)
+
+    def test_mobile_sidebar_swaps_hamburger_for_existing_close_button(self) -> None:
+        template = _read("frontend/templates/dashboard.html")
+        dashboard = _read("frontend/static/js/dashboard.js")
+        stylesheet = _read("frontend/static/css/dashboard.css")
+
+        self.assertIn('id="sidebar-toggle"', template)
+        self.assertIn('id="sidebar-close"', template)
+        self.assertIn(
+            'document.body.classList.toggle("sidebar-drawer-open", open);',
+            dashboard,
+        )
+        self.assertIn("body.sidebar-drawer-open .sidebar-toggle", stylesheet)
+        self.assertIn("width: min(280px, calc(100vw - 44px));", stylesheet)
+        self.assertIn("flex: 0 0 44px;", stylesheet)
 
     def test_dashboard_header_and_stat_cards_keep_consistent_alignment(self) -> None:
         stylesheet = _read("frontend/static/css/dashboard.css")
