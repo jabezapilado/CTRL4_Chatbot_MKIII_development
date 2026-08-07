@@ -70,9 +70,218 @@ class FrontendLayoutContractTests(unittest.TestCase):
         self.assertNotIn("conversation_json", dashboard)
         self.assertNotIn("/api/inquiries", dashboard)
         self.assertNotIn("chatbot_admin", template)
-        self.assertIn('def chatbot_admin():\n    return redirect("/dashboard")', frontend_routes)
+        self.assertNotIn('"/chatbot_admin"', frontend_routes)
+        self.assertNotIn("def chatbot_admin", frontend_routes)
         self.assertIn('id="inbox-search-input"', template)
         self.assertIn('id="inbox-filter"', template)
+
+    def test_inbox_dashboard_uses_balanced_desktop_layout(self) -> None:
+        template = _read("frontend/templates/dashboard.html")
+        stylesheet = _read("frontend/static/css/dashboard.css")
+
+        self.assertIn("min-height: 100dvh", stylesheet)
+        self.assertIn("height: 100dvh", stylesheet)
+        self.assertIn('class="inbox-toolbar-controls"', template)
+        self.assertIn('class="search-box inbox-search-box"', template)
+        self.assertIn("max-height: clamp(260px, 36dvh, 460px);", stylesheet)
+        self.assertIn(".inbox-table {", stylesheet)
+        self.assertIn("table-layout: fixed;", stylesheet)
+        self.assertIn(".inbox-table th:nth-child(4)", stylesheet)
+        self.assertIn("width: 27%;", stylesheet)
+        self.assertIn("white-space: nowrap;", stylesheet)
+        self.assertIn("padding-right: 22px;", stylesheet)
+        self.assertIn("line-clamp: 2;", stylesheet)
+        self.assertIn(".inbox-table thead th", stylesheet)
+        self.assertIn("position: sticky;", stylesheet)
+
+    def test_dashboard_header_and_stat_cards_keep_consistent_alignment(self) -> None:
+        stylesheet = _read("frontend/static/css/dashboard.css")
+
+        self.assertIn("padding: 12px 28px;", stylesheet)
+        self.assertIn("grid-template-columns: repeat(4, minmax(190px, 1fr));", stylesheet)
+        self.assertIn("grid-template-columns: repeat(2, minmax(220px, 1fr));", stylesheet)
+        self.assertIn("grid-template-columns: minmax(0, 1fr);", stylesheet)
+        self.assertIn("min-height: 100px;", stylesheet)
+        self.assertIn("min-height: 32px;", stylesheet)
+        self.assertIn("min-height: 40px;", stylesheet)
+
+    def test_reports_page_uses_scoped_compact_analytics_layout(self) -> None:
+        template = _read("frontend/templates/dashboard.html")
+        stylesheet = _read("frontend/static/css/dashboard.css")
+
+        self.assertIn('id="view-reports"', template)
+        self.assertIn('id="reports-overview-kpis"', template)
+        self.assertIn('data-dashboard-section-nav="reports"', template)
+        self.assertIn("#view-reports #reports-overview-kpis", stylesheet)
+        self.assertIn("#view-reports .dashboard-section-nav", stylesheet)
+        self.assertIn("min-height: 34px;", stylesheet)
+        self.assertIn("#view-reports .form-grid", stylesheet)
+        self.assertIn(
+            "grid-template-columns: repeat(2, minmax(170px, 220px)) minmax(260px, 1fr);",
+            stylesheet,
+        )
+        self.assertIn('#view-reports .form-group input[type="date"]', stylesheet)
+        self.assertIn("#view-reports .panel > .action-row", stylesheet)
+        self.assertIn("#view-reports .inquiry-table", stylesheet)
+        self.assertIn("table-layout: fixed;", stylesheet)
+        self.assertIn("#view-reports .inquiry-table .table-empty-state", stylesheet)
+        self.assertIn("#view-reports [data-dashboard-section] > .stat-grid", stylesheet)
+
+    def test_settings_page_uses_scoped_compact_form_layout(self) -> None:
+        template = _read("frontend/templates/dashboard.html")
+        stylesheet = _read("frontend/static/css/dashboard.css")
+
+        self.assertIn('id="view-settings"', template)
+        self.assertIn('class="settings-panel appointment-settings-panel"', template)
+        self.assertIn('class="settings-panel faq-management-panel"', template)
+        self.assertIn('class="settings-panel counselor-profile-panel"', template)
+        self.assertIn('class="settings-panel settings-password-panel"', template)
+        self.assertIn('class="sub password-helper"', template)
+        self.assertNotIn('id="student-password-panel"\n              style=', template)
+        self.assertNotIn('id="change-password-btn"\n                style=', template)
+        self.assertIn("#view-settings .settings-panel", stylesheet)
+        self.assertIn("#view-settings .field-grid-2", stylesheet)
+        self.assertIn("grid-template-columns: repeat(2, minmax(220px, 1fr));", stylesheet)
+        self.assertIn("#view-settings .appointment-availability-window", stylesheet)
+        self.assertIn("#view-settings .counselor-schedule-row", stylesheet)
+        self.assertIn("#view-settings .faq-editor-card", stylesheet)
+        self.assertIn("#view-settings .settings-password-panel", stylesheet)
+        self.assertIn("#view-settings .password-helper", stylesheet)
+        self.assertIn("box-shadow: 0 0 0 3px rgba(211, 84, 0, 0.12);", stylesheet)
+
+    def test_staff_sidebar_uses_compact_aligned_flex_layout(self) -> None:
+        template = _read("frontend/templates/dashboard.html")
+        stylesheet = _read("frontend/static/css/dashboard.css")
+
+        self.assertIn('class="sidebar"', template)
+        self.assertIn("height: 100dvh;", stylesheet)
+        self.assertIn("overflow-y: auto;", stylesheet)
+        self.assertIn("margin-bottom: auto;", stylesheet)
+        self.assertIn("min-height: 36px;", stylesheet)
+        self.assertIn(".nav-item span:first-child", stylesheet)
+        self.assertIn("min-width: 17px;", stylesheet)
+        self.assertIn("height: 17px;", stylesheet)
+        self.assertIn("#dashboard-logout", stylesheet)
+
+    def test_case_details_layout_preserves_scoped_readable_cards(self) -> None:
+        template = _read("frontend/templates/dashboard.html")
+        stylesheet = _read("frontend/static/css/dashboard.css")
+
+        self.assertIn('class="case-profile-identity"', template)
+        self.assertIn('class="case-profile-heading"', template)
+        self.assertIn("#view-case-details .case-layout", stylesheet)
+        self.assertIn("grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);", stylesheet)
+        self.assertIn("#view-case-details .case-side-panel", stylesheet)
+        self.assertIn("min-width: 300px;", stylesheet)
+        self.assertIn("#view-case-details .case-message-box", stylesheet)
+        self.assertIn("line-height: 1.58;", stylesheet)
+        self.assertIn("#view-case-details .case-meta-cell", stylesheet)
+        self.assertIn("min-height: 72px;", stylesheet)
+        self.assertIn("#view-case-details .insight-row", stylesheet)
+        self.assertIn("min-height: 42px;", stylesheet)
+        self.assertIn("#view-case-details .case-confidentiality-card", stylesheet)
+        self.assertIn("#view-case-details .staff-notes-card textarea", stylesheet)
+
+    def test_flagged_cases_table_matches_compact_dashboard_layout(self) -> None:
+        template = _read("frontend/templates/dashboard.html")
+        dashboard = _read("frontend/static/js/dashboard.js")
+        stylesheet = _read("frontend/static/css/dashboard.css")
+
+        self.assertIn('class="panel flagged-panel"', template)
+        self.assertIn('class="inquiry-table flagged-table"', template)
+        self.assertIn("flagged-student-name", dashboard)
+        self.assertIn("flagged-student-number", dashboard)
+        self.assertIn("flagged-summary-preview", dashboard)
+        self.assertIn("#view-flagged .flagged-panel > .sub", stylesheet)
+        self.assertIn(".flagged-table {", stylesheet)
+        self.assertIn("table-layout: fixed;", stylesheet)
+        self.assertIn("min-width: 900px;", stylesheet)
+        self.assertIn(".flagged-table th:nth-child(2)", stylesheet)
+        self.assertIn("width: 42%;", stylesheet)
+        self.assertIn(".flagged-summary-preview", stylesheet)
+        self.assertIn("line-clamp: 2;", stylesheet)
+        self.assertIn(".flagged-table .table-empty-state", stylesheet)
+
+    def test_appointments_page_uses_compact_scoped_cards_and_details(self) -> None:
+        template = _read("frontend/templates/dashboard.html")
+        stylesheet = _read("frontend/static/css/dashboard.css")
+
+        self.assertIn('class="stat-grid appointment-stat-grid"', template)
+        self.assertIn('class="panel appointment-panel appointment-list-panel"', template)
+        self.assertIn('class="search-box appointment-search-box"', template)
+        self.assertIn("#view-appointments .appointment-panel > .sub", stylesheet)
+        self.assertIn(".appointment-stat-grid", stylesheet)
+        self.assertIn("grid-template-columns: repeat(3, minmax(190px, 1fr));", stylesheet)
+        self.assertIn("#view-appointments .form-grid", stylesheet)
+        self.assertIn(
+            "grid-template-columns: repeat(2, minmax(170px, 220px)) minmax(240px, 1fr);",
+            stylesheet,
+        )
+        self.assertIn('#view-appointments .form-group input[type="date"]', stylesheet)
+        self.assertIn("#view-appointments .appointment-card-footer .btn", stylesheet)
+        self.assertIn(".appointment-meta-grid", stylesheet)
+        self.assertIn("grid-template-columns: repeat(4, minmax(120px, 1fr));", stylesheet)
+        self.assertIn("#view-appointment-details .case-layout", stylesheet)
+        self.assertIn("grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);", stylesheet)
+        self.assertIn("#view-appointment-details .staff-notes-card textarea", stylesheet)
+
+    def test_phone_tablet_desktop_responsive_guardrails_are_present(self) -> None:
+        dashboard = _read("frontend/static/css/dashboard.css")
+        appointment = _read("frontend/static/css/appointment.css")
+        case_status = _read("frontend/static/css/case_status.css")
+        chatbot = _read("frontend/static/css/chatbot.css")
+        admin = _read("frontend/static/css/admin.css")
+
+        self.assertIn("@media (max-width: 700px)", dashboard)
+        self.assertIn(".dash-main {\n    overflow-x: clip;", dashboard)
+        self.assertIn("#view-appointment-details .case-side-panel", dashboard)
+        self.assertIn("grid-template-columns: minmax(0, 1fr);", dashboard)
+        self.assertIn("#view-appointments .appointment-card-footer .btn", dashboard)
+
+        self.assertIn("overflow-x: hidden;", appointment)
+        self.assertIn("min-height: 100dvh;", appointment)
+        self.assertIn("@media (max-width: 960px) and (orientation: landscape)", appointment)
+        self.assertIn("max-height: calc(100dvh - 32px);", appointment)
+
+        self.assertIn("overflow-x: hidden;", case_status)
+        self.assertIn("min-height: 100dvh;", case_status)
+        self.assertIn("flex-direction: column;", case_status)
+        self.assertIn("@media (max-width: 900px) and (orientation: landscape)", case_status)
+
+        self.assertIn("min-width: 0;", chatbot)
+        self.assertIn("@media (max-width: 900px) and (orientation: landscape)", chatbot)
+        self.assertIn("max-width: 100vw;", chatbot)
+
+        self.assertIn("max-height: min(90dvh, 900px);", admin)
+        self.assertIn(".program-catalog-row {\n    grid-template-columns: 1fr;", admin)
+        self.assertIn("@media (max-width: 900px) and (orientation: landscape)", admin)
+
+    def test_case_staff_actions_match_routine_or_flagged_status(self) -> None:
+        dashboard = _read("frontend/static/js/dashboard.js")
+        template = _read("frontend/templates/dashboard.html")
+
+        self.assertIn('id="case-staff-actions-note"', template)
+        self.assertIn("No immediate intervention is required.", dashboard)
+        self.assertIn(
+            "Immediate Guidance Office review is recommended.",
+            dashboard,
+        )
+        chat = _read("frontend/static/js/chat.js")
+        self.assertIn("For your safety, your conversation has been referred", chat)
+
+    def test_case_details_separates_persisted_emotion_from_safety_risk(self) -> None:
+        dashboard = _read("frontend/static/js/dashboard.js")
+        template = _read("frontend/templates/dashboard.html")
+
+        self.assertIn("function displayCaseEmotion(detail)", dashboard)
+        self.assertIn("function safetyRiskPresentation(detail)", dashboard)
+        self.assertIn("function applySafetyRisk(detail)", dashboard)
+        self.assertIn('return capitalize(detail.emotion_results || "Unavailable");', dashboard)
+        self.assertIn('id="case-safety-risk"', template)
+        self.assertIn("No immediate safety concern", dashboard)
+        self.assertIn("Elevated concern", dashboard)
+        self.assertIn("Immediate safety concern", dashboard)
+        self.assertIn("safety escalation|crisis|self[ -]?harm|suicid|high-risk", dashboard)
 
     def test_appointment_times_are_controlled_selects_with_touched_validation(self) -> None:
         template = _read("frontend/templates/appointment.html")

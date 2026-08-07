@@ -16,12 +16,15 @@ body {
   background-size: 24px 24px;
   color: var(--case-ink);
   margin: 0;
+  overflow-x: hidden;
 }
 
 .case-status-page {
   margin: 0 auto;
   max-width: 980px;
   min-height: 100vh;
+  min-height: 100dvh;
+  min-width: 0;
   padding: 28px 24px 56px;
 }
 
@@ -37,6 +40,7 @@ body {
   align-items: center;
   display: flex;
   gap: 12px;
+  min-width: 0;
 }
 
 .case-status-brand img {
@@ -102,6 +106,7 @@ body {
 .student-case-status-header {
   align-items: center;
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   justify-content: space-between;
 }
@@ -175,7 +180,12 @@ body {
 
   .case-status-header {
     align-items: flex-start;
+    flex-direction: column;
     gap: 14px;
+  }
+
+  .case-status-header .btn {
+    width: 100%;
   }
 
   .case-status-content {
@@ -188,5 +198,15 @@ body {
 
   .student-case-status-dates {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) and (orientation: landscape) {
+  .case-status-page {
+    padding-top: 18px;
+  }
+
+  .case-status-content {
+    margin-top: 28px;
   }
 }
