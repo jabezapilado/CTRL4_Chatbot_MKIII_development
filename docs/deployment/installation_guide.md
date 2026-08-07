@@ -32,18 +32,17 @@ chmod 600 backend/.env
 ```
 
 Configure database, session, logging, LLM, and RAG values in `backend/.env`.
-Development defaults to port `5001`. Do not commit `.env` or place
+Development defaults to `http://127.0.0.1:5001`. Do not commit `.env` or place
 credentials in documentation.
 
 ## Prepare a database
 
 For a new empty development database, create the database and load
 `backend/sql/schema.sql`; see the exact commands in the
-[Deployment Guide](deployment_guide.md#database-initialization). For an
-existing development database, back it up first, then use the documented
-`initialize_database()` upgrade procedure. The schema file is for fresh
-databases; the initializer is a compatibility upgrader, not a universal
-migration engine.
+[Deployment Guide](deployment_guide.md#database-initialization). The validated
+MK III local database is XAMPP MariaDB `soc_chatbot`; its live schema aligned
+with both `db.py` and `schema.sql`. Do not run migrations or cleanup against an
+existing database without a separate approved plan and verified backup.
 
 ## Provision AI runtime assets
 
@@ -83,6 +82,10 @@ cd backend
 ../.venv/bin/python scripts/ingest_guidance_docs.py
 ../.venv/bin/python app.py
 ```
+
+The default listener is `127.0.0.1:5001`. For a temporary Tailscale or LAN
+demo, set `CTRL4_HOST=0.0.0.0`; it is intentionally not the default. Set
+`CTRL4_PORT` only when a different local port is required.
 
 The generated manifest records a deterministic fingerprint of the configured
 source set and RAG settings. At startup, a mismatched index is rebuilt only

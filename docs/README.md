@@ -4,6 +4,18 @@ This index separates the current CTRL4 Chatbot MK III v1.0.0 implementation
 references from research provenance and historical planning material. For
 development constraints, see [AGENTS.md](../AGENTS.md).
 
+## MK III validated state
+
+The current local/demo baseline uses XAMPP MariaDB database `soc_chatbot`.
+Its live schema, `backend/server/db.py`, and `backend/sql/schema.sql` were
+structurally aligned in the MK III audit. The demo database was cleaned of
+operational chat/case test records after a verified SQL backup while foundation
+data was retained. Versioned migrations, nine candidate indexes, and the
+saved-but-unvalidated startup hardening patch remain deferred work.
+
+Generated RAG artifacts are tracked operational assets and should be handled
+deliberately. They are not part of ordinary documentation or cleanup work.
+
 ## Current and authoritative references
 
 ### Architecture

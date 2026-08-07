@@ -173,6 +173,11 @@ privacy-projected; student APIs do not receive these records.
 | PATCH | `/api/flagged-conversations/<summary_id>/interventions/<intervention_id>/progress` | `progress_status` | 200; 400/404 |
 | PATCH | `/api/flagged-conversations/<summary_id>/interventions/<intervention_id>/outcome` | `outcome` | 200; 400/404 |
 
+Inbox and case endpoints return privacy-projected summaries, not raw chat
+transcripts. Active Flagged Cases are pending cases; reviewed records are
+available through the authorized inbox-history flow. A staff member outside the
+student's authorized program scope receives the existing not-found response.
+
 ## Student case status
 
 | Method | Path | Access | Request | Success / privacy |

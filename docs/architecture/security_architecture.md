@@ -24,6 +24,9 @@ Guidance staff may use staff appointment, conversation, case-management,
 settings, analytics, and reports workflows exposed by current staff route guards
 and service authorization. Appointment visibility remains constrained by the
 existing authorized-program/dynamic-routing model where that service applies.
+Cross-program case access is denied through the same server-side authorization
+and privacy-projection boundaries; a staff member is not granted case access by
+client-side navigation alone.
 Staff-wide flagged-case analytics are aggregate-only and do not imply personal
 reviewer ownership.
 
@@ -111,5 +114,5 @@ psychological diagnosis, treatment, or prescription authority.
 ## Deferred security improvements
 
 The following are documented future work, not implemented controls: a shared
-session store for multi-instance deployment and dependency modernization,
-including the `google-generativeai` migration.
+session store for multi-instance deployment, versioned database migrations,
+deferred database indexes, and environment-specific production hardening.

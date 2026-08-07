@@ -16,6 +16,11 @@ or Taglish. The system can provide supportive information, but it does not
 diagnose or prescribe treatment. If an immediate safety response is shown,
 contact a trusted person or the Guidance Office promptly as instructed.
 
+Language/response rules support Filipino and Taglish interaction, but the
+released emotion model is English-focused. Do not interpret Filipino/Taglish
+emotion handling as equivalent to a separately validated Filipino or Taglish
+emotion model.
+
 Your active chat is used while you converse and for finalization; raw chat
 transcript/history is not permanently stored. Do not enter information you do
 not need the Guidance Office to handle.

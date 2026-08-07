@@ -4,6 +4,9 @@
 > describe Guidance Office workflows because those records are not available to
 > administrator accounts.
 
+Administrators are not guidance-case handlers and do not have chatbot takeover
+authority.
+
 ## Account management
 
 Use the account-management operations documented in

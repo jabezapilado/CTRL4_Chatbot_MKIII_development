@@ -5,6 +5,10 @@
 > [Project Architecture](../architecture/project_architecture.md) for current
 > behavior.
 
+> Current MK III note: roadmap items such as Filipino/Taglish emotion models,
+> live chat takeover, and expanded administrator authority are future concepts,
+> not current features or permissions.
+
 > Internal Development Roadmap
 >
 > Base Version: MK II Stable (v2.0)

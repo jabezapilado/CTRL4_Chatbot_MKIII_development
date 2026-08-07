@@ -6,6 +6,18 @@ CTRL4 Chatbot MK III is an AI-powered Guidance Office support system for Holy An
 
 Sprints 3–10 are complete and frozen. This document captures the implemented architecture for future contributors. When an older plan differs from an intentional frozen implementation, the current implementation is authoritative unless the project owner explicitly overrides it.
 
+## MK III operational baseline
+
+The validated local database is XAMPP MariaDB `soc_chatbot`. The MK III audit
+found `db.py`, `schema.sql`, and the live schema structurally aligned. The
+local demo cleanup removed chat/case test residue after backup verification and
+preserved all foundation data, including accounts, settings, program catalog,
+FAQs, appointment availability, and staff assignment/room/schedule metadata.
+
+No versioned migration framework or new index set is part of this release. The
+saved startup auto-setup hardening patch is unvalidated and intentionally not
+applied. Treat generated RAG artifacts as protected operational assets.
+
 ## Project map
 
 | Area | Location | Responsibility |
@@ -138,6 +150,9 @@ Language detection
 
 - `SafetyService` remains authoritative for pre-generation crisis/diagnosis handling and escalation. It receives detected language for fixed safety replies.
 - `LanguageService` supports English, Filipino, and Taglish. Shared lexicon vocabulary is neutral evidence; Taglish requires exclusive evidence from both language vocabularies.
+- The released emotion model is English-focused. Filipino/Tagalog and Taglish
+  response/rule support does not establish equivalent emotion-classification
+  accuracy.
 - `RAGService` is the single retrieval component. It accepts read-only JSON, PDF, DOCX, TXT, and Markdown knowledge records while preserving thresholding, ranking, de-duplication, and source attribution.
 - `PromptBuilder` receives already computed Conversation Intelligence outputs; it does not recompute them.
 - `ResponseSafetyService` deterministically validates final generated text. It replaces the entire response, never partially redacts it, for exactly: medical diagnosis, treatment/prescription instructions, self-harm/violence encouragement or procedures, prompt disclosure, protected-information disclosure, and unsupported official Guidance Office claims. It logs only that a replacement occurred, never blocked generated text. It does not alter escalation behavior.
