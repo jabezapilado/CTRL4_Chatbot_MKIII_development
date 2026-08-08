@@ -2,7 +2,7 @@
 
 This index separates the current CTRL4 Chatbot MK III v1.0.0 implementation
 references from research provenance and historical planning material. For
-development constraints, see [AGENTS.md](../AGENTS.md).
+development constraints, follow the repository documentation and current test contracts.
 
 ## MK III validated state
 

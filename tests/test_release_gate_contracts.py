@@ -40,7 +40,6 @@ class ReleaseGateContractTests(unittest.TestCase):
     def test_current_readme_and_documents_use_mk_iii_branding(self) -> None:
         current_documents = (
             "README.md",
-            "AGENTS.md",
             "requirements.txt",
             "docs/architecture/project_architecture.md",
             "docs/deployment/deployment_guide.md",

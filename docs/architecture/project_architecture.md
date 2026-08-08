@@ -2,7 +2,7 @@
 
 > **Current reference.** This document describes the implemented system through
 > Sprint 10. Start at the [documentation index](../README.md). For
-> implementation constraints, read [AGENTS.md](../../AGENTS.md) and for frozen
+> implementation constraints, follow the repository documentation, architecture notes, and current test contracts
 > decisions, read [Project Context](project_context.md). Documents in
 > [roadmap/](../roadmap/) are historical planning artifacts.
 
