@@ -150,3 +150,6 @@ backend/data/backups/
 # Hugging Face Checkpoints
 # ===========================================
 ai_engine/models/**/checkpoint-*/
+
+# Local Codex/Copilot instructions
+AGENTS.md
