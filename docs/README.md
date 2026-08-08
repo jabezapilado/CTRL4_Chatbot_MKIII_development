@@ -1,6 +1,6 @@
 # CTRL4 Chatbot MK III Documentation
 
-This index separates the current CTRL4 Chatbot MK III v1.0.0 implementation
+This index separates the current CTRL4 Chatbot MK III v1.0.5 implementation
 references from research provenance and historical planning material. For
 development constraints, follow the repository documentation and current test contracts.
 
@@ -71,7 +71,7 @@ deliberately. They are not part of ordinary documentation or cleanup work.
 
 - [Root README](../README.md) — project overview and quick start.
 - [Changelog](../CHANGELOG.md) — concise release history.
-- [v1.0.0 release tag](https://github.com/jabezapilado/CTRL4_Chatbot_MKIII/releases/tag/v1.0.0)
+- [v1.0.5 release tag](https://github.com/jabezapilado/CTRL4_Chatbot_MKIII/releases/tag/v1.0.5)
   — current stable release.
 
 Historical documents intentionally retain their original terminology, including
