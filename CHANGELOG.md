@@ -6,6 +6,43 @@ The format follows the principles of **Keep a Changelog**.
 
 ---
 
+## [1.0.6] - MK III Final Release — August 2026
+
+### Added
+
+- Added final release documentation alignment across README, architecture
+  references, deployment guides, and user documentation.
+- Added final environment configuration reference through the updated
+  `.env.example`.
+- Added finalized release references and repository documentation consistency
+  for CTRL4 Chatbot MK III.
+
+### Changed
+
+- Finalized the CTRL4 Chatbot MK III release state after documentation review,
+  repository cleanup, and release validation.
+- Updated release references from v1.0.5 to v1.0.6 across project documentation.
+- Updated final deployment and configuration references based on the validated
+  local development environment.
+- Preserved unvalidated startup hardening changes as archival material and
+  excluded them from the final released system.
+
+### Verified
+
+- Completed final regression validation for authentication, security,
+  conversation finalization, documentation contracts, and system workflows.
+- Verified release documentation consistency with the implemented MK III
+  architecture.
+- Verified GitHub release tagging and repository state for the final release.
+
+### Notes
+
+- This release represents the finalized CTRL4 Chatbot MK III implementation.
+- Historical MK I and MK II changes remain preserved in previous changelog
+  entries.
+
+---
+
 ## [Unreleased] - MK III documentation finalization
 
 ### Changed
@@ -107,7 +144,6 @@ The format follows the principles of **Keep a Changelog**.
 #### Staff Features
 
 - Guidance dashboard
-- Chat takeover
 - Appointment management
 - Student concern monitoring
 
@@ -142,7 +178,7 @@ The format follows the principles of **Keep a Changelog**.
 
 #### Artificial Intelligence
 
-- Replaced direct Gemini implementation with a provider-based architecture.
+- Introduced provider-based LLM architecture.
 - Redesigned the AI pipeline into modular services.
 - Moved prompt construction to the PromptBuilder service.
 - Integrated Retrieval-Augmented Generation (RAG) into response generation.
@@ -183,11 +219,12 @@ The format follows the principles of **Keep a Changelog**.
 ### Removed
 
 - Rule-based chatbot responses.
-- Legacy GeminiService implementation.
+- Legacy chatbot response handling.
 - Prototype AI orchestration logic.
 - Hardcoded chatbot responses.
 - Deprecated MK I placeholder comments.
 - Legacy Holy Angel University branding assets.
+- Chat takeover workflow from MK I.
 
 ---
 
@@ -199,8 +236,7 @@ Initial prototype release.
 
 #### Artificial Intelligence
 
-- Google Gemini integration
-- Basic AI chatbot implementation
+- Basic chatbot implementation
 
 #### Student Features
 
@@ -208,6 +244,12 @@ Initial prototype release.
 - Chat interface
 - Guidance Office FAQ
 - Appointment prototype
+
+#### Staff Features
+
+- Guidance dashboard
+- Chat takeover
+- Student concern monitoring
 
 #### Frontend
 
