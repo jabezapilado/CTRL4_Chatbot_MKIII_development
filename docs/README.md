@@ -41,8 +41,9 @@ deliberately. They are not part of ordinary documentation or cleanup work.
 
 ### User guides
 
-- [Student Guide](guides/student_guide.md) — authenticated student chatbot,
-  appointments, notifications, and privacy-projected case status.
+- [Student Guide](guides/student_guide.md) — per-session Terms acknowledgement
+  before authenticated chatbot access, appointments, notifications, and
+  privacy-projected case status.
 - [Guidance Staff Guide](guides/guidance_staff_guide.md) — authorized
   appointment, case-management, settings, analytics, reports, and CSV workflows.
 - [Administrator Guide](guides/administrator_guide.md) — account-management-only

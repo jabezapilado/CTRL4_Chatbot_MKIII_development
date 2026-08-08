@@ -40,8 +40,10 @@ parallel pipelines.
 Authentication uses Flask **server-side** sessions. `backend/server/auth.py`
 is the only session owner: it clears/rotates a session after login, stores the
 authenticated user as `hau_user`, marks the session permanent, and clears it
-on logout. Route guards reuse `require_login`, `require_role`, and
-`require_any_role`.
+on logout. New student sessions require explicit Terms and Conditions
+acceptance before `/chat`; the acceptance flag is server-side and the route
+rejects missing, false, or expired acceptance. Declining uses logout. Route
+guards reuse `require_login`, `require_role`, and `require_any_role`.
 
 | Role | Implemented authority |
 | --- | --- |
@@ -126,7 +128,11 @@ SafetyService is authoritative for pre-generation crisis and diagnosis
 handling. ResponseSafetyService validates generated output and replaces an
 unsafe reply as a whole; it does not change escalation policy. Conversation
 Intelligence outputs are internal unless an existing API exposes a current
-field. The chatbot is not a diagnostic or treatment service.
+field. The chatbot is not a diagnostic, treatment, or emergency service. Before
+chat use, students acknowledge the Guidance Office of the School of Computing
+at Holy Angel University scope, message recording/summarization for guidance
+support, confidentiality limits for safety/legal concerns, and immediate-danger
+directions to local emergency services or trusted school personnel.
 
 ## Analytics and reports
 

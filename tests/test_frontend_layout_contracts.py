@@ -22,7 +22,24 @@ class FrontendLayoutContractTests(unittest.TestCase):
         self.assertIn('data-notifications-mount', template)
         self.assertIn('const headerMount = document.querySelector("[data-notifications-mount]")', notifications)
         self.assertIn("notifications-widget--header", notifications)
+        self.assertIn('document.addEventListener("pointerdown"', notifications)
+        self.assertIn("!root.contains(event.target)", notifications)
+        self.assertIn('event.key === "Escape"', notifications)
+        self.assertIn('toggle.setAttribute("aria-label", "Notifications")', notifications)
+        self.assertIn("notifications-icon", notifications)
+        self.assertIn("Notification%20Bell2.svg", notifications)
         self.assertIn(".notifications-widget--header .notifications-panel", stylesheet)
+        self.assertIn(".notifications-icon", stylesheet)
+
+    def test_mobile_header_spacing_and_chatbot_status_indicator_are_present(self) -> None:
+        template = _read("frontend/templates/dashboard.html")
+        dashboard = _read("frontend/static/js/dashboard.js")
+        stylesheet = _read("frontend/static/css/dashboard.css")
+
+        self.assertIn('id="inbox-status-indicator"', template)
+        self.assertIn("const setChatbotStatus", dashboard)
+        self.assertIn("chatbot-status-indicator", stylesheet)
+        self.assertIn("padding: 14px 16px 14px 72px;", stylesheet)
 
     def test_manual_appointment_is_a_reachable_section_and_keeps_its_api(self) -> None:
         template = _read("frontend/templates/dashboard.html")
@@ -42,6 +59,9 @@ class FrontendLayoutContractTests(unittest.TestCase):
         self.assertIn('data-dashboard-section-nav="appointments"', template)
         self.assertIn('data-dashboard-section-nav="reports"', template)
         self.assertIn("function bindDashboardSectionNavigation()", dashboard)
+        self.assertIn("function restoreDashboardLocation()", dashboard)
+        self.assertIn("window.addEventListener(\"hashchange\", restoreDashboardLocation)", dashboard)
+        self.assertIn("window.history.replaceState(null, \"\", hash)", dashboard)
         self.assertIn("function setSidebarOpen(open", dashboard)
         self.assertIn('event.key === "Escape"', dashboard)
         self.assertIn('aria-controls="sidebar"', template)
@@ -298,7 +318,7 @@ class FrontendLayoutContractTests(unittest.TestCase):
         self.assertIn("max-width: 100vw;", chatbot)
 
         self.assertIn("max-height: min(90dvh, 900px);", admin)
-        self.assertIn(".program-catalog-row {\n    grid-template-columns: 1fr;", admin)
+        self.assertIn(".admin-program-table {", admin)
         self.assertIn("@media (max-width: 900px) and (orientation: landscape)", admin)
 
     def test_case_staff_actions_match_routine_or_flagged_status(self) -> None:

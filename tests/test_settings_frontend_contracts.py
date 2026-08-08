@@ -14,9 +14,24 @@ def _read(path: str) -> str:
 class SettingsFrontendContractTests(unittest.TestCase):
     def test_settings_are_persisted_not_browser_local(self) -> None:
         dashboard = _read("frontend/static/js/dashboard.js")
+        template = _read("frontend/templates/dashboard.html")
 
         self.assertIn("loadPersistedSettings", dashboard)
         self.assertIn("saveSettingsToApi", dashboard)
+        self.assertIn("function settingsHaveChanges", dashboard)
+        self.assertIn("function updateCounselorProfileSaveButton", dashboard)
+        self.assertIn("function updateAddFaqButton", dashboard)
+        self.assertIn('window.confirm("Save changes to Guidance Office settings?")', dashboard)
+        self.assertIn('window.confirm("Save changes to your counselor profile?")', dashboard)
+        self.assertIn('window.confirm("Save changes to this FAQ?")', dashboard)
+        self.assertIn('window.confirm("Add this FAQ?")', dashboard)
+        self.assertIn('id="save-settings-btn"', template)
+        self.assertIn('id="save-counselor-profile"', template)
+        self.assertIn('id="add-faq-btn"', template)
+        self.assertIn('id="password-status"', template)
+        self.assertIn("function bindPasswordChange()", dashboard)
+        self.assertIn("New passwords do not match.", dashboard)
+        self.assertIn("/api/accounts/staff/password", dashboard)
         self.assertNotIn("localStorage", dashboard)
         self.assertNotIn("defaultSettings", dashboard)
 
@@ -45,6 +60,10 @@ class SettingsFrontendContractTests(unittest.TestCase):
         self.assertIn("Office Information", template)
         self.assertIn("Appointment Availability", template)
         self.assertIn("Account Security", template)
+        self.assertRegex(
+            template,
+            r'id="change-password-btn"\s+type="button"\s+disabled',
+        )
         self.assertNotIn("onclick=", template)
 
     def test_availability_rows_have_distinct_controls_and_canonical_payloads(self) -> None:

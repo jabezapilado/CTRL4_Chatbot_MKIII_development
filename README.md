@@ -50,7 +50,8 @@ Filipino or Taglish emotion model.
 
 ### Student workflows
 
-- Authenticated chatbot use.
+- Authenticated chatbot use after accepting the per-session Terms and
+  Conditions acknowledgement.
 - Appointment booking, history, cancellation, and replacement rescheduling.
 - Recipient-scoped in-app notifications.
 - Privacy-projected personal case-status view.

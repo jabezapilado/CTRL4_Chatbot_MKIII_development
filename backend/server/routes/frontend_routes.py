@@ -9,7 +9,11 @@ from flask import (
     make_response,
 )
 
-from ..auth import get_logged_in_user, role_landing_path
+from ..auth import (
+    STUDENT_TERMS_ACCEPTED_SESSION_KEY,
+    get_logged_in_user,
+    role_landing_path,
+)
 from ..request_validation import (
     ROLE_ADMIN,
     ROLE_STAFF,
@@ -36,12 +40,22 @@ def login():
 def chatbot():
     user = get_logged_in_user() or {}
     active_chat = []
-    if str(user.get("role", "")).lower() == ROLE_STUDENT:
+    terms_required = (
+        str(user.get("role", "")).lower() == ROLE_STUDENT
+        and session.get(STUDENT_TERMS_ACCEPTED_SESSION_KEY) is not True
+    )
+    if str(user.get("role", "")).lower() == ROLE_STUDENT and not terms_required:
         active_chat = transient_chat_service.get_visible_history(
             getattr(session, "sid", ""),
             user.get("id"),
         )
-    response = make_response(render_template("chatbot.html", active_chat=active_chat))
+    response = make_response(
+        render_template(
+            "chatbot.html",
+            active_chat=active_chat,
+            terms_required=terms_required,
+        )
+    )
     response.headers["Cache-Control"] = "no-store"
     return response
 

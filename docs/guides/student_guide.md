@@ -7,7 +7,8 @@
 Sign in at the login page using your authorized account. A successful sign-in
 creates a server-side session; sign out when you finish using a shared device.
 If your session has expired, sign in again. Do not share passwords or browser
-session information.
+session information. Before chat access, read and accept the Terms and
+Conditions for the current session. If you decline, the system signs you out.
 
 ## Chatbot
 
@@ -15,6 +16,12 @@ Use the chatbot to ask Guidance Office-related questions in English, Filipino,
 or Taglish. The system can provide supportive information, but it does not
 diagnose or prescribe treatment. If an immediate safety response is shown,
 contact a trusted person or the Guidance Office promptly as instructed.
+
+The Terms apply to the Guidance Office of the School of Computing at Holy Angel
+University. They explain that messages may be recorded and summarized for
+guidance support and that confidentiality has limits for serious safety or legal
+concerns. The chatbot is not an emergency service: if you or someone else is in
+immediate danger, contact local emergency services or trusted school personnel.
 
 Language/response rules support Filipino and Taglish interaction, but the
 released emotion model is English-focused. Do not interpret Filipino/Taglish

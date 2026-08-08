@@ -391,6 +391,26 @@
   color: var(--success-text);
 }
 
+.inbox-stat-grid .inbox-status-value {
+  gap: 8px;
+}
+
+.chatbot-status-indicator {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 10px;
+  border-radius: 50%;
+  background: var(--gray-400);
+}
+
+.chatbot-status-indicator.is-online {
+  background: var(--success-text);
+}
+
+.chatbot-status-indicator.is-offline {
+  background: var(--danger-text);
+}
+
 .inbox-stat-grid .stat-card {
   display: flex;
   flex-direction: column;
@@ -3248,6 +3268,8 @@ table.inquiry-table .table-empty-state {
     line-height: 1.35;
   }
   .dash-header .notifications-toggle {
+    width: 44px;
+    height: 44px;
     min-height: 44px;
   }
   .dashboard-section-nav {
@@ -3669,7 +3691,7 @@ table.inquiry-table .table-empty-state {
     padding: 16px 14px 32px;
   }
   .dash-header {
-    padding: 14px 16px 14px 58px;
+    padding: 14px 16px 14px 72px;
   }
   .dash-header h1 {
     font-size: 18px;

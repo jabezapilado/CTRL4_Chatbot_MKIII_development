@@ -80,6 +80,69 @@ class AccountBoundaryTests(unittest.TestCase):
         self.assertEqual(profile["office"], "SJH-206")
         self.assertEqual(update.call_args.args[0], 9)
 
+    def test_staff_can_update_only_their_own_password_after_verification(self) -> None:
+        credentials = {
+            "id": 9,
+            "status": "active",
+            "password_hash": account_service.generate_password_hash("current-password"),
+        }
+        with patch.object(
+            account_service,
+            "fetch_account_password_credentials",
+            return_value=credentials,
+        ), patch.object(
+            account_service,
+            "update_account_password_hash",
+            return_value=True,
+        ) as update:
+            account_service.update_own_staff_password_service(
+                {"id": 9},
+                {
+                    "current_password": "current-password",
+                    "new_password": "new-password",
+                    "confirm_password": "new-password",
+                },
+            )
+
+        self.assertEqual(update.call_args.args[0], 9)
+        self.assertEqual(update.call_args.kwargs["role"], "staff")
+        self.assertTrue(
+            account_service.check_password_hash(
+                update.call_args.args[1],
+                "new-password",
+            )
+        )
+
+    def test_staff_password_update_rejects_invalid_current_or_confirmation(self) -> None:
+        credentials = {
+            "id": 9,
+            "status": "active",
+            "password_hash": account_service.generate_password_hash("current-password"),
+        }
+        with patch.object(
+            account_service,
+            "fetch_account_password_credentials",
+            return_value=credentials,
+        ), self.assertRaisesRegex(PermissionError, "Current password is incorrect"):
+            account_service.update_own_staff_password_service(
+                {"id": 9},
+                {
+                    "current_password": "incorrect-password",
+                    "new_password": "new-password",
+                    "confirm_password": "new-password",
+                },
+            )
+
+        with self.assertRaisesRegex(ValueError, "New passwords do not match"):
+            account_service.update_own_staff_password_service(
+                {"id": 9},
+                {
+                    "current_password": "current-password",
+                    "new_password": "new-password",
+                    "confirm_password": "different-password",
+                },
+            )
+
     def test_program_and_profile_routes_enforce_role_boundaries(self) -> None:
         from backend.server.routes.account_routes import account_bp
         from backend.server.routes import account_routes

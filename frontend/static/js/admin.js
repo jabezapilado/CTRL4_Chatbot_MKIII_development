@@ -5,6 +5,9 @@ let programs = [];
 
 const accountListBody = document.getElementById("account-list-body");
 const accountListMessage = document.getElementById("account-list-message");
+const programCatalogMessage = document.getElementById(
+  "program-catalog-message",
+);
 const accountFilterForm = document.getElementById("account-filter-form");
 const accountSearch = document.getElementById("account-search");
 const accountRoleFilter = document.getElementById("account-role-filter");
@@ -22,8 +25,23 @@ const staffProfileFields = document.getElementById("staff-profile-fields");
 const accountPasswordField = document.getElementById("account-password-field");
 const accountPassword = document.getElementById("account-password");
 const accountFormSubmit = document.getElementById("account-form-submit");
+const programDialog = document.getElementById("program-dialog");
+const programForm = document.getElementById("program-form");
+const programFormMessage = document.getElementById("program-form-message");
+const programCode = document.getElementById("program-code");
+const programDisplayName = document.getElementById("program-display-name");
+const programFormSubmit = document.getElementById("program-form-submit");
+const sortCollator = new Intl.Collator(undefined, {
+  numeric: true,
+  sensitivity: "base",
+});
 
 let editingAccount = null;
+let editingProgram = null;
+let accountSort = { key: "account_number", direction: "asc" };
+let programSort = { key: "display_name", direction: "asc" };
+let loadedAccounts = [];
+let loadedProgramCatalog = [];
 
 function accountNumber(account) {
   return account.student_number || account.staff_number || "—";
@@ -122,9 +140,62 @@ function createActionButton(label, className, onClick) {
   return button;
 }
 
+function sortRecords(records, sort, valueFor) {
+  return [...records].sort((left, right) => {
+    const leftValue = String(valueFor(left, sort.key) || "").trim();
+    const rightValue = String(valueFor(right, sort.key) || "").trim();
+
+    if (!leftValue && !rightValue) return 0;
+    if (!leftValue) return 1;
+    if (!rightValue) return -1;
+
+    const comparison = sortCollator.compare(leftValue, rightValue);
+    return sort.direction === "asc" ? comparison : -comparison;
+  });
+}
+
+function accountSortValue(account, key) {
+  if (key === "account_number") {
+    return account.student_number || account.staff_number || "";
+  }
+  if (key === "programs") return accountPrograms(account);
+  return account[key] || "";
+}
+
+function updateSortControls(scope, sort) {
+  document.querySelectorAll(`[data-${scope}-sort]`).forEach((button) => {
+    const isCurrent = button.dataset[`${scope}Sort`] === sort.key;
+    const direction = isCurrent ? sort.direction : "none";
+    button.closest("th").setAttribute("aria-sort", direction === "none" ? "none" : direction === "asc" ? "ascending" : "descending");
+    button.setAttribute(
+      "aria-label",
+      `${button.textContent.trim()}: ${isCurrent ? `${direction}ending` : "not sorted"}. Activate to sort.`,
+    );
+    button.dataset.direction = direction;
+  });
+}
+
+function toggleSort(scope, key) {
+  const currentSort = scope === "account" ? accountSort : programSort;
+  const nextSort = {
+    key,
+    direction: currentSort.key === key && currentSort.direction === "asc" ? "desc" : "asc",
+  };
+
+  if (scope === "account") {
+    accountSort = nextSort;
+    renderAccounts(loadedAccounts);
+    return;
+  }
+
+  programSort = nextSort;
+  renderProgramCatalog(loadedProgramCatalog);
+}
+
 function renderAccounts(accounts) {
   renderAccountSummary(accounts);
   accountListBody.replaceChildren();
+  updateSortControls("account", accountSort);
 
   if (!accounts.length) {
     const row = document.createElement("tr");
@@ -137,7 +208,7 @@ function renderAccounts(accounts) {
     return;
   }
 
-  accounts.forEach((account) => {
+  sortRecords(accounts, accountSort, accountSortValue).forEach((account) => {
     const row = document.createElement("tr");
     appendAccountCell(row, account.full_name, "Name");
     appendAccountCell(row, account.email, "Email");
@@ -216,7 +287,8 @@ async function loadAccounts() {
       response,
       "Unable to retrieve accounts.",
     );
-    renderAccounts(payload.data?.items || []);
+    loadedAccounts = payload.data?.items || [];
+    renderAccounts(loadedAccounts);
     setFeedback(accountListMessage);
   } catch (error) {
     accountListBody.replaceChildren();
@@ -265,55 +337,77 @@ function renderAssignedPrograms(selectedPrograms = []) {
 function renderProgramCatalog(catalog) {
   const list = document.getElementById("program-catalog-list");
   list.replaceChildren();
-  catalog.forEach((program) => {
-    const row = document.createElement("article");
-    const title = document.createElement("strong");
-    const detail = document.createElement("span");
+  updateSortControls("program", programSort);
+
+  if (!catalog.length) {
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+    cell.colSpan = 4;
+    cell.className = "admin-empty-state";
+    cell.textContent = "No programs are configured.";
+    row.appendChild(cell);
+    list.appendChild(row);
+    return;
+  }
+
+  sortRecords(catalog, programSort, (program, key) => program[key]).forEach((program) => {
+    const row = document.createElement("tr");
     const toggle = createActionButton(
       program.active ? "Deactivate" : "Activate",
       "btn btn-outline btn-sm",
       () => void updateProgram(program.code, { active: !program.active }),
     );
     const edit = createActionButton("Edit", "btn btn-outline btn-sm", () => {
-      const displayName = window.prompt(
-        "Program display name",
-        program.display_name,
-      );
-      if (displayName && displayName.trim() !== program.display_name) {
-        void updateProgram(program.code, { display_name: displayName.trim() });
-      }
+      openProgramForm(program);
     });
-    row.className = "program-catalog-row";
-    title.textContent = program.display_name;
-    detail.textContent = `${program.code} · ${program.active ? "Active" : "Inactive"}`;
-    row.append(title, detail, edit, toggle);
+
+    appendAccountCell(row, program.display_name, "Program");
+    appendAccountCell(row, program.code, "Program code");
+
+    const statusCell = document.createElement("td");
+    statusCell.dataset.label = "Status";
+    const status = document.createElement("span");
+    status.className = `admin-status admin-status--${
+      program.active ? "active" : "disabled"
+    }`;
+    status.textContent = program.active ? "Active" : "Inactive";
+    statusCell.appendChild(status);
+    row.appendChild(statusCell);
+
+    const actionsCell = document.createElement("td");
+    actionsCell.dataset.label = "Actions";
+    const actions = document.createElement("div");
+    actions.className = "admin-row-actions";
+    actions.append(edit, toggle);
+    actionsCell.appendChild(actions);
+    row.appendChild(actionsCell);
     list.appendChild(row);
   });
 }
 
 async function loadPrograms() {
-  const message = document.getElementById("program-catalog-message");
-  setFeedback(message, "Loading program catalog…");
+  setFeedback(programCatalogMessage, "Loading program catalog…");
   try {
     const response = await fetch(`${ADMIN_API_BASE}/api/accounts/programs`);
     const payload = await responsePayload(
       response,
       "Unable to retrieve programs.",
     );
-    const catalog = payload.data?.items || [];
-    programs = catalog.filter((program) => program.active);
+    loadedProgramCatalog = payload.data?.items || [];
+    programs = loadedProgramCatalog.filter((program) => program.active);
     populateProgramSelect();
     renderAssignedPrograms(
       editingAccount ? parseList(editingAccount.assigned_programs) : [],
     );
-    renderProgramCatalog(catalog);
-    setFeedback(message);
+    renderProgramCatalog(loadedProgramCatalog);
+    setFeedback(programCatalogMessage);
   } catch (error) {
     programs = [];
+    loadedProgramCatalog = [];
     populateProgramSelect();
     renderAssignedPrograms();
     setFeedback(
-      message,
+      programCatalogMessage,
       error.message || "Unable to retrieve programs.",
       "error",
     );
@@ -321,7 +415,6 @@ async function loadPrograms() {
 }
 
 async function updateProgram(code, updates) {
-  const message = document.getElementById("program-catalog-message");
   try {
     const response = await fetch(
       `${ADMIN_API_BASE}/api/accounts/programs/${encodeURIComponent(code)}`,
@@ -335,10 +428,105 @@ async function updateProgram(code, updates) {
       response,
       "Unable to update program.",
     );
-    setFeedback(message, payload.message, "success");
+    setFeedback(programCatalogMessage, payload.message, "success");
     await loadPrograms();
   } catch (error) {
-    setFeedback(message, error.message || "Unable to update program.", "error");
+    setFeedback(
+      programCatalogMessage,
+      error.message || "Unable to update program.",
+      "error",
+    );
+  }
+}
+
+function setProgramFormValues(program = null) {
+  editingProgram = program;
+  programForm.reset();
+  programCode.disabled = Boolean(program);
+
+  if (program) {
+    document.getElementById("program-dialog-kicker").textContent =
+      "Existing program";
+    document.getElementById("program-dialog-title").textContent =
+      "Edit program";
+    document.getElementById("program-code-help").textContent =
+      "Program codes cannot be changed after creation.";
+    programCode.value = program.code;
+    programDisplayName.value = program.display_name;
+    programFormSubmit.textContent = "Save changes";
+  } else {
+    document.getElementById("program-dialog-kicker").textContent =
+      "New program";
+    document.getElementById("program-dialog-title").textContent =
+      "Create program";
+    document.getElementById("program-code-help").textContent =
+      "Use uppercase letters, numbers, underscores, or hyphens.";
+    programFormSubmit.textContent = "Create program";
+  }
+
+  setFeedback(programFormMessage);
+}
+
+function openProgramForm(program = null) {
+  setProgramFormValues(program);
+  programDialog.showModal();
+  (program ? programDisplayName : programCode).focus();
+}
+
+function closeProgramForm() {
+  if (programDialog.open) programDialog.close();
+}
+
+async function saveProgram(event) {
+  event.preventDefault();
+  const isEdit = Boolean(editingProgram);
+  const payload = isEdit
+    ? { display_name: programDisplayName.value.trim() }
+    : {
+        code: programCode.value.trim(),
+        display_name: programDisplayName.value.trim(),
+      };
+
+  if (!payload.display_name || (!isEdit && !payload.code)) {
+    setFeedback(programFormMessage, "Complete all required fields.", "error");
+    return;
+  }
+
+  programFormSubmit.disabled = true;
+  setFeedback(
+    programFormMessage,
+    isEdit ? "Saving changes…" : "Creating program…",
+  );
+
+  try {
+    const response = await fetch(
+      `${ADMIN_API_BASE}${
+        isEdit
+          ? `/api/accounts/programs/${encodeURIComponent(editingProgram.code)}`
+          : "/api/accounts/programs"
+      }`,
+      {
+        method: isEdit ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      },
+    );
+    const result = await responsePayload(
+      response,
+      isEdit ? "Unable to update program." : "Unable to create program.",
+    );
+    closeProgramForm();
+    await loadPrograms();
+    setFeedback(programCatalogMessage, result.message, "success");
+  } catch (error) {
+    setFeedback(
+      programFormMessage,
+      error.message ||
+        (isEdit ? "Unable to update program." : "Unable to create program."),
+      "error",
+    );
+  } finally {
+    programFormSubmit.disabled = false;
   }
 }
 
@@ -525,6 +713,9 @@ function resetFilters() {
 document.getElementById("create-account-btn").addEventListener("click", () => {
   openAccountForm();
 });
+document.getElementById("create-program-btn").addEventListener("click", () => {
+  openProgramForm();
+});
 document
   .getElementById("account-reset-btn")
   .addEventListener("click", resetFilters);
@@ -534,6 +725,12 @@ document
 document
   .getElementById("account-form-cancel")
   .addEventListener("click", closeAccountForm);
+document
+  .getElementById("program-dialog-close")
+  .addEventListener("click", closeProgramForm);
+document
+  .getElementById("program-form-cancel")
+  .addEventListener("click", closeProgramForm);
 accountRole.addEventListener("change", () => {
   renderAssignedPrograms();
   syncRoleFields();
@@ -542,45 +739,27 @@ accountFilterForm.addEventListener("submit", (event) => {
   event.preventDefault();
   loadAccounts();
 });
+document.querySelectorAll("[data-account-sort]").forEach((button) => {
+  button.addEventListener("click", () => {
+    toggleSort("account", button.dataset.accountSort);
+  });
+});
+document.querySelectorAll("[data-program-sort]").forEach((button) => {
+  button.addEventListener("click", () => {
+    toggleSort("program", button.dataset.programSort);
+  });
+});
 accountForm.addEventListener("submit", saveAccount);
 accountDialog.addEventListener("click", (event) => {
   if (event.target === accountDialog) closeAccountForm();
 });
+programForm.addEventListener("submit", saveProgram);
+programDialog.addEventListener("click", (event) => {
+  if (event.target === programDialog) closeProgramForm();
+});
 document.getElementById("admin-logout-btn").addEventListener("click", () => {
   window.logout();
 });
-
-document
-  .getElementById("program-catalog-form")
-  .addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const code = document.getElementById("program-code");
-    const displayName = document.getElementById("program-display-name");
-    const message = document.getElementById("program-catalog-message");
-    try {
-      const response = await fetch(`${ADMIN_API_BASE}/api/accounts/programs`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          code: code.value,
-          display_name: displayName.value,
-        }),
-      });
-      const payload = await responsePayload(
-        response,
-        "Unable to create program.",
-      );
-      event.currentTarget.reset();
-      setFeedback(message, payload.message, "success");
-      await loadPrograms();
-    } catch (error) {
-      setFeedback(
-        message,
-        error.message || "Unable to create program.",
-        "error",
-      );
-    }
-  });
 
 void loadPrograms();
 loadAccounts();

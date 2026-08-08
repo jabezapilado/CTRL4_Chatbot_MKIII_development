@@ -312,5 +312,7 @@ CREATE TABLE IF NOT EXISTS settings (
 -- Never store plaintext passwords.
 -- All passwords must be generated using Werkzeug's
 -- generate_password_hash() before insertion.
+-- Self-service password changes replace accounts.password_hash only after
+-- the authenticated account's current password has been verified.
 -- Accounts can also be seeded through
 -- backend/.env using scripts/setup_database.py.

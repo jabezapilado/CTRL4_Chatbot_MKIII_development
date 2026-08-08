@@ -14,6 +14,7 @@ from ..services.account_service import (
     update_student_account_service,
     search_students_for_staff_service,
     get_own_staff_operational_profile_service,
+    update_own_staff_password_service,
     update_own_staff_operational_profile_service,
 )
 from ..services.program_service import program_service
@@ -133,6 +134,31 @@ def update_staff_profile_route():
             "success": True,
             "message": "Counselor profile updated successfully.",
             "data": profile,
+        }
+    ), 200
+
+
+@account_bp.post("/staff/password")
+def update_staff_password_route():
+    user, error = require_role("staff")
+    if error:
+        return error
+    try:
+        update_own_staff_password_service(
+            user,
+            request.get_json(silent=True) or {},
+        )
+    except ValueError as exc:
+        return _error_response(str(exc), 400)
+    except PermissionError as exc:
+        return _error_response(str(exc), 400)
+    except LookupError as exc:
+        return _error_response(str(exc), 404)
+    return jsonify(
+        {
+            "success": True,
+            "message": "Password updated successfully.",
+            "data": None,
         }
     ), 200
 

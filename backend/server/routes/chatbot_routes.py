@@ -2,6 +2,7 @@ import logging
 
 from flask import Blueprint, jsonify, request, session
 
+from ..auth import STUDENT_TERMS_ACCEPTED_SESSION_KEY
 from ..request_validation import require_login
 
 from ..services import ai_service, transient_chat_service
@@ -43,6 +44,18 @@ def chat():
                 "errors": None,
             }
         ), 401
+
+    if (
+        str(user.get("role", "")).lower() == "student"
+        and session.get(STUDENT_TERMS_ACCEPTED_SESSION_KEY) is not True
+    ):
+        return jsonify(
+            {
+                "success": False,
+                "message": "Accept the terms and conditions before starting the chat.",
+                "errors": None,
+            }
+        ), 403
 
     message = str(payload.get("message", "")).strip()
 

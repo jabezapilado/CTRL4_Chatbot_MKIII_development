@@ -28,6 +28,8 @@ const views = document.querySelectorAll(".view");
 let persistedSettings = null;
 let appointmentBookingOptions = { state: "loading", bookingEnabled: false };
 let persistedFaqs = [];
+let settingsBaseline = "";
+let counselorProfileBaseline = "";
 
 async function fetchJson(url, options) {
   const response = await fetch(url, options);
@@ -579,12 +581,20 @@ function renderInboxStatistics() {
     if (element) element.textContent = displayAggregateValue(value);
   };
   const status = document.getElementById("inbox-stat-status");
+  const statusIndicator = document.getElementById("inbox-status-indicator");
+  const setChatbotStatus = (value, state) => {
+    if (status) status.textContent = value;
+    if (!statusIndicator) return;
+    statusIndicator.classList.toggle("is-online", state === "online");
+    statusIndicator.classList.toggle("is-offline", state === "offline");
+    statusIndicator.setAttribute("aria-label", `Chatbot status: ${value}`);
+  };
 
   if (!inboxStatistics) {
     setValue("inbox-stat-inquiries", "—");
     setValue("inbox-stat-flagged", "—");
     setValue("inbox-stat-routine", "—");
-    if (status) status.textContent = "Unavailable";
+    setChatbotStatus("Unavailable", "offline");
     return;
   }
 
@@ -594,7 +604,7 @@ function renderInboxStatistics() {
   setValue("inbox-stat-inquiries", inboxStatistics.total_chatbot_messages || 0);
   setValue("inbox-stat-flagged", escalations);
   setValue("inbox-stat-routine", Math.max(0, finalizations - escalations));
-  if (status) status.textContent = "Online";
+  setChatbotStatus("Online", "online");
 }
 
 async function loadInboxStatistics() {
@@ -2154,7 +2164,10 @@ function createCounselorScheduleRow(schedule = {}) {
   remove.type = "button";
   remove.className = "btn btn-outline btn-sm";
   remove.textContent = "Remove";
-  remove.addEventListener("click", () => row.remove());
+  remove.addEventListener("click", () => {
+    row.remove();
+    updateCounselorProfileSaveButton();
+  });
 
   row.append(
     createAvailabilityField("Room", room),
@@ -2179,6 +2192,8 @@ function renderCounselorProfile(profile) {
   (profile.consultation_schedules || []).forEach((schedule) => {
     schedules.appendChild(createCounselorScheduleRow(schedule));
   });
+  counselorProfileBaseline = getCounselorProfileState();
+  updateCounselorProfileSaveButton();
 }
 
 function collectCounselorSchedules() {
@@ -2205,18 +2220,54 @@ function collectCounselorSchedules() {
   return schedules;
 }
 
+function getCounselorProfileState() {
+  const schedules = Array.from(
+    document.querySelectorAll(".counselor-schedule-row"),
+    (row) => ({
+      room: row.querySelector("[data-counselor-schedule-room]")?.value || "",
+      days: row.querySelector("[data-counselor-schedule-day]")?.value || "",
+      start: row.querySelector("[data-counselor-schedule-start]")?.value || "",
+      end: row.querySelector("[data-counselor-schedule-end]")?.value || "",
+    }),
+  );
+  return JSON.stringify({
+    office: document.getElementById("counselor-profile-office")?.value || "",
+    rooms: document.getElementById("counselor-profile-rooms")?.value || "",
+    support: document.getElementById("counselor-profile-support")?.value || "",
+    schedules,
+  });
+}
+
+function counselorProfileHasChanges() {
+  return (
+    Boolean(counselorProfileBaseline) &&
+    getCounselorProfileState() !== counselorProfileBaseline
+  );
+}
+
+function updateCounselorProfileSaveButton() {
+  setSaveButtonState(
+    document.getElementById("save-counselor-profile"),
+    counselorProfileHasChanges(),
+  );
+}
+
 async function loadCounselorProfile() {
   const response = await fetchJson(`${API_BASE}/api/accounts/staff/profile`);
   renderCounselorProfile(response.data || {});
 }
 
 function bindCounselorProfile() {
+  const panel = document.querySelector(".counselor-profile-panel");
+  panel?.addEventListener("input", updateCounselorProfileSaveButton);
+  panel?.addEventListener("change", updateCounselorProfileSaveButton);
   document
     .getElementById("add-counselor-schedule")
     ?.addEventListener("click", () => {
       document
         .getElementById("counselor-schedule-list")
         ?.appendChild(createCounselorScheduleRow());
+      updateCounselorProfileSaveButton();
     });
   document
     .getElementById("counselor-profile-rooms")
@@ -2228,11 +2279,18 @@ function bindCounselorProfile() {
         time: `${inputTimeToCanonical(row.querySelector("[data-counselor-schedule-start]")?.value || "")} - ${inputTimeToCanonical(row.querySelector("[data-counselor-schedule-end]")?.value || "")}`,
       }));
       list?.replaceChildren(...existing.map(createCounselorScheduleRow));
+      updateCounselorProfileSaveButton();
     });
   document
     .getElementById("save-counselor-profile")
     ?.addEventListener("click", async () => {
       try {
+        if (!counselorProfileHasChanges()) return;
+        const consultationSchedules = collectCounselorSchedules();
+        if (!window.confirm("Save changes to your counselor profile?")) return;
+
+        const saveButton = document.getElementById("save-counselor-profile");
+        saveButton.disabled = true;
         setCounselorProfileStatus("Saving counselor profile...");
         const response = await fetchJson(
           `${API_BASE}/api/accounts/staff/profile`,
@@ -2247,7 +2305,7 @@ function bindCounselorProfile() {
                 document.getElementById("counselor-profile-support")?.value ||
                 "",
               consultation_rooms: counselorRooms(),
-              consultation_schedules: collectCounselorSchedules(),
+              consultation_schedules: consultationSchedules,
             }),
           },
         );
@@ -2258,6 +2316,7 @@ function bindCounselorProfile() {
           error.message || "Unable to save counselor profile.",
           "error",
         );
+        updateCounselorProfileSaveButton();
       }
     });
 }
@@ -2289,6 +2348,133 @@ function settingsChoices(id) {
     .split("\n")
     .map((value) => value.trim())
     .filter(Boolean);
+}
+
+function controlState(control) {
+  return {
+    id: control.id,
+    value: control.type === "checkbox" ? control.checked : control.value,
+  };
+}
+
+function getSettingsFormState() {
+  const controls = document.querySelectorAll(
+    [
+      "#settings-office-name",
+      "#settings-office-hours",
+      "#settings-office-email",
+      "#settings-contact-number",
+      "#settings-office-location",
+      "#settings-booking-enabled",
+      "#settings-appointment-slots",
+      "#settings-appointment-categories",
+      "#settings-consultation-modes",
+      "#appointment-availability-windows select",
+      "#appointment-availability-windows input",
+      "#appointment-unavailable-dates input",
+    ].join(", "),
+  );
+  return JSON.stringify(Array.from(controls, controlState));
+}
+
+function setSaveButtonState(button, hasChanges) {
+  if (!button) return;
+  button.disabled = !hasChanges;
+  button.setAttribute("aria-disabled", String(!hasChanges));
+}
+
+function settingsHaveChanges() {
+  return (
+    Boolean(settingsBaseline) && getSettingsFormState() !== settingsBaseline
+  );
+}
+
+function updateSettingsSaveButtons() {
+  const hasChanges = settingsHaveChanges();
+  setSaveButtonState(document.getElementById("save-settings-btn"), hasChanges);
+  setSaveButtonState(
+    headerActions?.querySelector('[data-dashboard-action="save-settings"]'),
+    hasChanges,
+  );
+}
+
+function setPasswordStatus(message, type = "error") {
+  const status = document.getElementById("password-status");
+  if (!status) return;
+  status.textContent = message || "";
+  status.className = `settings-status ${type}`;
+  status.hidden = !message;
+}
+
+function updatePasswordButton() {
+  const currentPassword =
+    document.getElementById("current-password")?.value || "";
+  const newPassword = document.getElementById("new-password")?.value || "";
+  const confirmPassword =
+    document.getElementById("confirm-password")?.value || "";
+  const button = document.getElementById("change-password-btn");
+  const passwordsMatch = newPassword === confirmPassword;
+  const hasValidInput = Boolean(
+    currentPassword &&
+    newPassword.length >= 8 &&
+    confirmPassword &&
+    passwordsMatch,
+  );
+
+  setSaveButtonState(button, hasValidInput);
+  if (confirmPassword && !passwordsMatch) {
+    setPasswordStatus("New passwords do not match.");
+  } else if (newPassword && newPassword.length < 8) {
+    setPasswordStatus("New password must be at least 8 characters long.");
+  } else {
+    setPasswordStatus("");
+  }
+}
+
+function bindPasswordChange() {
+  const button = document.getElementById("change-password-btn");
+  const inputs = ["current-password", "new-password", "confirm-password"].map(
+    (id) => document.getElementById(id),
+  );
+  inputs.forEach((input) =>
+    input?.addEventListener("input", updatePasswordButton),
+  );
+
+  button?.addEventListener("click", async () => {
+    const currentPassword =
+      document.getElementById("current-password")?.value || "";
+    const newPassword = document.getElementById("new-password")?.value || "";
+    const confirmPassword =
+      document.getElementById("confirm-password")?.value || "";
+    if (button.disabled) return;
+
+    button.disabled = true;
+    let passwordUpdated = false;
+    try {
+      await fetchJson(`${API_BASE}/api/accounts/staff/password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          current_password: currentPassword,
+          new_password: newPassword,
+          confirm_password: confirmPassword,
+        }),
+      });
+      inputs.forEach((input) => {
+        if (input) input.value = "";
+      });
+      passwordUpdated = true;
+    } catch (error) {
+      setPasswordStatus(error.message || "Unable to update password.");
+    } finally {
+      updatePasswordButton();
+      if (passwordUpdated) {
+        setPasswordStatus("Password updated successfully.", "success");
+      }
+    }
+  });
+
+  updatePasswordButton();
 }
 
 function setAvailabilityRowError(row, message) {
@@ -2410,6 +2596,8 @@ function renderPersistedSettings(settings) {
       ? "success"
       : "error",
   );
+  settingsBaseline = getSettingsFormState();
+  updateSettingsSaveButtons();
 }
 
 async function loadPersistedSettings() {
@@ -2459,6 +2647,18 @@ function createFaqEditorCard(faq) {
   answer.rows = 4;
   answer.value = faq.answer || "";
 
+  const initialState = () =>
+    JSON.stringify({
+      title: title.value,
+      question: question.value,
+      answer: answer.value,
+      active: active.checked,
+    });
+  const savedState = initialState();
+  const updateSaveState = () => {
+    setSaveButtonState(save, initialState() !== savedState);
+  };
+
   actions.className = "faq-editor-card-actions";
   save.type = "button";
   save.className = "btn btn-primary btn-sm";
@@ -2475,7 +2675,15 @@ function createFaqEditorCard(faq) {
     actions,
   );
 
+  [title, question, answer, active].forEach((control) => {
+    control.addEventListener("input", updateSaveState);
+    control.addEventListener("change", updateSaveState);
+  });
+  updateSaveState();
+
   save.addEventListener("click", async () => {
+    if (save.disabled) return;
+    if (!window.confirm("Save changes to this FAQ?")) return;
     save.disabled = true;
     setFaqStatus("Saving FAQ...");
     try {
@@ -2546,6 +2754,16 @@ async function loadFaqs() {
   setFaqStatus("");
 }
 
+function updateAddFaqButton() {
+  const title = document.getElementById("new-faq-title")?.value.trim();
+  const question = document.getElementById("new-faq-question")?.value.trim();
+  const answer = document.getElementById("new-faq-answer")?.value.trim();
+  setSaveButtonState(
+    document.getElementById("add-faq-btn"),
+    Boolean(title && question && answer),
+  );
+}
+
 async function saveSettingsToApi() {
   setSettingsStatus("Saving settings...");
   try {
@@ -2585,7 +2803,10 @@ function bindSettingsInteractions() {
     event.target
       .closest("[data-remove-unavailable-date]")
       ?.parentElement?.remove();
+    updateSettingsSaveButtons();
   });
+  root.addEventListener("input", updateSettingsSaveButtons);
+  root.addEventListener("change", updateSettingsSaveButtons);
 }
 
 function bindInboxControls() {
@@ -2603,11 +2824,23 @@ function bindInboxControls() {
 function bindFaqManagement() {
   const form = document.getElementById("add-faq-form");
   if (!form) return;
+  form.addEventListener("input", updateAddFaqButton);
+  form.addEventListener("change", updateAddFaqButton);
+  updateAddFaqButton();
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const title = document.getElementById("new-faq-title");
     const question = document.getElementById("new-faq-question");
     const answer = document.getElementById("new-faq-answer");
+    if (
+      !title?.value.trim() ||
+      !question?.value.trim() ||
+      !answer?.value.trim()
+    ) {
+      updateAddFaqButton();
+      return;
+    }
+    if (!window.confirm("Add this FAQ?")) return;
     setFaqStatus("Saving FAQ...");
     try {
       await fetchJson(`${API_BASE}/api/settings/faqs`, {
@@ -2620,6 +2853,7 @@ function bindFaqManagement() {
         }),
       });
       form.reset();
+      updateAddFaqButton();
       await loadFaqs();
       setFaqStatus("FAQ added.", "success");
     } catch (error) {
@@ -2768,6 +3002,30 @@ const dashboardSections = {
   appointments: "overview",
   reports: "overview",
 };
+const dashboardViewIds = new Set(
+  Array.from(navItems, (item) => item.dataset.view),
+);
+
+function updateDashboardLocation(
+  viewId,
+  sectionId = dashboardSections[viewId],
+) {
+  const hash = sectionId ? `#${viewId}:${sectionId}` : `#${viewId}`;
+  if (window.location.hash !== hash) {
+    window.history.replaceState(null, "", hash);
+  }
+}
+
+function restoreDashboardLocation() {
+  const [viewId, sectionId] = window.location.hash.slice(1).split(":");
+  if (!dashboardViewIds.has(viewId)) return;
+
+  const view = document.getElementById(`view-${viewId}`);
+  const hasSection =
+    sectionId && view?.querySelector(`[data-dashboard-section="${sectionId}"]`);
+  if (hasSection) dashboardSections[viewId] = sectionId;
+  switchView(viewId, false);
+}
 
 function initials(name) {
   return name
@@ -2811,6 +3069,7 @@ function updateHeader(viewId) {
   headerActions
     .querySelector('[data-dashboard-action="save-settings"]')
     ?.addEventListener("click", saveSettings);
+  if (viewId === "settings") updateSettingsSaveButtons();
 
   const backToSettingsBtn = document.getElementById("back-to-settings-btn");
   if (backToSettingsBtn) {
@@ -2820,7 +3079,7 @@ function updateHeader(viewId) {
   }
 }
 
-function switchView(viewId) {
+function switchView(viewId, updateLocation = true) {
   prevView = currentView;
   currentView = viewId;
 
@@ -2834,8 +3093,9 @@ function switchView(viewId) {
 
   updateHeader(viewId);
   if (dashboardSections[viewId]) {
-    showDashboardSection(viewId, dashboardSections[viewId]);
+    showDashboardSection(viewId, dashboardSections[viewId], false);
   }
+  if (updateLocation) updateDashboardLocation(viewId);
   window.scrollTo(0, 0);
 }
 
@@ -2844,10 +3104,16 @@ function goBack() {
 }
 
 async function saveSettings() {
+  if (!settingsHaveChanges()) {
+    updateSettingsSaveButtons();
+    return false;
+  }
+  if (!window.confirm("Save changes to Guidance Office settings?"))
+    return false;
   return saveSettingsToApi();
 }
 
-function showDashboardSection(viewId, sectionId) {
+function showDashboardSection(viewId, sectionId, updateLocation = true) {
   const view = document.getElementById(`view-${viewId}`);
   if (!view || !sectionId) return;
 
@@ -2866,6 +3132,10 @@ function showDashboardSection(viewId, sectionId) {
       button.classList.toggle("active", isActive);
       button.setAttribute("aria-pressed", String(isActive));
     });
+
+  if (updateLocation && currentView === viewId) {
+    updateDashboardLocation(viewId, sectionId);
+  }
 }
 
 function bindDashboardSectionNavigation() {
@@ -4062,7 +4332,8 @@ async function renderReviewedCaseHistory(summaryId) {
       const meta = document.createElement("span");
       meta.textContent = `Reviewed ${formatReviewedCaseTimestamp(item.reviewed_at)}`;
       const preview = document.createElement("p");
-      preview.textContent = item.summary_preview || "No AI summary preview is available.";
+      preview.textContent =
+        item.summary_preview || "No AI summary preview is available.";
       content.append(title, meta, preview);
 
       const actions = document.createElement("div");
@@ -5040,6 +5311,7 @@ window.addEventListener("error", (event) => {
 });
 
 bindSettingsInteractions();
+bindPasswordChange();
 bindCounselorProfile();
 bindInboxControls();
 bindFaqManagement();
@@ -5052,6 +5324,8 @@ bindFlaggedCaseAnalyticsFilters();
 bindReportsControls();
 bindDashboardOverviewNavigation();
 bindDashboardSectionNavigation();
+restoreDashboardLocation();
+window.addEventListener("hashchange", restoreDashboardLocation);
 loadBackendData();
 
 // Save settings button in the UI

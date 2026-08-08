@@ -75,6 +75,44 @@ class ApplicationSessionSecurityTests(unittest.TestCase):
         self.assertIn("SameSite=Lax", set_cookie)
         self.assertIn("Expires=", set_cookie)
 
+        with self.client.session_transaction() as browser_session:
+            self.assertFalse(browser_session["student_terms_accepted"])
+        terms_page = self.client.get("/chatbot", base_url="https://localhost")
+        self.assertIn(b'id="terms-dialog"', terms_page.data)
+        blocked_chat = self.client.post(
+            "/chat",
+            json={"message": "Hello"},
+            base_url="https://localhost",
+            headers=self._csrf_headers(),
+        )
+        self.assertEqual(blocked_chat.status_code, 403)
+        self.assertIn("Accept the terms", blocked_chat.get_json()["message"])
+        terms_response = self.client.post(
+            "/auth/terms/accept",
+            base_url="https://localhost",
+            headers=self._csrf_headers(),
+        )
+        self.assertEqual(terms_response.status_code, 200)
+        with self.client.session_transaction() as browser_session:
+            self.assertTrue(browser_session["student_terms_accepted"])
+
+        missing_terms_client = self.app.test_client()
+        with missing_terms_client.session_transaction() as browser_session:
+            browser_session["hau_user"] = user
+            browser_session["_csrf_token"] = "missing-terms-token"
+        missing_terms_page = missing_terms_client.get(
+            "/chatbot",
+            base_url="https://localhost",
+        )
+        self.assertIn(b'id="terms-dialog"', missing_terms_page.data)
+        missing_terms_chat = missing_terms_client.post(
+            "/chat",
+            json={"message": "Hello"},
+            base_url="https://localhost",
+            headers={"X-CSRF-Token": "missing-terms-token"},
+        )
+        self.assertEqual(missing_terms_chat.status_code, 403)
+
         self.assertEqual(
             self.client.get("/chatbot", base_url="https://localhost").status_code,
             200,
@@ -147,6 +185,7 @@ class ApplicationSessionSecurityTests(unittest.TestCase):
                 "email": "student73@example.test",
                 "role": "student",
             }
+            browser_session["student_terms_accepted"] = True
 
         with patch.object(
             frontend_routes.transient_chat_service,

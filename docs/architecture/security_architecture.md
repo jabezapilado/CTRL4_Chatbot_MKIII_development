@@ -16,7 +16,10 @@ permitted cancellation/replacement rescheduling, own notifications, and the
 approved generic case-status view. They must not receive counselor notes, case
 notes, referrals, interventions, confidentiality records or reasons,
 escalation reasons, conversation summaries, staff analytics, or internal
-identifiers.
+identifiers. A student must explicitly accept the Terms and Conditions in the
+current server session before `/chat` is available; missing, false, or expired
+acceptance is rejected server-side. This gate does not apply to staff or
+administrator dashboards.
 
 ### Guidance staff
 
@@ -50,6 +53,9 @@ authenticated-user data and escalation markers remain server-side.
 - Login clears and rotates/replaces the session identifier to prevent session
   fixation and issues a new CSRF token; logout clears and invalidates the
   session.
+- Student login sets Terms acceptance to unaccepted. The student-only
+  `/auth/terms/accept` mutation records explicit acceptance in the server
+  session; declining uses the existing logout behavior.
 - The currently supported deployment is one application instance. Horizontal
   scaling requires an approved shared server-side session backend first.
 
@@ -82,6 +88,12 @@ Protected chat content—including raw messages, generated replies, prompts,
 history, summaries, case data, and escalation reasons—is not logged. The
 browser does not persist raw chat or escalation content in `localStorage` or
 `sessionStorage`; obsolete protected keys are cleared when the chatbot starts.
+
+The student Terms describe the Guidance Office of the School of Computing at
+Holy Angel University scope, message recording and summarization for guidance
+support, and confidentiality limits for safety or legal concerns. They do not
+represent the chatbot as an emergency service; students in immediate danger are
+directed to local emergency services or trusted school personnel.
 
 ## Browser safety and API behavior
 

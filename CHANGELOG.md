@@ -10,6 +10,9 @@ The format follows the principles of **Keep a Changelog**.
 
 ### Changed
 
+- Added a student-only Terms and Conditions acknowledgement before chatbot
+  access. Acceptance is required for each server-side session; declining ends
+  the session.
 - Documented the validated local host default (`127.0.0.1:5001`) and opt-in
   `CTRL4_HOST=0.0.0.0` Tailscale/LAN demonstration binding.
 - Aligned current references with the MK III database audit and cleanup state,

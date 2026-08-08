@@ -135,7 +135,9 @@
       const payload = await response.json();
 
       if (!response.ok) {
-        throw new Error(payload.message || "Unable to mark notification as read.");
+        throw new Error(
+          payload.message || "Unable to mark notification as read.",
+        );
       }
 
       const notification = notifications.find(
@@ -164,8 +166,15 @@
     const toggle = document.createElement("button");
     toggle.type = "button";
     toggle.className = "notifications-toggle";
+    toggle.setAttribute("aria-label", "Notifications");
     toggle.setAttribute("aria-expanded", "false");
-    toggle.textContent = "Notifications";
+    toggle.setAttribute("title", "Notifications");
+
+    const icon = document.createElement("img");
+    icon.className = "notifications-icon";
+    icon.src = "/static/img/Notification%20Bell2.svg";
+    icon.alt = "";
+    toggle.appendChild(icon);
 
     count = document.createElement("span");
     count.className = "notifications-count";
@@ -175,6 +184,12 @@
     panel = document.createElement("div");
     panel.className = "notifications-panel";
     panel.hidden = true;
+
+    function setPanelOpen(open, restoreFocus = false) {
+      panel.hidden = !open;
+      toggle.setAttribute("aria-expanded", String(open));
+      if (!open && restoreFocus) toggle.focus();
+    }
 
     const title = document.createElement("h2");
     title.textContent = "Notifications";
@@ -186,10 +201,20 @@
 
     toggle.addEventListener("click", () => {
       const opening = panel.hidden;
-      panel.hidden = !opening;
-      toggle.setAttribute("aria-expanded", String(opening));
+      setPanelOpen(opening);
       if (opening) {
         loadNotifications();
+      }
+    });
+
+    document.addEventListener("pointerdown", (event) => {
+      if (!panel.hidden && !root.contains(event.target)) {
+        setPanelOpen(false);
+      }
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !panel.hidden) {
+        setPanelOpen(false, true);
       }
     });
 

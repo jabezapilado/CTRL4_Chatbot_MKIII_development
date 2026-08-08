@@ -9,15 +9,24 @@
       content="Administrator account-management interface for CTRL4 Chatbot MK III."
     />
     <title>Account Management — CTRL4 Chatbot MK III</title>
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="/static/img/hau_soc_logo_revised4.png"
+    />
     <link rel="stylesheet" href="/static/css/base.css" />
     <link rel="stylesheet" href="/static/css/admin.css" />
   </head>
   <body class="admin-page">
     <main class="admin-shell">
       <header class="admin-header">
-        <a class="admin-brand" href="/admin" aria-label="Account Management home">
+        <a
+          class="admin-brand"
+          href="/admin"
+          aria-label="Account Management home"
+        >
           <img
-            src="/static/img/soc-logo.png"
+            src="/static/img/hau_soc_logo_revised4.svg"
             alt="SOC Guidance Office logo"
             class="admin-brand-logo"
           />
@@ -39,7 +48,10 @@
         </button>
       </header>
 
-      <section class="admin-summary-grid" aria-label="Displayed account summary">
+      <section
+        class="admin-summary-grid"
+        aria-label="Displayed account summary"
+      >
         <article class="admin-summary-card">
           <span>Displayed accounts</span>
           <strong id="account-summary-total">—</strong>
@@ -102,7 +114,11 @@
           </label>
           <div class="account-toolbar-actions">
             <button class="btn btn-primary" type="submit">Apply filters</button>
-            <button class="btn btn-outline" type="button" id="account-reset-btn">
+            <button
+              class="btn btn-outline"
+              type="button"
+              id="account-reset-btn"
+            >
               Reset
             </button>
           </div>
@@ -114,12 +130,60 @@
           <table class="admin-account-table">
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Status</th>
-                <th>Account number</th>
-                <th>Program / assigned programs</th>
+                <th scope="col" aria-sort="none">
+                  <button
+                    class="admin-sort-button"
+                    type="button"
+                    data-account-sort="full_name"
+                  >
+                    Name
+                  </button>
+                </th>
+                <th scope="col" aria-sort="none">
+                  <button
+                    class="admin-sort-button"
+                    type="button"
+                    data-account-sort="email"
+                  >
+                    Email
+                  </button>
+                </th>
+                <th scope="col" aria-sort="none">
+                  <button
+                    class="admin-sort-button"
+                    type="button"
+                    data-account-sort="role"
+                  >
+                    Role
+                  </button>
+                </th>
+                <th scope="col" aria-sort="none">
+                  <button
+                    class="admin-sort-button"
+                    type="button"
+                    data-account-sort="status"
+                  >
+                    Status
+                  </button>
+                </th>
+                <th scope="col" aria-sort="ascending">
+                  <button
+                    class="admin-sort-button"
+                    type="button"
+                    data-account-sort="account_number"
+                  >
+                    Account number
+                  </button>
+                </th>
+                <th scope="col" aria-sort="none">
+                  <button
+                    class="admin-sort-button"
+                    type="button"
+                    data-account-sort="programs"
+                  >
+                    Program / assigned programs
+                  </button>
+                </th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -127,9 +191,71 @@
           </table>
         </div>
       </section>
+
+      <section
+        class="admin-panel"
+        id="admin-programs"
+        aria-labelledby="program-catalog-title"
+      >
+        <div class="admin-panel-heading">
+          <div>
+            <p class="admin-eyebrow">Account master data</p>
+            <h2 id="program-catalog-title">Program Management</h2>
+          </div>
+          <button class="btn btn-primary" type="button" id="create-program-btn">
+            Create program
+          </button>
+        </div>
+        <p
+          id="program-catalog-message"
+          class="admin-feedback"
+          role="status"
+        ></p>
+        <div class="admin-table-wrap" tabindex="0">
+          <table class="admin-program-table">
+            <thead>
+              <tr>
+                <th scope="col" aria-sort="ascending">
+                  <button
+                    class="admin-sort-button"
+                    type="button"
+                    data-program-sort="display_name"
+                  >
+                    Program
+                  </button>
+                </th>
+                <th scope="col" aria-sort="none">
+                  <button
+                    class="admin-sort-button"
+                    type="button"
+                    data-program-sort="code"
+                  >
+                    Program code
+                  </button>
+                </th>
+                <th scope="col" aria-sort="none">
+                  <button
+                    class="admin-sort-button"
+                    type="button"
+                    data-program-sort="active"
+                  >
+                    Status
+                  </button>
+                </th>
+                <th scope="col">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="program-catalog-list"></tbody>
+          </table>
+        </div>
+      </section>
     </main>
 
-    <dialog class="account-dialog" id="account-dialog" aria-labelledby="account-dialog-title">
+    <dialog
+      class="account-dialog"
+      id="account-dialog"
+      aria-labelledby="account-dialog-title"
+    >
       <form class="account-form" id="account-form" novalidate>
         <div class="account-dialog-header">
           <div>
@@ -153,11 +279,22 @@
           <div class="account-form-grid">
             <label for="account-full-name">
               <span>Full name</span>
-              <input id="account-full-name" name="full_name" autocomplete="name" required />
+              <input
+                id="account-full-name"
+                name="full_name"
+                autocomplete="name"
+                required
+              />
             </label>
             <label for="account-email">
               <span>Email address</span>
-              <input id="account-email" name="email" type="email" autocomplete="email" required />
+              <input
+                id="account-email"
+                name="email"
+                type="email"
+                autocomplete="email"
+                required
+              />
             </label>
             <label for="account-gender">
               <span>Gender</span>
@@ -186,7 +323,10 @@
                 autocomplete="new-password"
                 minlength="8"
               />
-              <small>At least eight characters. Passwords are never displayed after creation.</small>
+              <small
+                >At least eight characters. Passwords are never displayed after
+                creation.</small
+              >
             </label>
           </div>
         </fieldset>
@@ -202,7 +342,8 @@
         <fieldset class="account-form-section" id="staff-profile-fields">
           <legend>Guidance-staff account access</legend>
           <p class="account-form-help">
-            Assigned programs define account authorization and routing scope. Guidance operational profiles are managed by Guidance staff.
+            Assigned programs define account authorization and routing scope.
+            Guidance operational profiles are managed by Guidance staff.
           </p>
           <div class="account-form-grid">
             <fieldset class="program-fieldset">
@@ -213,35 +354,97 @@
         </fieldset>
 
         <div class="account-form-actions">
-          <button class="btn btn-outline" type="button" id="account-form-cancel">Cancel</button>
-          <button class="btn btn-primary" type="submit" id="account-form-submit">
+          <button
+            class="btn btn-outline"
+            type="button"
+            id="account-form-cancel"
+          >
+            Cancel
+          </button>
+          <button
+            class="btn btn-primary"
+            type="submit"
+            id="account-form-submit"
+          >
             Save account
           </button>
         </div>
       </form>
     </dialog>
 
-    <section
-      class="admin-panel"
-      id="admin-programs"
-      aria-labelledby="program-catalog-title"
+    <dialog
+      class="account-dialog"
+      id="program-dialog"
+      aria-labelledby="program-dialog-title"
     >
-      <div class="admin-panel-heading">
-        <div>
-          <p class="admin-eyebrow">Account master data</p>
-          <h2 id="program-catalog-title">Program Management</h2>
+      <form class="account-form" id="program-form" novalidate>
+        <div class="account-dialog-header">
+          <div>
+            <p class="admin-eyebrow" id="program-dialog-kicker">New program</p>
+            <h2 id="program-dialog-title">Create program</h2>
+          </div>
+          <button
+            class="account-dialog-close"
+            type="button"
+            id="program-dialog-close"
+            aria-label="Close program form"
+          >
+            ×
+          </button>
         </div>
-      </div>
-      <p id="program-catalog-message" class="admin-feedback" role="status"></p>
-      <div id="program-catalog-list" class="program-catalog-list"></div>
-      <form id="program-catalog-form" class="account-toolbar">
-        <label for="program-code"><span>Program code</span><input id="program-code" required /></label>
-        <label class="account-toolbar-search" for="program-display-name"><span>Display name</span><input id="program-display-name" required /></label>
-        <div class="account-toolbar-actions">
-          <button class="btn btn-primary" type="submit">Add program</button>
+
+        <p id="program-form-message" class="admin-feedback" role="alert"></p>
+
+        <fieldset class="account-form-section">
+          <legend>Program details</legend>
+          <div class="account-form-grid">
+            <label for="program-code">
+              <span>Program code</span>
+              <input
+                id="program-code"
+                name="code"
+                autocomplete="off"
+                maxlength="80"
+                required
+              />
+              <small id="program-code-help"
+                >Use uppercase letters, numbers, underscores, or hyphens.</small
+              >
+            </label>
+            <label for="program-display-name">
+              <span>Display name</span>
+              <input
+                id="program-display-name"
+                name="display_name"
+                autocomplete="off"
+                maxlength="160"
+                required
+              />
+              <small class="program-field-placeholder" aria-hidden="true"
+                >Placeholder</small
+              >
+            </label>
+          </div>
+        </fieldset>
+
+        <div class="account-form-actions">
+          <button
+            class="btn btn-outline"
+            type="button"
+            id="program-form-cancel"
+          >
+            Cancel
+          </button>
+          <button
+            class="btn btn-primary"
+            type="submit"
+            id="program-form-submit"
+          >
+            Create program
+          </button>
         </div>
       </form>
-    </section>
+    </dialog>
 
     <script src="/static/js/security.js"></script>
     <script src="/static/js/auth.js"></script>

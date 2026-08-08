@@ -9,6 +9,10 @@
 > live chat takeover, and expanded administrator authority are future concepts,
 > not current features or permissions.
 
+> Current MK III note: students now acknowledge Terms and Conditions for each
+> server-side session before chatbot access. This implemented gate is defined by
+> the current architecture and user guides, not by this historical roadmap.
+
 > Internal Development Roadmap
 >
 > Base Version: MK II Stable (v2.0)

@@ -37,12 +37,15 @@ unauthenticated users to login and enforces the listed role boundary.
 | Method | Path | Access | Request | Success / important errors |
 | --- | --- | --- | --- | --- |
 | POST | `/auth/login` | Public | `email`, `password` | 200 authenticated user in `data`; 400 validation, 401 invalid credentials, 403 blocked account |
+| POST | `/auth/terms/accept` | Student | None | 200 marks the current server session as accepted; 401 no session, 403 non-student |
 | POST | `/auth/logout` | Authenticated | None | 200; 401 if no session |
 | GET | `/health` | Public | None | 200 service status; 500 only on health failure |
 
 Login establishes the server-side session. The returned account data supports
 the existing frontend redirect; the browser cookie is opaque and must not be
-treated as an API credential to inspect.
+treated as an API credential to inspect. Students must explicitly accept the
+Terms and Conditions in each new server session before chatbot access; declining
+uses the existing logout flow.
 
 ## Accounts
 
@@ -101,12 +104,19 @@ only `pending` and `confirmed` and return HTTP 409 with
 
 | Method | Path | Access | Request | Success / important errors |
 | --- | --- | --- | --- | --- |
-| POST | `/chat` | Authenticated | `message`; optional in-memory `conversation` | 200 response data; 400 missing message; 401 no session |
+| POST | `/chat` | Student with accepted Terms | `message`; optional in-memory `conversation` | 200 response data; 400 missing message; 401 no session; 403 Terms not accepted |
 | POST | `/chat/finalize` | Authenticated | non-empty `conversation`; optional `topic`, `language`, `emotion` | 200 finalization data; 400 missing conversation; 401 no session |
 
 The public chat contract exposes only its existing response fields. Internal
 intent, normalized topic, normalized emotion, metadata, prompts, and retrieval
 details are not API inputs or historical analytics fields.
+
+The student Terms and Conditions describe the Guidance Office of the School of
+Computing at Holy Angel University scope. They state that messages may be
+recorded and summarized for guidance support, confidentiality has safety/legal
+limits, and immediate danger requires local emergency services or trusted school
+personnel. The acknowledgement does not apply to staff or administrator
+dashboards.
 
 ## Notifications and settings
 

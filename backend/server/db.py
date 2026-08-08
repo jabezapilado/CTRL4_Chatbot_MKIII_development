@@ -2794,6 +2794,63 @@ def fetch_account_by_id(
     return row
 
 
+def fetch_account_password_credentials(
+    account_id: int,
+    *,
+    role: str,
+) -> dict[str, Any] | None:
+    initialize_database()
+
+    normalized_role = role.strip().lower()
+    if normalized_role not in ALLOWED_ACCOUNT_ROLES:
+        raise ValueError("Invalid account role.")
+
+    with _database_connection() as connection:
+        with connection.cursor(dictionary=True) as cursor:
+            cursor.execute(
+                """
+                SELECT id, password_hash, status
+                FROM accounts
+                WHERE id = %s AND role = %s
+                LIMIT 1
+                """,
+                (account_id, normalized_role),
+            )
+            row = cursor.fetchone()
+
+    return row
+
+
+def update_account_password_hash(
+    account_id: int,
+    password_hash: str,
+    *,
+    role: str,
+) -> bool:
+    initialize_database()
+
+    normalized_role = role.strip().lower()
+    if normalized_role not in ALLOWED_ACCOUNT_ROLES:
+        raise ValueError("Invalid account role.")
+    if not password_hash.strip():
+        raise ValueError("Password hash is required.")
+
+    with _database_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE accounts
+                SET password_hash = %s
+                WHERE id = %s AND role = %s
+                """,
+                (password_hash, account_id, normalized_role),
+            )
+            updated = cursor.rowcount == 1
+        connection.commit()
+
+    return updated
+
+
 def list_accounts(
     *,
     role: str | None = None,

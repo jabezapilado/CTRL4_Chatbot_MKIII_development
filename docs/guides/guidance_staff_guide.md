@@ -10,6 +10,9 @@ Guidance Office operations. Appointment records visible to you follow the
 existing authorized-program/dynamic-routing model; a current program route is
 not historical counselor ownership.
 
+The student Terms and Conditions acknowledgement applies only before student
+chat access. It does not block or alter staff dashboard workflows.
+
 Staff may create manual appointments for a student using the approved source
 and appointment fields. Manual appointments begin **confirmed**. Student
 requests begin **pending**. The only appointment lifecycle is:

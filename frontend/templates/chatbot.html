@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="csrf-token" content="{{ csrf_token }}" />
     <title>SOC Guidance Office — Chatbot</title>
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="/static/img/hau_soc_logo_revised4.png"
+    />
 
     <link rel="stylesheet" href="/static/css/base.css" />
     <link rel="stylesheet" href="/static/css/chatbot.css" />
@@ -15,7 +20,11 @@
       <!-- HEADER -->
       <header class="header">
         <div class="header-inner">
-          <img src="/static/img/soc-logo.png" alt="SOC logo" class="logo-img" />
+          <img
+            src="/static/img/hau_soc_logo_revised4.svg"
+            alt="SOC logo"
+            class="logo-img"
+          />
 
           <div class="header-text">
             <div class="header-title">SOC Guidance Office</div>
@@ -45,19 +54,35 @@
 
       <!-- QUICK REPLIES -->
       <div class="quick-replies" id="quick-replies">
-        <button class="qr-btn" type="button" data-quick-message="What are your office hours?">
+        <button
+          class="qr-btn"
+          type="button"
+          data-quick-message="What are your office hours?"
+        >
           Office Hours
         </button>
 
-        <button class="qr-btn" type="button" data-quick-message="How do I book an appointment?">
+        <button
+          class="qr-btn"
+          type="button"
+          data-quick-message="How do I book an appointment?"
+        >
           Book Appointment
         </button>
 
-        <button class="qr-btn" type="button" data-quick-message="I need counseling support">
+        <button
+          class="qr-btn"
+          type="button"
+          data-quick-message="I need counseling support"
+        >
           Counseling
         </button>
 
-        <button class="qr-btn" type="button" data-quick-message="I have a concern about a classmate">
+        <button
+          class="qr-btn"
+          type="button"
+          data-quick-message="I have a concern about a classmate"
+        >
           Report Concern
         </button>
       </div>
@@ -73,11 +98,7 @@
           ></textarea>
         </div>
 
-        <button
-          class="send-btn"
-          id="send-message"
-          aria-label="Send message"
-        >
+        <button class="send-btn" id="send-message" aria-label="Send message">
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -94,12 +115,63 @@
       </div>
     </div>
 
+    {% if terms_required %}
+    <dialog
+      class="terms-dialog"
+      id="terms-dialog"
+      aria-labelledby="terms-title"
+    >
+      <form class="terms-dialog-content" method="dialog">
+        <p class="terms-kicker">Before you begin</p>
+        <h1 id="terms-title">Terms and Conditions</h1>
+        <div class="terms-copy">
+          <p>
+            This chatbot supports the Guidance Office of the School of Computing
+            at Holy Angel University. It provides guidance information and
+            support, not emergency or crisis care.
+          </p>
+          <p>
+            Your messages may be recorded and summarized for guidance support.
+            Information is handled according to Guidance Office procedures, but
+            confidentiality has limits when there is a serious safety concern or
+            disclosure is required by law or school policy.
+          </p>
+          <p>
+            If you or someone else is in immediate danger, contact local
+            emergency services or trusted school personnel right away.
+          </p>
+        </div>
+        <label class="terms-agreement" for="terms-agreement">
+          <input id="terms-agreement" type="checkbox" />
+          <span>I have read and agree to the Terms and Conditions.</span>
+        </label>
+        <p class="terms-error" id="terms-error" role="alert" hidden></p>
+        <div class="terms-actions">
+          <button class="btn btn-outline" id="terms-decline" type="button">
+            Decline
+          </button>
+          <button
+            class="btn btn-primary"
+            id="terms-accept"
+            type="button"
+            disabled
+          >
+            Accept and Continue
+          </button>
+        </div>
+      </form>
+    </dialog>
+    {% endif %}
+
     <script src="/static/js/security.js"></script>
     <script src="/static/js/auth.js"></script>
+    <script src="/static/js/terms.js"></script>
     <script src="/static/js/notifications.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
-    <script id="active-chat-state" type="application/json">{{ active_chat|tojson }}</script>
+    <script id="active-chat-state" type="application/json">
+      {{ active_chat|tojson }}
+    </script>
 
     <script src="/static/js/chat.js"></script>
   </body>

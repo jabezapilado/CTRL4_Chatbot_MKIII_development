@@ -58,6 +58,7 @@ class ConversationFinalizationIntegrityTests(unittest.TestCase):
                 "full_name": f"Student {account_id}",
                 "role": "student",
             }
+            session["student_terms_accepted"] = True
         return client
 
     def test_assistant_greeting_only_skips_summary_and_persistence(self) -> None:

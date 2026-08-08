@@ -15,16 +15,28 @@
 
 .notifications-toggle {
   position: relative;
+  display: inline-grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
   border: 1px solid var(--gray-200, #e5e7eb);
-  border-radius: 999px;
-  background: var(--white, #fff);
-  color: var(--text-primary, #1a1a1a);
-  padding: 8px 12px;
-  font: inherit;
-  font-size: 0.82rem;
-  font-weight: 600;
+  border-radius: 50%;
+  background: var(--gray-100, #f3f4f6);
+  color: var(--gray-700, #4b5563);
+  padding: 0;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+
+.notifications-toggle:hover {
+  background: var(--gray-200, #e5e7eb);
+  color: var(--gray-900, #111827);
+}
+
+.notifications-icon {
+  display: block;
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
 }
 
 .notifications-toggle:focus-visible,
@@ -34,18 +46,24 @@
 }
 
 .notifications-count {
+  position: absolute;
+  top: -4px;
+  right: -4px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  margin-left: 6px;
-  padding: 0 5px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
   border-radius: 999px;
   background: var(--danger-text, #b42318);
   color: #fff;
-  font-size: 0.68rem;
+  font-size: 0.64rem;
   line-height: 1;
+}
+
+.notifications-count[hidden] {
+  display: none;
 }
 
 .notifications-panel {

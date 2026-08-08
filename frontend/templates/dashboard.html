@@ -6,6 +6,11 @@
     <meta name="csrf-token" content="{{ csrf_token }}" />
     <title>Staff Dashboard — SOC Guidance Office</title>
     <link
+      rel="icon"
+      type="image/svg+xml"
+      href="/static/img/hau_soc_logo_revised4.png"
+    />
+    <link
       rel="stylesheet"
       href="{{ url_for('static', filename='css/base.css') }}"
     />
@@ -35,7 +40,7 @@
       <aside class="sidebar" id="sidebar" aria-label="Staff navigation">
         <div class="sidebar-brand">
           <img
-            src="{{ url_for('static', filename='img/soc-logo.png') }}"
+            src="{{ url_for('static', filename='img/hau_soc_logo_revised4.svg') }}"
             alt="SOC logo"
             class="sidebar-logo-img"
           />
@@ -130,11 +135,13 @@
               </div>
               <div class="stat-card">
                 <div class="stat-label">Chatbot Status</div>
-                <div
-                  class="stat-value inbox-status-value"
-                  id="inbox-stat-status"
-                >
-                  —
+                <div class="stat-value inbox-status-value">
+                  <span
+                    class="chatbot-status-indicator"
+                    id="inbox-status-indicator"
+                    aria-label="Chatbot status loading"
+                  ></span>
+                  <span id="inbox-stat-status">—</span>
                 </div>
                 <div class="stat-sub">Live analytics connection</div>
               </div>
@@ -1378,7 +1385,14 @@
                   ></textarea>
                 </div>
                 <div class="settings-actions">
-                  <button class="btn btn-primary" type="submit">Add FAQ</button>
+                  <button
+                    class="btn btn-primary"
+                    id="add-faq-btn"
+                    type="submit"
+                    disabled
+                  >
+                    Add FAQ
+                  </button>
                 </div>
               </form>
             </section>
@@ -1440,6 +1454,7 @@
                   class="btn btn-primary"
                   id="save-counselor-profile"
                   type="button"
+                  disabled
                 >
                   Save Counselor Profile
                 </button>
@@ -1458,6 +1473,7 @@
                 class="btn btn-primary"
                 id="save-settings-btn"
                 type="button"
+                disabled
               >
                 Save Settings
               </button>
@@ -1486,6 +1502,7 @@
                   type="password"
                   id="new-password"
                   autocomplete="new-password"
+                  minlength="8"
                 />
               </div>
               <div class="field-group">
@@ -1496,9 +1513,18 @@
                   autocomplete="new-password"
                 />
               </div>
+              <p
+                id="password-status"
+                class="settings-status error"
+                role="alert"
+                aria-live="polite"
+                hidden
+              ></p>
               <button
                 class="btn btn-primary"
                 id="change-password-btn"
+                type="button"
+                disabled
               >
                 Update Password
               </button>

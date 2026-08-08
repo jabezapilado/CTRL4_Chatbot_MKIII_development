@@ -10,9 +10,11 @@ from ..db import (
     ALLOWED_GENDERS,
     create_account,
     fetch_account_by_id,
+    fetch_account_password_credentials,
     fetch_account_by_email,
     list_accounts,
     search_student_accounts_by_programs,
+    update_account_password_hash,
     update_account_fields,
 )
 from .program_service import program_service
@@ -57,6 +59,11 @@ STAFF_OPERATIONAL_PROFILE_FIELDS = frozenset({
     "support_statement",
     "consultation_rooms",
     "consultation_schedules",
+})
+STAFF_OWN_PASSWORD_FIELDS = frozenset({
+    "current_password",
+    "new_password",
+    "confirm_password",
 })
 CONSULTATION_SCHEDULE_FIELDS = frozenset({"room", "days", "time"})
 WEEKDAY_ORDER = (
@@ -578,6 +585,39 @@ def update_own_staff_operational_profile_service(
         "consultation_rooms": _decode_list(updated.get("consultation_rooms")),
         "consultation_schedules": _decode_list(updated.get("consultation_schedules")),
     }
+
+
+def update_own_staff_password_service(staff_account: dict, payload: dict) -> None:
+    if not isinstance(payload, dict):
+        raise ValueError("Invalid request payload.")
+    unsupported_fields = set(payload) - STAFF_OWN_PASSWORD_FIELDS
+    if unsupported_fields:
+        raise ValueError("Unsupported password update field.")
+
+    current_password = str(payload.get("current_password", ""))
+    new_password = str(payload.get("new_password", ""))
+    confirm_password = str(payload.get("confirm_password", ""))
+    if not current_password or not new_password or not confirm_password:
+        raise ValueError("Current password, new password, and confirmation are required.")
+    if len(new_password) < 8:
+        raise ValueError("New password must be at least 8 characters long.")
+    if new_password != confirm_password:
+        raise ValueError("New passwords do not match.")
+
+    account_id = int(staff_account["id"])
+    credentials = fetch_account_password_credentials(account_id, role="staff")
+    if not credentials or credentials.get("status") != "active":
+        raise LookupError("Staff account not found.")
+    if not check_password_hash(str(credentials.get("password_hash", "")), current_password):
+        raise PermissionError("Current password is incorrect.")
+
+    updated = update_account_password_hash(
+        account_id,
+        generate_password_hash(new_password),
+        role="staff",
+    )
+    if not updated:
+        raise LookupError("Staff account not found.")
 
 
 def update_admin_account_service(account_id: int, payload: dict) -> dict:

@@ -92,7 +92,12 @@ class AdministratorAccountManagementContractTests(unittest.TestCase):
             "account-list-body",
             "account-status-filter",
             "program-catalog-list",
-            "program-catalog-form",
+            "create-program-btn",
+            "program-dialog",
+            "program-form",
+            "admin-program-table",
+            "data-account-sort=\"account_number\"",
+            "data-program-sort=\"display_name\"",
         ):
             with self.subTest(identifier=identifier):
                 self.assertIn(identifier, template)
@@ -119,11 +124,18 @@ class AdministratorAccountManagementContractTests(unittest.TestCase):
         self.assertIn("Program Management", template)
         self.assertIn("function renderProgramCatalog", script)
         self.assertIn("function loadPrograms", script)
+        self.assertIn("function openProgramForm", script)
+        self.assertIn("function saveProgram", script)
+        self.assertNotIn("window.prompt", script)
+        self.assertIn("function sortRecords", script)
+        self.assertIn("numeric: true", script)
         self.assertNotIn("password_hash", script)
         self.assertNotIn("account.password", script)
         self.assertNotIn(".innerHTML", script)
         self.assertNotIn("onclick=", template)
         self.assertIn("textContent", script)
+        self.assertIn(".admin-sort-button", stylesheet)
+        self.assertIn(".admin-program-table", stylesheet)
         self.assertIn("@media (max-width: 760px)", stylesheet)
         self.assertIn("@media (max-width: 480px)", stylesheet)
 
