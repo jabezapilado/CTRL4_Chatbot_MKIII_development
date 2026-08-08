@@ -3,7 +3,7 @@
 > **Development of an AI-Powered Guidance Chatbot for Inquiry Management Using
 > NLP-Based Negative Emotion Detection**
 
-[![Release](https://img.shields.io/badge/release-v1.0.5-2f6feb)](https://github.com/jabezapilado/CTRL4_Chatbot_MKIII/releases/tag/v1.0.5)
+[![Release](https://img.shields.io/badge/release-v1.0.6-2f6feb)](https://github.com/jabezapilado/CTRL4_Chatbot_MKIII/releases/tag/v1.0.6)
 ![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-3.x-000000?logo=flask&logoColor=white)
 ![Database](https://img.shields.io/badge/database-MySQL%20%7C%20MariaDB-4479A1)
@@ -25,7 +25,7 @@ Frontend → Route → Service → Database
 
 ## Project status
 
-**Current stable release:** [v1.0.5](https://github.com/jabezapilado/CTRL4_Chatbot_MKIII/releases/tag/v1.0.5)
+**Current stable release:** [v1.0.6](https://github.com/jabezapilado/CTRL4_Chatbot_MKIII/releases/tag/v1.0.6)
 
 MK III is the completed, current implementation. Historical roadmaps and MK II
 research records remain available for thesis provenance, but they are not the
