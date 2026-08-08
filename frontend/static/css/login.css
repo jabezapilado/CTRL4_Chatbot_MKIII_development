@@ -506,11 +506,13 @@ body {
     height: 100dvh;
     min-height: 100vh;
     min-height: 100dvh;
+    overflow: hidden;
   }
 
   .login-brand,
   .login-form-panel {
     min-height: 100%;
+    overflow: hidden;
   }
 }
 
