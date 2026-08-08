@@ -1,8 +1,20 @@
 # CTRL4 Chatbot MK III Documentation
 
-This index separates the current CTRL4 Chatbot MK III v1.0.0 implementation
+This index separates the current CTRL4 Chatbot MK III v1.0.5 implementation
 references from research provenance and historical planning material. For
-development constraints, see [AGENTS.md](../AGENTS.md).
+development constraints, follow the repository documentation and current test contracts.
+
+## MK III validated state
+
+The current local/demo baseline uses XAMPP MariaDB database `soc_chatbot`.
+Its live schema, `backend/server/db.py`, and `backend/sql/schema.sql` were
+structurally aligned in the MK III audit. The demo database was cleaned of
+operational chat/case test records after a verified SQL backup while foundation
+data was retained. Versioned migrations, nine candidate indexes, and the
+saved-but-unvalidated startup hardening patch remain deferred work.
+
+Generated RAG artifacts are tracked operational assets and should be handled
+deliberately. They are not part of ordinary documentation or cleanup work.
 
 ## Current and authoritative references
 
@@ -29,8 +41,9 @@ development constraints, see [AGENTS.md](../AGENTS.md).
 
 ### User guides
 
-- [Student Guide](guides/student_guide.md) — authenticated student chatbot,
-  appointments, notifications, and privacy-projected case status.
+- [Student Guide](guides/student_guide.md) — per-session Terms acknowledgement
+  before authenticated chatbot access, appointments, notifications, and
+  privacy-projected case status.
 - [Guidance Staff Guide](guides/guidance_staff_guide.md) — authorized
   appointment, case-management, settings, analytics, reports, and CSV workflows.
 - [Administrator Guide](guides/administrator_guide.md) — account-management-only
@@ -58,7 +71,7 @@ development constraints, see [AGENTS.md](../AGENTS.md).
 
 - [Root README](../README.md) — project overview and quick start.
 - [Changelog](../CHANGELOG.md) — concise release history.
-- [v1.0.0 release tag](https://github.com/jabezapilado/CTRL4_Chatbot_MKIII/releases/tag/v1.0.0)
+- [v1.0.5 release tag](https://github.com/jabezapilado/CTRL4_Chatbot_MKIII/releases/tag/v1.0.5)
   — current stable release.
 
 Historical documents intentionally retain their original terminology, including

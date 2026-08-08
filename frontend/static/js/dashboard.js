@@ -6,11 +6,14 @@ if (window.requireAuth) {
 
 const API_BASE = window.location.origin;
 
-let sampleInquiries = [];
-let conversationSummaries = [];
+let staffInboxItems = [];
+let inboxLoadState = "loading";
 let flaggedConversations = [];
+let flaggedConversationsLoaded = false;
+let appointmentsLoaded = false;
 let appointmentAnalytics = null;
 let chatbotAnalytics = null;
+let inboxStatistics = null;
 let counselorWorkloadAnalytics = null;
 let flaggedCaseAnalytics = null;
 let reportsAnalytics = null;
@@ -22,105 +25,36 @@ let appointmentCalendarMonth = new Date(
 
 const views = document.querySelectorAll(".view");
 
-const settingsStorageKey = "hau_dashboard_settings";
-const defaultSettings = {
-  officeHours: "Monday to Friday, 8:00 AM - 5:00 PM",
-  officeEmail: "guidance@hau.edu.ph",
-  contactNumber: "(045) 123-4567",
-  officeLocation: "SOC Guidance Office, Holy Angel University",
-  autoFlag: true,
-  showSupport: false,
-  escalationMessage:
-    "Your concern may need further attention from Guidance Office personnel. Please wait for proper assistance or contact the office directly if urgent.",
-  faqs: [
-    {
-      title: "Office Hours",
-      question: "What are your office hours?",
-      answer:
-        "The SOC Guidance Office is open from Monday to Friday, 8:00 AM to 5:00 PM.",
-    },
-    {
-      title: "Book Appointment",
-      question: "How can I book an appointment?",
-      answer:
-        "You may book an appointment by selecting the Book Appointment option and submitting your preferred date and reason for appointment.",
-    },
-    {
-      title: "Counseling Services",
-      question: "Can I speak with a counselor?",
-      answer:
-        "Yes, you may request counseling assistance through the chatbot or visit the SOC Guidance Office during office hours.",
-    },
-  ],
-};
-
-function loadSettings() {
-  try {
-    const raw = localStorage.getItem(settingsStorageKey);
-    if (!raw) return { ...defaultSettings };
-    return { ...defaultSettings, ...JSON.parse(raw) };
-  } catch (error) {
-    console.error(error);
-    return { ...defaultSettings };
-  }
-}
+let persistedSettings = null;
+let appointmentBookingOptions = { state: "loading", bookingEnabled: false };
+let persistedFaqs = [];
+let settingsBaseline = "";
+let counselorProfileBaseline = "";
 
 async function fetchJson(url, options) {
   const response = await fetch(url, options);
   const data = await response.json();
   if (!response.ok) {
-    throw new Error(data.error || "Request failed");
+    throw new Error(data.message || data.error || "Request failed");
   }
   return data;
 }
 
-function mapInquiry(row) {
-  const createdAt = row.created_at ? new Date(row.created_at) : new Date();
+function mapInboxItem(row) {
+  const createdAt = row.created_at ? new Date(row.created_at) : null;
   return {
-    student: row.user_name || row.student_name || "Unknown",
-    studentId: row.student_id || (row.id ? `#${row.id}` : "—"),
-    email: row.user_email || row.student_email || "",
-    message: row.message || "",
-    category: row.category || "General Inquiry",
-    status: row.escalate ? "negative" : row.status || row.emotion || "neutral",
-    time: createdAt.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-    }),
-    staffNotes: row.staff_notes || "",
-  };
-}
-
-function mapConversationSummary(row) {
-  const createdAt = row.created_at ? new Date(row.created_at) : new Date();
-  const now = new Date();
-  const displayTime =
-    createdAt.toDateString() === now.toDateString()
-      ? createdAt.toLocaleTimeString("en-US", {
-          hour: "numeric",
-          minute: "2-digit",
-        })
-      : createdAt.toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-        });
-  return {
-    id: row.id,
-    student: row.student_name || row.full_name || "Unknown",
-    studentId: row.student_id || "—",
-    email: row.student_email || "",
-    category: row.topic || "General Inquiry",
-    message: "AI Summary Available",
-    emotion: row.emotion || "Unknown",
-    language: row.language || "English",
-    flagged: Boolean(row.flagged),
-    status: row.status || (row.flagged ? "negative" : "pending"),
-    summary: row.summary || "",
-    recommendation: row.recommendation || "",
-    counselorNotes: row.counselor_notes || "",
-    conversation: row.conversation_json || [],
+    id: row.summary_id,
+    studentName: row.student_name || "Authorized student",
+    studentNumber: row.student_number || "—",
+    program: row.program || "—",
+    category: row.primary_concern || "General inquiry",
+    emotion: row.emotion_results || "Unavailable",
+    flagged: Boolean(row.flagged_status),
+    status: row.review_status || "routine",
+    summary: row.summary_preview || "No AI summary preview is available.",
+    hasReferral: Boolean(row.has_referral),
+    hasIntervention: Boolean(row.has_intervention),
     createdAt,
-    time: displayTime,
   };
 }
 
@@ -134,7 +68,9 @@ function mapFlaggedConversation(row) {
     recommendation: row.recommendations || "No recommendation available.",
     escalationReason: row.escalation_reason || "AI safety escalation.",
     status: row.escalation_status || "pending",
-    totalMessages: Number(row.total_messages) || 0,
+    totalMessages: Number.isFinite(Number(row.total_messages))
+      ? Number(row.total_messages)
+      : null,
     createdAt,
   };
 }
@@ -258,6 +194,21 @@ function escapeHtml(value) {
 
 function escapeAppointmentText(value) {
   return escapeHtml(value);
+}
+
+function createFaqBlock(title, question, answer) {
+  const container = document.createElement("div");
+  container.className = "faq-block";
+  container.innerHTML = `
+    <div class="faq-block-header">
+      <div class="faq-title">${escapeHtml(title)}</div>
+      <div class="faq-q">${escapeHtml(question)}</div>
+    </div>
+    <div class="faq-block-body">
+      <textarea>${escapeHtml(answer || "")}</textarea>
+    </div>
+  `;
+  return container;
 }
 
 function getAppointmentCardText(appointment) {
@@ -500,12 +451,7 @@ function renderAnalyticsRows(
   container.replaceChildren();
 
   if (!rows.length) {
-    const row = document.createElement("tr");
-    const cell = document.createElement("td");
-    cell.colSpan = 2;
-    cell.textContent = emptyMessage;
-    row.appendChild(cell);
-    container.appendChild(row);
+    appendTableEmptyState(container, 2, emptyMessage);
     return;
   }
 
@@ -520,16 +466,22 @@ function renderAnalyticsRows(
   });
 }
 
+function displayAggregateValue(value) {
+  return value === null || value === undefined ? "—" : String(value);
+}
+
 function renderAppointmentAnalytics() {
   const analytics = appointmentAnalytics;
   if (!analytics) return;
 
   const total = document.getElementById("appointment-analytics-total");
   const range = document.getElementById("appointment-analytics-range");
-  if (total) total.textContent = String(analytics.total_appointments || 0);
+  if (total)
+    total.textContent = displayAggregateValue(analytics.total_appointments);
 
   if (range) {
-    const { start_date: startDate, end_date: endDate } = analytics.filters || {};
+    const { start_date: startDate, end_date: endDate } =
+      analytics.filters || {};
     range.textContent =
       startDate || endDate
         ? `${startDate || "Beginning"} to ${endDate || "Present"}`
@@ -541,9 +493,21 @@ function renderAppointmentAnalytics() {
     analytics.status_distribution || [],
     "status",
   );
-  renderAnalyticsRows("appointment-analytics-daily", analytics.daily_trends || [], "date");
-  renderAnalyticsRows("appointment-analytics-weekly", analytics.weekly_trends || [], "week");
-  renderAnalyticsRows("appointment-analytics-monthly", analytics.monthly_trends || [], "month");
+  renderAnalyticsRows(
+    "appointment-analytics-daily",
+    analytics.daily_trends || [],
+    "date",
+  );
+  renderAnalyticsRows(
+    "appointment-analytics-weekly",
+    analytics.weekly_trends || [],
+    "week",
+  );
+  renderAnalyticsRows(
+    "appointment-analytics-monthly",
+    analytics.monthly_trends || [],
+    "month",
+  );
   renderAnalyticsRows(
     "appointment-analytics-counselors",
     analytics.counselor_counts || [],
@@ -560,29 +524,23 @@ function renderChatbotAnalytics() {
   const analytics = chatbotAnalytics;
   if (!analytics) return;
 
-  const valueFor = (elementId, value, fallback = "0") => {
+  const valueFor = (elementId, value) => {
     const element = document.getElementById(elementId);
-    if (element) element.textContent = value ?? fallback;
+    if (element) element.textContent = displayAggregateValue(value);
   };
 
   valueFor(
     "chatbot-analytics-total-messages",
-    String(analytics.total_chatbot_messages || 0),
+    analytics.total_chatbot_messages,
   );
   valueFor(
     "chatbot-analytics-finalizations",
-    String(analytics.conversation_finalization_count || 0),
+    analytics.conversation_finalization_count,
   );
-  valueFor(
-    "chatbot-analytics-escalations",
-    String(analytics.escalation_count || 0),
-  );
+  valueFor("chatbot-analytics-escalations", analytics.escalation_count);
   valueFor(
     "chatbot-analytics-average-length",
-    analytics.average_finalized_conversation_length === null
-      ? "—"
-      : String(analytics.average_finalized_conversation_length),
-    "—",
+    analytics.average_finalized_conversation_length,
   );
 
   const volume = analytics.message_volume || {};
@@ -612,8 +570,55 @@ function renderChatbotAnalytics() {
   );
 }
 
+function todayAnalyticsQuery() {
+  const today = new Date().toISOString().slice(0, 10);
+  return `?${new URLSearchParams({ start_date: today, end_date: today })}`;
+}
+
+function renderInboxStatistics() {
+  const setValue = (elementId, value) => {
+    const element = document.getElementById(elementId);
+    if (element) element.textContent = displayAggregateValue(value);
+  };
+  const status = document.getElementById("inbox-stat-status");
+  const statusIndicator = document.getElementById("inbox-status-indicator");
+  const setChatbotStatus = (value, state) => {
+    if (status) status.textContent = value;
+    if (!statusIndicator) return;
+    statusIndicator.classList.toggle("is-online", state === "online");
+    statusIndicator.classList.toggle("is-offline", state === "offline");
+    statusIndicator.setAttribute("aria-label", `Chatbot status: ${value}`);
+  };
+
+  if (!inboxStatistics) {
+    setValue("inbox-stat-inquiries", "—");
+    setValue("inbox-stat-flagged", "—");
+    setValue("inbox-stat-routine", "—");
+    setChatbotStatus("Unavailable", "offline");
+    return;
+  }
+
+  const finalizations =
+    Number(inboxStatistics.conversation_finalization_count) || 0;
+  const escalations = Number(inboxStatistics.escalation_count) || 0;
+  setValue("inbox-stat-inquiries", inboxStatistics.total_chatbot_messages || 0);
+  setValue("inbox-stat-flagged", escalations);
+  setValue("inbox-stat-routine", Math.max(0, finalizations - escalations));
+  setChatbotStatus("Online", "online");
+}
+
+async function loadInboxStatistics() {
+  const result = await fetchJson(
+    `${API_BASE}/api/dashboard/chatbot/analytics${todayAnalyticsQuery()}`,
+  );
+  inboxStatistics = result.data || null;
+  renderInboxStatistics();
+}
+
 async function loadChatbotAnalytics() {
-  const startDate = document.getElementById("chatbot-analytics-start-date")?.value;
+  const startDate = document.getElementById(
+    "chatbot-analytics-start-date",
+  )?.value;
   const endDate = document.getElementById("chatbot-analytics-end-date")?.value;
   const query = new URLSearchParams();
   if (startDate) query.set("start_date", startDate);
@@ -690,7 +695,7 @@ function renderCounselorWorkloadAnalytics() {
 
   values.forEach(([elementId, value]) => {
     const element = document.getElementById(elementId);
-    if (element) element.textContent = String(value || 0);
+    if (element) element.textContent = displayAggregateValue(value);
   });
 
   renderAnalyticsRows(
@@ -705,9 +710,7 @@ async function loadCounselorWorkloadAnalytics() {
   const startDate = document.getElementById(
     "counselor-workload-start-date",
   )?.value;
-  const endDate = document.getElementById(
-    "counselor-workload-end-date",
-  )?.value;
+  const endDate = document.getElementById("counselor-workload-end-date")?.value;
   const query = new URLSearchParams();
   if (startDate) query.set("start_date", startDate);
   if (endDate) query.set("end_date", endDate);
@@ -757,10 +760,7 @@ function renderFlaggedCaseAnalytics() {
 
   const values = [
     ["flagged-case-analytics-total", analytics.total_flagged_cases],
-    [
-      "flagged-case-analytics-pending",
-      analytics.pending_flagged_case_reviews,
-    ],
+    ["flagged-case-analytics-pending", analytics.pending_flagged_case_reviews],
     ["flagged-case-analytics-reviewed", analytics.reviewed_flagged_cases],
     ["flagged-case-analytics-referrals", analytics.referral_count],
     ["flagged-case-analytics-interventions", analytics.intervention_count],
@@ -772,7 +772,7 @@ function renderFlaggedCaseAnalytics() {
 
   values.forEach(([elementId, value]) => {
     const element = document.getElementById(elementId);
-    if (element) element.textContent = String(value || 0);
+    if (element) element.textContent = displayAggregateValue(value);
   });
 
   const trends = analytics.escalation_trends || {};
@@ -855,8 +855,12 @@ function bindFlaggedCaseAnalyticsFilters() {
 }
 
 async function loadAppointmentAnalytics() {
-  const startDate = document.getElementById("appointment-analytics-start-date")?.value;
-  const endDate = document.getElementById("appointment-analytics-end-date")?.value;
+  const startDate = document.getElementById(
+    "appointment-analytics-start-date",
+  )?.value;
+  const endDate = document.getElementById(
+    "appointment-analytics-end-date",
+  )?.value;
   const query = new URLSearchParams();
   if (startDate) query.set("start_date", startDate);
   if (endDate) query.set("end_date", endDate);
@@ -884,7 +888,9 @@ function bindAppointmentAnalyticsFilters() {
   document
     .getElementById("appointment-analytics-reset")
     ?.addEventListener("click", async () => {
-      const startDate = document.getElementById("appointment-analytics-start-date");
+      const startDate = document.getElementById(
+        "appointment-analytics-start-date",
+      );
       const endDate = document.getElementById("appointment-analytics-end-date");
       if (startDate) startDate.value = "";
       if (endDate) endDate.value = "";
@@ -896,7 +902,6 @@ function bindAppointmentAnalyticsFilters() {
         createToast("Unable to load appointment analytics.", "info");
       }
     });
-
 }
 
 function getSearchedAppointments() {
@@ -933,6 +938,18 @@ function bindAppointmentSearch() {
 
 function renderAppointmentStatistics() {
   const appointments = window.backendAppointments || [];
+  const statisticElements = [
+    document.getElementById("appointments-today-count"),
+    document.getElementById("pending-appointments-count"),
+    document.getElementById("completed-appointments-count"),
+  ];
+
+  if (!appointmentsLoaded) {
+    statisticElements.forEach((element) => {
+      if (element) element.textContent = "—";
+    });
+    return;
+  }
 
   const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
     .toISOString()
@@ -963,13 +980,17 @@ function renderAppointmentStatistics() {
       normalizeDate(appointment.date) === today,
   ).length;
 
-  document.getElementById("appointments-today-count").textContent = totalToday;
+  statisticElements[0].textContent = String(totalToday);
+  statisticElements[1].textContent = String(pendingCount);
+  statisticElements[2].textContent = String(completedToday);
+}
 
-  document.getElementById("pending-appointments-count").textContent =
-    pendingCount;
-
-  document.getElementById("completed-appointments-count").textContent =
-    completedToday;
+function renderCompactEmptyState(container, message) {
+  container.replaceChildren();
+  const empty = document.createElement("p");
+  empty.className = "compact-empty-state";
+  empty.textContent = message;
+  container.appendChild(empty);
 }
 
 function renderAppointmentRequests() {
@@ -984,14 +1005,13 @@ function renderAppointmentRequests() {
 
   if (!container) return;
 
-  container.innerHTML = "";
+  container.replaceChildren();
 
   if (!pendingAppointments.length) {
-    container.innerHTML = `
-      <p class="sub">
-        No pending appointment requests.
-      </p>
-    `;
+    renderCompactEmptyState(
+      container,
+      "No pending appointment requests. New student requests will appear here.",
+    );
     return;
   }
 
@@ -1031,15 +1051,13 @@ function renderTodaysAppointments() {
 
   if (!container) return;
 
-  container.innerHTML = "";
+  container.replaceChildren();
 
   if (!confirmedAppointments.length) {
-    container.innerHTML = `
-      <p class="sub">
-        No confirmed appointments.
-      </p>
-    `;
-
+    renderCompactEmptyState(
+      container,
+      "No confirmed appointments. Confirmed appointments awaiting completion will appear here.",
+    );
     return;
   }
 
@@ -1060,14 +1078,13 @@ function renderAppointmentHistory() {
 
   if (!container) return;
 
-  container.innerHTML = "";
+  container.replaceChildren();
 
   if (!historyAppointments.length) {
-    container.innerHTML = `
-      <p class="sub">
-        No appointment history found.
-      </p>
-    `;
+    renderCompactEmptyState(
+      container,
+      "No appointment history is available for the current selection.",
+    );
 
     return;
   }
@@ -1080,9 +1097,7 @@ function renderAppointmentHistory() {
 }
 
 function renderFlaggedAppointmentCases() {
-  const flaggedCases = conversationSummaries.filter(
-    (summary) => summary.flagged,
-  );
+  const flaggedCases = flaggedConversations;
 
   const container = document.getElementById(
     "flagged-appointment-cases-container",
@@ -1090,14 +1105,13 @@ function renderFlaggedAppointmentCases() {
 
   if (!container) return;
 
-  container.innerHTML = "";
+  container.replaceChildren();
 
   if (!flaggedCases.length) {
-    container.innerHTML = `
-      <p class="sub">
-        No flagged cases requiring appointments.
-      </p>
-    `;
+    renderCompactEmptyState(
+      container,
+      "No flagged cases currently require an appointment recommendation.",
+    );
 
     return;
   }
@@ -1107,6 +1121,163 @@ function renderFlaggedAppointmentCases() {
 
     container.appendChild(card);
   });
+}
+
+function humanizeAppointmentChoice(value) {
+  return String(value || "")
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function addChoiceOptions(select, choices, placeholder) {
+  if (!select) return;
+  select.replaceChildren();
+  const prompt = document.createElement("option");
+  prompt.value = "";
+  prompt.disabled = true;
+  prompt.selected = true;
+  prompt.textContent = placeholder;
+  select.appendChild(prompt);
+  choices.forEach((choice) => {
+    const option = document.createElement("option");
+    option.value = choice;
+    option.textContent = humanizeAppointmentChoice(choice);
+    select.appendChild(option);
+  });
+}
+
+function bookingOptionsAreAvailable(options) {
+  return options?.state === "available" && options.bookingEnabled === true;
+}
+
+function parseBookingTime(value) {
+  const match = String(value || "")
+    .trim()
+    .match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return null;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (hour < 1 || hour > 12 || minute > 59) return null;
+  return (
+    ((hour % 12) + (match[3].toUpperCase() === "PM" ? 12 : 0)) * 60 + minute
+  );
+}
+
+function dateMatchesBookingWindow(dateValue, window) {
+  const selectedDate = new Date(`${dateValue}T00:00:00`);
+  if (Number.isNaN(selectedDate.getTime())) return false;
+  const days = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ];
+  const selectedDay = days[selectedDate.getDay()];
+  const range = String(window.days || "").split(" to ");
+  if (range.length === 1) return range[0] === selectedDay;
+  const start = days.indexOf(range[0]);
+  const end = days.indexOf(range[1]);
+  const current = days.indexOf(selectedDay);
+  return start >= 0 && end >= start && current >= start && current <= end;
+}
+
+function isManualBookingSelectionAvailable(dateValue, timeValue, options) {
+  if (
+    !bookingOptionsAreAvailable(options) ||
+    options.unavailableDates?.includes(dateValue)
+  ) {
+    return false;
+  }
+  return Boolean(options.availableSlots?.includes(timeValue));
+}
+
+async function refreshAppointmentBookingOptions(
+  preferredDate = "",
+  studentNumber = "",
+) {
+  const query = new URLSearchParams();
+  if (preferredDate) query.set("date", preferredDate);
+  if (studentNumber) query.set("student_number", studentNumber);
+  const response = await fetchJson(
+    `${API_BASE}/api/appointments/booking-options${
+      query.size ? `?${query}` : ""
+    }`,
+  );
+  appointmentBookingOptions = response.data || {
+    state: "unconfigured",
+    bookingEnabled: false,
+  };
+  return appointmentBookingOptions;
+}
+
+function populateManualSlotSelect(
+  select,
+  slots,
+  placeholder,
+  disabled = false,
+) {
+  if (!select) return;
+  const previousValue = select.value;
+  select.replaceChildren();
+  const prompt = document.createElement("option");
+  prompt.value = "";
+  prompt.disabled = true;
+  prompt.selected = true;
+  prompt.textContent = placeholder;
+  select.appendChild(prompt);
+  slots.forEach((slot) => {
+    const option = document.createElement("option");
+    option.value = slot;
+    option.textContent = formatAppointmentTime(slot);
+    if (slot === previousValue) option.selected = true;
+    select.appendChild(option);
+  });
+  select.disabled = disabled;
+}
+
+function renderManualAppointmentOptions(container) {
+  const available = bookingOptionsAreAvailable(appointmentBookingOptions);
+  const date = container.querySelector("#manual-appointment-date");
+  const time = container.querySelector("#manual-appointment-time");
+  const mode = container.querySelector("#manual-appointment-mode");
+  const category = container.querySelector("#manual-appointment-category");
+  const status = container.querySelector("#manual-appointment-options-status");
+  const windows = appointmentBookingOptions.officeAvailability || [];
+
+  addChoiceOptions(
+    mode,
+    available ? appointmentBookingOptions.consultationModes || [] : [],
+    available
+      ? "Select a consultation mode"
+      : "Appointment configuration unavailable",
+  );
+  addChoiceOptions(
+    category,
+    available ? appointmentBookingOptions.appointmentCategories || [] : [],
+    available
+      ? "Select an appointment category"
+      : "Appointment configuration unavailable",
+  );
+  [date, time, mode, category].forEach((input) => {
+    if (input) input.disabled = !available;
+  });
+  populateManualSlotSelect(
+    time,
+    [],
+    available
+      ? "Select a student and date first"
+      : "Appointment configuration unavailable",
+    true,
+  );
+  if (status) {
+    status.textContent = available
+      ? "Current appointment options loaded."
+      : "Appointment configuration is unavailable. Manual appointment creation is disabled.";
+    status.classList.toggle("error", !available);
+  }
 }
 
 function renderManualAppointmentEntry() {
@@ -1122,11 +1293,15 @@ function renderManualAppointmentEntry() {
     <div class="manual-appointment-card">
       <div class="field-grid-2">
         <div class="field-group">
-          <label>Student</label>
+          <label for="manual-student-search">Student</label>
           <input
             id="manual-student-search"
             type="text"
-            placeholder="Search by student number or name"
+            placeholder="Search by name, student number, or email"
+            autocomplete="off"
+            aria-autocomplete="list"
+            aria-controls="manual-student-search-results"
+            aria-expanded="false"
           />
           <div
             id="manual-student-search-results"
@@ -1136,7 +1311,7 @@ function renderManualAppointmentEntry() {
         </div>
 
         <div class="field-group">
-          <label>Appointment Source</label>
+          <label for="manual-appointment-source">Appointment Source</label>
           <select id="manual-appointment-source">
             <option>Walk-in</option>
             <option>Hotline</option>
@@ -1148,17 +1323,17 @@ function renderManualAppointmentEntry() {
 
       <div class="field-grid-2">
         <div class="field-group">
-          <label>Student Number</label>
+          <label for="manual-student-number">Student Number</label>
           <input id="manual-student-number" type="text" disabled />
         </div>
 
         <div class="field-group">
-          <label>Program</label>
+          <label for="manual-student-program">Program</label>
           <input id="manual-student-program" type="text" disabled />
         </div>
 
         <div class="field-group">
-          <label>Email Address</label>
+          <label for="manual-student-email">Email Address</label>
           <input id="manual-student-email" type="email" disabled />
         </div>
       </div>
@@ -1167,66 +1342,50 @@ function renderManualAppointmentEntry() {
         <button
           id="create-manual-appointment-btn"
           class="btn btn-primary"
+          type="button"
         >
           Continue
         </button>
       </div>
 
-      <div id="manual-appointment-details" style="display:none; margin-top:24px;">
-        <hr style="margin:20px 0; border:none; border-top:1px solid var(--gray-200);">
+      <div id="manual-appointment-details" class="manual-appointment-details" hidden>
+        <hr class="manual-entry-divider">
 
-        <h3 style="margin-bottom:16px;">Appointment Details</h3>
+        <h3 class="manual-entry-title">Appointment Details</h3>
 
-        <!-- Date/Time Row replaced with new layout -->
         <div class="field-group">
-          <label>Preferred Date</label>
+          <label for="manual-appointment-date">Preferred Date</label>
           <input id="manual-appointment-date" type="date" />
         </div>
 
-        <div class="field-group" style="margin-top:16px;">
-          <label>Preferred Time</label>
-          <select id="manual-appointment-time">
-            <option value="">Select a preferred time slot</option>
-            <option value="8:00 AM">8:00 AM</option>
-            <option value="9:00 AM">9:00 AM</option>
-            <option value="10:00 AM">10:00 AM</option>
-            <option value="1:00 PM">1:00 PM</option>
-            <option value="2:00 PM">2:00 PM</option>
-            <option value="3:00 PM">3:00 PM</option>
+        <div class="field-group manual-entry-spaced">
+          <label for="manual-appointment-time">Preferred Time</label>
+          <select id="manual-appointment-time" disabled>
+            <option value="">Select an available time slot</option>
           </select>
         </div>
 
-        <div class="field-grid-2" style="margin-top:12px;">
+        <div class="field-grid-2 manual-entry-spaced">
           <div class="field-group">
-            <label>Mode</label>
-            <select id="manual-appointment-mode">
-              <option value="onsite">Onsite</option>
-              <option value="online">Online</option>
-            </select>
+            <label for="manual-appointment-mode">Mode</label>
+            <select id="manual-appointment-mode"></select>
           </div>
 
           <div class="field-group">
-            <label>Category</label>
-            <select id="manual-appointment-category">
-              <option value="career_schooling">Career / Schooling</option>
-              <option value="home_family">Home and Family</option>
-              <option value="personality_development">Personality Development</option>
-              <option value="relationships">Relationships</option>
-              <option value="religion_spiritual">Religion / Spiritual Development</option>
-              <option value="health_recreation">Health and Recreation</option>
-              <option value="employment">Employment</option>
-              <option value="others">Others</option>
-            </select>
+            <label for="manual-appointment-category">Category</label>
+            <select id="manual-appointment-category"></select>
           </div>
         </div>
 
-        <div class="field-group" style="margin-top:12px;">
-          <label>Reason</label>
+        <p id="manual-appointment-options-status" class="settings-status" role="status"></p>
+
+        <div class="field-group manual-entry-spaced">
+          <label for="manual-appointment-reason">Reason</label>
           <textarea id="manual-appointment-reason" rows="4"></textarea>
         </div>
 
-        <div class="manual-entry-actions" style="margin-top:16px;">
-          <button id="save-manual-appointment-btn" class="btn btn-primary">
+        <div class="manual-entry-actions">
+          <button id="save-manual-appointment-btn" class="btn btn-primary" type="button">
             Create Appointment
           </button>
         </div>
@@ -1253,68 +1412,149 @@ function renderManualAppointmentEntry() {
     "#manual-student-search-results",
   );
 
-  studentSearchResults.innerHTML = "";
+  studentSearchResults.replaceChildren();
   studentSearchResults.hidden = true;
   let selectedStudent = null;
+  let activeSuggestionIndex = -1;
 
-  studentSearchInput.addEventListener("input", async () => {
-    const query = studentSearchInput.value.trim();
+  function clearSelectedStudent() {
     selectedStudent = null;
-
-    studentSearchResults.innerHTML = "";
-    studentSearchResults.hidden = true;
-
     studentNumberInput.value = "";
     studentProgramInput.value = "";
     studentEmailInput.value = "";
+    container.querySelector("#manual-appointment-details").hidden = true;
+    appointmentDateInput.disabled = true;
+    populateManualSlotSelect(
+      appointmentTimeInput,
+      [],
+      "Select a student and date first",
+      true,
+    );
+  }
+
+  function closeSuggestions() {
+    studentSearchResults.replaceChildren();
+    studentSearchResults.hidden = true;
+    studentSearchInput.setAttribute("aria-expanded", "false");
+    activeSuggestionIndex = -1;
+  }
+
+  function selectStudent(student) {
+    selectedStudent = student;
+    studentSearchInput.value = student.full_name || "";
+    studentNumberInput.value = student.student_number || "";
+    studentProgramInput.value = student.program || "";
+    studentEmailInput.value = student.email || "";
+    appointmentDateInput.disabled = false;
+    closeSuggestions();
+  }
+
+  function renderSuggestions(students) {
+    studentSearchResults.replaceChildren();
+    activeSuggestionIndex = -1;
+    if (!students.length) {
+      const empty = document.createElement("p");
+      empty.className = "manual-student-search-empty";
+      empty.textContent =
+        "No students in your assigned programs match this search.";
+      studentSearchResults.appendChild(empty);
+      studentSearchResults.hidden = false;
+      studentSearchInput.setAttribute("aria-expanded", "true");
+      return;
+    }
+    students.forEach((student, index) => {
+      const option = document.createElement("button");
+      option.type = "button";
+      option.className = "manual-student-search-result";
+      option.dataset.suggestionIndex = String(index);
+      const name = document.createElement("strong");
+      const detail = document.createElement("small");
+      name.textContent = student.full_name || "Authorized student";
+      detail.textContent = [
+        student.student_number || "—",
+        student.program || "—",
+        student.email || "—",
+      ].join(" · ");
+      option.append(name, detail);
+      option.addEventListener("click", () => selectStudent(student));
+      studentSearchResults.appendChild(option);
+    });
+    studentSearchResults.hidden = false;
+    studentSearchInput.setAttribute("aria-expanded", "true");
+  }
+
+  studentSearchInput.addEventListener("input", async () => {
+    const query = studentSearchInput.value.trim();
+    clearSelectedStudent();
+    closeSuggestions();
 
     if (!query) {
       return;
     }
 
     try {
+      const loading = document.createElement("p");
+      loading.className = "manual-student-search-empty";
+      loading.textContent = "Searching authorized students...";
+      studentSearchResults.appendChild(loading);
+      studentSearchResults.hidden = false;
       const response = await fetchJson(
         `${API_BASE}/api/accounts/search?q=${encodeURIComponent(query)}`,
       );
 
-      const students = response.items || [];
-
-      studentSearchResults.innerHTML = "";
-
-      if (!students.length) {
-        studentSearchResults.hidden = true;
-        return;
-      }
-
-      studentSearchResults.hidden = false;
-
-      students.forEach((student) => {
-        const option = document.createElement("button");
-        option.type = "button";
-        option.className = "manual-student-search-result";
-
-        const name = document.createElement("strong");
-        name.textContent = student.full_name || "Unknown";
-        const detail = document.createElement("small");
-        detail.textContent = `${student.student_number || "—"} • ${student.program || "—"}`;
-        option.append(name, document.createElement("br"), detail);
-
-        option.addEventListener("click", () => {
-          selectedStudent = student;
-          studentSearchInput.value = student.full_name;
-          studentNumberInput.value = student.student_number || "";
-          studentProgramInput.value = student.program || "";
-          studentEmailInput.value = student.email || "";
-
-          studentSearchResults.innerHTML = "";
-          studentSearchResults.hidden = true;
-        });
-
-        studentSearchResults.appendChild(option);
-      });
+      renderSuggestions(response.data?.items || []);
     } catch (error) {
       console.error(error);
-      createToast("Unable to search student accounts.", "info");
+      studentSearchResults.replaceChildren();
+      const unavailable = document.createElement("p");
+      unavailable.className = "manual-student-search-empty";
+      unavailable.textContent = "Student search is unavailable. Try again.";
+      studentSearchResults.appendChild(unavailable);
+      studentSearchResults.hidden = false;
+    }
+  });
+
+  studentSearchInput.addEventListener("keydown", (event) => {
+    const options = Array.from(
+      studentSearchResults.querySelectorAll(".manual-student-search-result"),
+    );
+    if (!options.length) return;
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      activeSuggestionIndex =
+        event.key === "ArrowDown"
+          ? Math.min(activeSuggestionIndex + 1, options.length - 1)
+          : Math.max(activeSuggestionIndex - 1, 0);
+      options.forEach((option, index) => {
+        option.classList.toggle("is-active", index === activeSuggestionIndex);
+      });
+      options[activeSuggestionIndex]?.focus();
+    } else if (event.key === "Enter" && activeSuggestionIndex >= 0) {
+      event.preventDefault();
+      options[activeSuggestionIndex]?.click();
+    } else if (event.key === "Escape") {
+      closeSuggestions();
+    }
+  });
+
+  studentSearchResults.addEventListener("keydown", (event) => {
+    const options = Array.from(
+      studentSearchResults.querySelectorAll(".manual-student-search-result"),
+    );
+    const currentIndex = options.indexOf(document.activeElement);
+    if (event.key === "ArrowDown" && currentIndex >= 0) {
+      event.preventDefault();
+      options[Math.min(currentIndex + 1, options.length - 1)]?.focus();
+    } else if (event.key === "ArrowUp" && currentIndex >= 0) {
+      event.preventDefault();
+      if (currentIndex === 0) studentSearchInput.focus();
+      else options[currentIndex - 1]?.focus();
+    } else if (event.key === "Enter" && currentIndex >= 0) {
+      event.preventDefault();
+      options[currentIndex].click();
+    } else if (event.key === "Escape") {
+      closeSuggestions();
+      studentSearchInput.focus();
     }
   });
 
@@ -1339,10 +1579,60 @@ function renderManualAppointmentEntry() {
   const appointmentReasonInput = container.querySelector(
     "#manual-appointment-reason",
   );
+  renderManualAppointmentOptions(container);
+  appointmentDateInput.disabled = true;
+
+  appointmentDateInput.addEventListener("change", async () => {
+    if (!selectedStudent || !appointmentDateInput.value) {
+      populateManualSlotSelect(
+        appointmentTimeInput,
+        [],
+        "Select a student and date first",
+        true,
+      );
+      return;
+    }
+    populateManualSlotSelect(
+      appointmentTimeInput,
+      [],
+      "Loading available time slots...",
+      true,
+    );
+    try {
+      const options = await refreshAppointmentBookingOptions(
+        appointmentDateInput.value,
+        selectedStudent.student_number,
+      );
+      const slots = options.availableSlots || [];
+      populateManualSlotSelect(
+        appointmentTimeInput,
+        slots,
+        slots.length
+          ? "Select an available time slot"
+          : "No available time slots for the selected date.",
+        !slots.length,
+      );
+    } catch (error) {
+      populateManualSlotSelect(
+        appointmentTimeInput,
+        [],
+        "Unable to load available time slots",
+        true,
+      );
+      createToast(
+        error.message || "Unable to load available time slots.",
+        "info",
+      );
+    }
+  });
 
   container
     .querySelector("#create-manual-appointment-btn")
     ?.addEventListener("click", () => {
+      if (!bookingOptionsAreAvailable(appointmentBookingOptions)) {
+        createToast("Appointment configuration is unavailable.", "info");
+        return;
+      }
       if (!selectedStudent) {
         createToast(
           "Select an existing student account before continuing.",
@@ -1356,7 +1646,7 @@ function renderManualAppointmentEntry() {
         "#manual-appointment-details",
       );
       if (detailsSection) {
-        detailsSection.style.display = "block";
+        detailsSection.hidden = false;
         studentSearchInput.disabled = true;
         appointmentSourceSelect.disabled = true;
         detailsSection.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1366,6 +1656,21 @@ function renderManualAppointmentEntry() {
   container
     .querySelector("#save-manual-appointment-btn")
     ?.addEventListener("click", async () => {
+      let currentOptions;
+      try {
+        currentOptions = await refreshAppointmentBookingOptions(
+          appointmentDateInput.value,
+          selectedStudent.student_number,
+        );
+      } catch (error) {
+        createToast("Unable to load current appointment options.", "info");
+        return;
+      }
+      if (!bookingOptionsAreAvailable(currentOptions)) {
+        renderManualAppointmentOptions(container);
+        createToast("Appointment configuration is unavailable.", "info");
+        return;
+      }
       if (!appointmentDateInput.value) {
         createToast("Please select an appointment date.", "info");
         appointmentDateInput.focus();
@@ -1378,6 +1683,34 @@ function renderManualAppointmentEntry() {
         return;
       }
 
+      if (
+        !isManualBookingSelectionAvailable(
+          appointmentDateInput.value,
+          appointmentTimeInput.value,
+          currentOptions,
+        )
+      ) {
+        createToast(
+          "Select a date and time within the current appointment availability.",
+          "info",
+        );
+        return;
+      }
+
+      if (
+        !currentOptions.appointmentCategories.includes(
+          appointmentCategorySelect.value,
+        ) ||
+        !currentOptions.consultationModes.includes(appointmentModeSelect.value)
+      ) {
+        renderManualAppointmentOptions(container);
+        createToast(
+          "Appointment options changed. Select the current options.",
+          "info",
+        );
+        return;
+      }
+
       if (!appointmentReasonInput.value.trim()) {
         createToast("Please enter the appointment reason.", "info");
         appointmentReasonInput.focus();
@@ -1385,7 +1718,7 @@ function renderManualAppointmentEntry() {
       }
 
       const payload = {
-        account_id: selectedStudent.id,
+        student_number: selectedStudent.student_number,
         appointment_source: appointmentSourceSelect.value
           .toLowerCase()
           .replace("-", "_")
@@ -1397,6 +1730,10 @@ function renderManualAppointmentEntry() {
         reason: appointmentReasonInput.value.trim(),
       };
 
+      const saveButton = container.querySelector(
+        "#save-manual-appointment-btn",
+      );
+      saveButton.disabled = true;
       try {
         await fetchJson(`${API_BASE}/api/appointments/manual`, {
           method: "POST",
@@ -1415,6 +1752,8 @@ function renderManualAppointmentEntry() {
           error.message || "Unable to create manual appointment.",
           "info",
         );
+      } finally {
+        saveButton.disabled = false;
       }
     });
 }
@@ -1590,8 +1929,8 @@ function createFlaggedAppointmentCaseCard(summary) {
 
   card.innerHTML = `
     <div class="appointment-card-header">
-      <h4>${escapeHtml(summary.student)}</h4>
-      <p class="sub">${escapeHtml(summary.studentId)}</p>
+      <h4>${escapeHtml(summary.studentName || "Authorized student")}</h4>
+      <p class="sub">${escapeHtml(summary.studentNumber || "—")}</p>
     </div>
 
     <div class="appointment-card-body">
@@ -1604,7 +1943,7 @@ function createFlaggedAppointmentCaseCard(summary) {
 
       <p>
         Recommendation:
-        ${escapeHtml(summary.recommendation || "No recommendation available.")}
+        ${escapeHtml(summary.summary || "No AI summary preview available.")}
       </p>
 
       <p>
@@ -1625,136 +1964,821 @@ function createFlaggedAppointmentCaseCard(summary) {
   const viewButton = card.querySelector(".view-case-btn");
 
   viewButton?.addEventListener("click", () => {
-    switchView("flagged");
+    void openInboxItem(summary);
   });
 
   return card;
 }
 
-function createFaqBlock(title, question, answer) {
-  const container = document.createElement("div");
-  container.className = "faq-block";
-  container.innerHTML = `
-    <div class="faq-block-header">
-      <div class="faq-title">${escapeHtml(title)}</div>
-      <div class="faq-q">${escapeHtml(question)}</div>
-    </div>
-    <div class="faq-block-body">
-      <textarea>${escapeHtml(answer || "")}</textarea>
-    </div>
-  `;
-  return container;
+const AVAILABILITY_DAY_OPTIONS = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+  "Monday to Friday",
+  "Monday to Saturday",
+];
+
+function setSettingsStatus(message, type = "") {
+  const status = document.getElementById("settings-status");
+  if (!status) return;
+  status.textContent = message || "";
+  status.hidden = !message;
+  status.classList.remove("error", "success");
+  if (type) status.classList.add(type);
 }
 
-function getFaqPanel() {
-  const panel = Array.from(
-    document.querySelectorAll("#view-settings .settings-panel"),
-  ).find((panelEl) => {
-    const heading = panelEl.querySelector("h3");
-    return heading && heading.textContent.includes("FAQ Responses");
-  });
-  return panel || document.querySelector("#view-settings");
+function setCounselorProfileStatus(message, type = "") {
+  const status = document.getElementById("counselor-profile-status");
+  if (!status) return;
+  status.textContent = message || "";
+  status.hidden = !message;
+  status.classList.remove("error", "success");
+  if (type) status.classList.add(type);
 }
 
-function getFaqListContainer(panel = getFaqPanel()) {
-  if (!panel) return null;
-  return panel.querySelector(".faq-list") || panel;
+function setFaqStatus(message, type = "") {
+  const status = document.getElementById("faq-status");
+  if (!status) return;
+  status.textContent = message || "";
+  status.hidden = !message;
+  status.classList.remove("error", "success");
+  if (type) status.classList.add(type);
 }
 
-function appendFaqBlock(block, panel = getFaqPanel()) {
-  const list = getFaqListContainer(panel);
-  if (!block || !list) return false;
-  list.appendChild(block);
-  return true;
+function canonicalTimeToInputValue(value) {
+  const match = String(value || "")
+    .trim()
+    .match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return "";
+
+  const inputHour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (inputHour < 1 || inputHour > 12 || minute > 59) return "";
+
+  const hour = (inputHour % 12) + (match[3].toUpperCase() === "PM" ? 12 : 0);
+  return `${String(hour).padStart(2, "0")}:${match[2]}`;
 }
 
-function getSettingsSnapshot() {
-  const root = document.getElementById("view-settings");
-  if (!root) return { ...defaultSettings };
+function inputTimeToCanonical(value) {
+  const match = String(value || "")
+    .trim()
+    .match(/^(\d{2}):(\d{2})$/);
+  if (!match) return "";
 
-  const inputs = root.querySelectorAll(".field-grid-2 .field-group input");
-  const toggles = root.querySelectorAll(".toggle-row input[type=checkbox]");
-  const escalationPanel = Array.from(
-    root.querySelectorAll(".settings-panel"),
-  ).find((panel) => {
-    const heading = panel.querySelector("h3");
-    return heading && heading.textContent.includes("Escalation");
-  });
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (hour > 23 || minute > 59) return "";
 
+  const meridiem = hour >= 12 ? "PM" : "AM";
+  const twelveHour = hour % 12 || 12;
+  return `${String(twelveHour).padStart(2, "0")}:${match[2]} ${meridiem}`;
+}
+
+function availabilityWindowTimeValues(value) {
+  const [start = "", end = ""] = String(value || "").split(" - ");
   return {
-    officeHours: inputs[0]?.value || "",
-    officeEmail: inputs[1]?.value || "",
-    contactNumber: inputs[2]?.value || "",
-    officeLocation: inputs[3]?.value || "",
-    autoFlag: toggles[0]?.checked || false,
-    showSupport: toggles[1]?.checked || false,
-    escalationMessage:
-      escalationPanel?.querySelector("textarea")?.value ||
-      defaultSettings.escalationMessage,
-    faqs: Array.from(root.querySelectorAll(".faq-block")).map((block) => ({
-      title: block.querySelector(".faq-title")?.textContent?.trim() || "",
-      question: block.querySelector(".faq-q")?.textContent?.trim() || "",
-      answer: block.querySelector(".faq-block-body textarea")?.value || "",
-    })),
+    startTime: canonicalTimeToInputValue(start),
+    endTime: canonicalTimeToInputValue(end),
   };
 }
 
-function saveSettingsToStorage(settings = getSettingsSnapshot(), toast = true) {
-  try {
-    localStorage.setItem(settingsStorageKey, JSON.stringify(settings));
-    fetch(`${API_BASE}/api/settings`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(settings),
-    }).catch((error) => console.error(error));
-    if (toast) createToast("Settings saved", "success");
-    return true;
-  } catch (error) {
-    console.error(error);
-    if (toast) createToast("Unable to save settings locally", "info");
-    return false;
+function createAvailabilityField(labelText, control) {
+  const field = document.createElement("div");
+  const label = document.createElement("label");
+
+  field.className = "availability-field";
+  label.textContent = labelText;
+  field.append(label, control);
+  return field;
+}
+
+function createAvailabilityWindow(window = {}) {
+  const row = document.createElement("div");
+  const weekday = document.createElement("select");
+  const startTime = document.createElement("input");
+  const endTime = document.createElement("input");
+  const remove = document.createElement("button");
+  const error = document.createElement("p");
+  const { startTime: savedStartTime, endTime: savedEndTime } =
+    availabilityWindowTimeValues(window.time);
+
+  row.className = "appointment-availability-window";
+  weekday.className = "form-control";
+  weekday.dataset.availabilityWeekday = "true";
+  weekday.setAttribute("aria-label", "Available weekday");
+  AVAILABILITY_DAY_OPTIONS.forEach((day) => {
+    const option = document.createElement("option");
+    option.value = day;
+    option.textContent = day;
+    weekday.appendChild(option);
+  });
+  weekday.value = window.days || "Monday";
+  startTime.type = "time";
+  startTime.className = "form-control";
+  startTime.dataset.availabilityStartTime = "true";
+  startTime.value = savedStartTime;
+  startTime.setAttribute("aria-label", "Availability start time");
+  endTime.type = "time";
+  endTime.className = "form-control";
+  endTime.dataset.availabilityEndTime = "true";
+  endTime.value = savedEndTime;
+  endTime.setAttribute("aria-label", "Availability end time");
+  remove.type = "button";
+  remove.className = "btn btn-outline btn-sm";
+  remove.dataset.removeAvailabilityWindow = "true";
+  remove.textContent = "Remove";
+  error.className = "availability-row-error";
+  error.hidden = true;
+  error.setAttribute("aria-live", "polite");
+  row.append(
+    createAvailabilityField("Weekday", weekday),
+    createAvailabilityField("Start time", startTime),
+    createAvailabilityField("End time", endTime),
+    remove,
+    error,
+  );
+  return row;
+}
+
+function createUnavailableDate(value = "") {
+  const row = document.createElement("div");
+  const input = document.createElement("input");
+  const remove = document.createElement("button");
+
+  row.className = "appointment-unavailable-date";
+  input.type = "date";
+  input.className = "form-control";
+  input.value = value;
+  input.setAttribute("aria-label", "Unavailable appointment date");
+  remove.type = "button";
+  remove.className = "btn btn-outline btn-sm";
+  remove.dataset.removeUnavailableDate = "true";
+  remove.textContent = "Remove";
+  row.append(input, remove);
+  return row;
+}
+
+function counselorRooms() {
+  return String(document.getElementById("counselor-profile-rooms")?.value || "")
+    .split(",")
+    .map((room) => room.trim())
+    .filter(Boolean);
+}
+
+function createCounselorScheduleRow(schedule = {}) {
+  const row = document.createElement("div");
+  const room = document.createElement("select");
+  const day = document.createElement("select");
+  const start = document.createElement("input");
+  const end = document.createElement("input");
+  const remove = document.createElement("button");
+  const { startTime, endTime } = availabilityWindowTimeValues(schedule.time);
+
+  row.className = "counselor-schedule-row";
+  room.dataset.counselorScheduleRoom = "true";
+  day.dataset.counselorScheduleDay = "true";
+  start.dataset.counselorScheduleStart = "true";
+  end.dataset.counselorScheduleEnd = "true";
+  ["", ...counselorRooms()].forEach((value) => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = value || "Select room";
+    option.selected = value === (schedule.room || "");
+    room.appendChild(option);
+  });
+  AVAILABILITY_DAY_OPTIONS.forEach((value) => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = value;
+    option.selected = value === (schedule.days || "Monday");
+    day.appendChild(option);
+  });
+  start.type = "time";
+  start.value = startTime;
+  end.type = "time";
+  end.value = endTime;
+  remove.type = "button";
+  remove.className = "btn btn-outline btn-sm";
+  remove.textContent = "Remove";
+  remove.addEventListener("click", () => {
+    row.remove();
+    updateCounselorProfileSaveButton();
+  });
+
+  row.append(
+    createAvailabilityField("Room", room),
+    createAvailabilityField("Days", day),
+    createAvailabilityField("Start", start),
+    createAvailabilityField("End", end),
+    remove,
+  );
+  return row;
+}
+
+function renderCounselorProfile(profile) {
+  const rooms = document.getElementById("counselor-profile-rooms");
+  const office = document.getElementById("counselor-profile-office");
+  const support = document.getElementById("counselor-profile-support");
+  const schedules = document.getElementById("counselor-schedule-list");
+  if (!rooms || !office || !support || !schedules) return;
+  rooms.value = (profile.consultation_rooms || []).join(", ");
+  office.value = profile.office || "";
+  support.value = profile.support_statement || "";
+  schedules.replaceChildren();
+  (profile.consultation_schedules || []).forEach((schedule) => {
+    schedules.appendChild(createCounselorScheduleRow(schedule));
+  });
+  counselorProfileBaseline = getCounselorProfileState();
+  updateCounselorProfileSaveButton();
+}
+
+function collectCounselorSchedules() {
+  const schedules = [];
+  for (const row of document.querySelectorAll(".counselor-schedule-row")) {
+    const room =
+      row.querySelector("[data-counselor-schedule-room]")?.value || "";
+    const days =
+      row.querySelector("[data-counselor-schedule-day]")?.value || "";
+    const start =
+      row.querySelector("[data-counselor-schedule-start]")?.value || "";
+    const end = row.querySelector("[data-counselor-schedule-end]")?.value || "";
+    if (!room || !days || !start || !end || start >= end) {
+      throw new Error(
+        "Each consultation schedule needs a room, day, and valid start/end time.",
+      );
+    }
+    schedules.push({
+      room,
+      days,
+      time: `${inputTimeToCanonical(start)} - ${inputTimeToCanonical(end)}`,
+    });
+  }
+  return schedules;
+}
+
+function getCounselorProfileState() {
+  const schedules = Array.from(
+    document.querySelectorAll(".counselor-schedule-row"),
+    (row) => ({
+      room: row.querySelector("[data-counselor-schedule-room]")?.value || "",
+      days: row.querySelector("[data-counselor-schedule-day]")?.value || "",
+      start: row.querySelector("[data-counselor-schedule-start]")?.value || "",
+      end: row.querySelector("[data-counselor-schedule-end]")?.value || "",
+    }),
+  );
+  return JSON.stringify({
+    office: document.getElementById("counselor-profile-office")?.value || "",
+    rooms: document.getElementById("counselor-profile-rooms")?.value || "",
+    support: document.getElementById("counselor-profile-support")?.value || "",
+    schedules,
+  });
+}
+
+function counselorProfileHasChanges() {
+  return (
+    Boolean(counselorProfileBaseline) &&
+    getCounselorProfileState() !== counselorProfileBaseline
+  );
+}
+
+function updateCounselorProfileSaveButton() {
+  setSaveButtonState(
+    document.getElementById("save-counselor-profile"),
+    counselorProfileHasChanges(),
+  );
+}
+
+async function loadCounselorProfile() {
+  const response = await fetchJson(`${API_BASE}/api/accounts/staff/profile`);
+  renderCounselorProfile(response.data || {});
+}
+
+function bindCounselorProfile() {
+  const panel = document.querySelector(".counselor-profile-panel");
+  panel?.addEventListener("input", updateCounselorProfileSaveButton);
+  panel?.addEventListener("change", updateCounselorProfileSaveButton);
+  document
+    .getElementById("add-counselor-schedule")
+    ?.addEventListener("click", () => {
+      document
+        .getElementById("counselor-schedule-list")
+        ?.appendChild(createCounselorScheduleRow());
+      updateCounselorProfileSaveButton();
+    });
+  document
+    .getElementById("counselor-profile-rooms")
+    ?.addEventListener("change", () => {
+      const list = document.getElementById("counselor-schedule-list");
+      const existing = Array.from(list?.children || [], (row) => ({
+        room: row.querySelector("[data-counselor-schedule-room]")?.value || "",
+        days: row.querySelector("[data-counselor-schedule-day]")?.value || "",
+        time: `${inputTimeToCanonical(row.querySelector("[data-counselor-schedule-start]")?.value || "")} - ${inputTimeToCanonical(row.querySelector("[data-counselor-schedule-end]")?.value || "")}`,
+      }));
+      list?.replaceChildren(...existing.map(createCounselorScheduleRow));
+      updateCounselorProfileSaveButton();
+    });
+  document
+    .getElementById("save-counselor-profile")
+    ?.addEventListener("click", async () => {
+      try {
+        if (!counselorProfileHasChanges()) return;
+        const consultationSchedules = collectCounselorSchedules();
+        if (!window.confirm("Save changes to your counselor profile?")) return;
+
+        const saveButton = document.getElementById("save-counselor-profile");
+        saveButton.disabled = true;
+        setCounselorProfileStatus("Saving counselor profile...");
+        const response = await fetchJson(
+          `${API_BASE}/api/accounts/staff/profile`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              office:
+                document.getElementById("counselor-profile-office")?.value ||
+                "",
+              support_statement:
+                document.getElementById("counselor-profile-support")?.value ||
+                "",
+              consultation_rooms: counselorRooms(),
+              consultation_schedules: consultationSchedules,
+            }),
+          },
+        );
+        renderCounselorProfile(response.data || {});
+        setCounselorProfileStatus("Counselor profile saved.", "success");
+      } catch (error) {
+        setCounselorProfileStatus(
+          error.message || "Unable to save counselor profile.",
+          "error",
+        );
+        updateCounselorProfileSaveButton();
+      }
+    });
+}
+
+function renderAvailabilityConfiguration(availability) {
+  const windows = document.getElementById("appointment-availability-windows");
+  const unavailableDates = document.getElementById(
+    "appointment-unavailable-dates",
+  );
+  if (!windows || !unavailableDates) return;
+
+  windows.replaceChildren();
+  unavailableDates.replaceChildren();
+  (availability?.officeAvailability || []).forEach((window) => {
+    windows.appendChild(createAvailabilityWindow(window));
+  });
+  const excludedDates = new Set([
+    ...(availability?.holidays || []),
+    ...(availability?.academicCalendarExclusions || []),
+    ...(availability?.unavailableDates || []),
+  ]);
+  [...excludedDates].sort().forEach((value) => {
+    unavailableDates.appendChild(createUnavailableDate(value));
+  });
+}
+
+function settingsChoices(id) {
+  return String(document.getElementById(id)?.value || "")
+    .split("\n")
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
+function controlState(control) {
+  return {
+    id: control.id,
+    value: control.type === "checkbox" ? control.checked : control.value,
+  };
+}
+
+function getSettingsFormState() {
+  const controls = document.querySelectorAll(
+    [
+      "#settings-office-name",
+      "#settings-office-hours",
+      "#settings-office-email",
+      "#settings-contact-number",
+      "#settings-office-location",
+      "#settings-booking-enabled",
+      "#settings-appointment-slots",
+      "#settings-appointment-categories",
+      "#settings-consultation-modes",
+      "#appointment-availability-windows select",
+      "#appointment-availability-windows input",
+      "#appointment-unavailable-dates input",
+    ].join(", "),
+  );
+  return JSON.stringify(Array.from(controls, controlState));
+}
+
+function setSaveButtonState(button, hasChanges) {
+  if (!button) return;
+  button.disabled = !hasChanges;
+  button.setAttribute("aria-disabled", String(!hasChanges));
+}
+
+function settingsHaveChanges() {
+  return (
+    Boolean(settingsBaseline) && getSettingsFormState() !== settingsBaseline
+  );
+}
+
+function updateSettingsSaveButtons() {
+  const hasChanges = settingsHaveChanges();
+  setSaveButtonState(document.getElementById("save-settings-btn"), hasChanges);
+  setSaveButtonState(
+    headerActions?.querySelector('[data-dashboard-action="save-settings"]'),
+    hasChanges,
+  );
+}
+
+function setPasswordStatus(message, type = "error") {
+  const status = document.getElementById("password-status");
+  if (!status) return;
+  status.textContent = message || "";
+  status.className = `settings-status ${type}`;
+  status.hidden = !message;
+}
+
+function updatePasswordButton() {
+  const currentPassword =
+    document.getElementById("current-password")?.value || "";
+  const newPassword = document.getElementById("new-password")?.value || "";
+  const confirmPassword =
+    document.getElementById("confirm-password")?.value || "";
+  const button = document.getElementById("change-password-btn");
+  const passwordsMatch = newPassword === confirmPassword;
+  const hasValidInput = Boolean(
+    currentPassword &&
+    newPassword.length >= 8 &&
+    confirmPassword &&
+    passwordsMatch,
+  );
+
+  setSaveButtonState(button, hasValidInput);
+  if (confirmPassword && !passwordsMatch) {
+    setPasswordStatus("New passwords do not match.");
+  } else if (newPassword && newPassword.length < 8) {
+    setPasswordStatus("New password must be at least 8 characters long.");
+  } else {
+    setPasswordStatus("");
   }
 }
 
-function renderSettingsFromStorage() {
-  const root = document.getElementById("view-settings");
-  if (!root) return;
+function bindPasswordChange() {
+  const button = document.getElementById("change-password-btn");
+  const inputs = ["current-password", "new-password", "confirm-password"].map(
+    (id) => document.getElementById(id),
+  );
+  inputs.forEach((input) =>
+    input?.addEventListener("input", updatePasswordButton),
+  );
 
-  const settings = loadSettings();
-  const inputs = root.querySelectorAll(".field-grid-2 .field-group input");
-  const toggles = root.querySelectorAll(".toggle-row input[type=checkbox]");
-  const escalationPanel = Array.from(
-    root.querySelectorAll(".settings-panel"),
-  ).find((panel) => {
-    const heading = panel.querySelector("h3");
-    return heading && heading.textContent.includes("Escalation");
+  button?.addEventListener("click", async () => {
+    const currentPassword =
+      document.getElementById("current-password")?.value || "";
+    const newPassword = document.getElementById("new-password")?.value || "";
+    const confirmPassword =
+      document.getElementById("confirm-password")?.value || "";
+    if (button.disabled) return;
+
+    button.disabled = true;
+    let passwordUpdated = false;
+    try {
+      await fetchJson(`${API_BASE}/api/accounts/staff/password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          current_password: currentPassword,
+          new_password: newPassword,
+          confirm_password: confirmPassword,
+        }),
+      });
+      inputs.forEach((input) => {
+        if (input) input.value = "";
+      });
+      passwordUpdated = true;
+    } catch (error) {
+      setPasswordStatus(error.message || "Unable to update password.");
+    } finally {
+      updatePasswordButton();
+      if (passwordUpdated) {
+        setPasswordStatus("Password updated successfully.", "success");
+      }
+    }
   });
 
-  if (inputs[0]) inputs[0].value = settings.officeHours;
-  if (inputs[1]) inputs[1].value = settings.officeEmail;
-  if (inputs[2]) inputs[2].value = settings.contactNumber;
-  if (inputs[3]) inputs[3].value = settings.officeLocation;
+  updatePasswordButton();
+}
 
-  if (toggles[0]) toggles[0].checked = Boolean(settings.autoFlag);
-  if (toggles[1]) toggles[1].checked = Boolean(settings.showSupport);
+function setAvailabilityRowError(row, message) {
+  const error = row.querySelector(".availability-row-error");
+  if (!error) return;
+  error.textContent = message || "";
+  error.hidden = !message;
+}
 
-  if (escalationPanel) {
-    const textarea = escalationPanel.querySelector("textarea");
-    if (textarea) textarea.value = settings.escalationMessage;
-  }
+function collectAvailabilityWindows() {
+  const rows = Array.from(
+    document.querySelectorAll(".appointment-availability-window"),
+  );
+  const windows = [];
+  let hasInvalidRow = false;
 
-  const faqPanel = getFaqPanel();
-  if (faqPanel) {
-    const faqList = getFaqListContainer(faqPanel);
-    if (faqList) {
-      faqList.querySelectorAll(".faq-block").forEach((block) => block.remove());
-    }
-    settings.faqs.forEach((faq) => {
-      appendFaqBlock(
-        createFaqBlock(faq.title, faq.question, faq.answer),
-        faqPanel,
+  rows.forEach((row) => {
+    const weekday =
+      row.querySelector("[data-availability-weekday]")?.value || "";
+    const startTime =
+      row.querySelector("[data-availability-start-time]")?.value || "";
+    const endTime =
+      row.querySelector("[data-availability-end-time]")?.value || "";
+    const canonicalStartTime = inputTimeToCanonical(startTime);
+    const canonicalEndTime = inputTimeToCanonical(endTime);
+
+    setAvailabilityRowError(row, "");
+    if (!weekday || !startTime || !endTime) {
+      setAvailabilityRowError(
+        row,
+        "Choose a weekday, start time, and end time for this availability row.",
       );
+      hasInvalidRow = true;
+      return;
+    }
+    if (!canonicalStartTime || !canonicalEndTime || startTime >= endTime) {
+      setAvailabilityRowError(row, "End time must be later than start time.");
+      hasInvalidRow = true;
+      return;
+    }
+    windows.push({
+      days: weekday,
+      time: `${canonicalStartTime} - ${canonicalEndTime}`,
     });
+  });
+
+  if (hasInvalidRow) {
+    throw new Error("Correct the highlighted availability rows before saving.");
+  }
+  return windows;
+}
+
+function getSettingsSnapshot() {
+  const availabilityWindows = collectAvailabilityWindows();
+  const unavailableDates = Array.from(
+    document.querySelectorAll(".appointment-unavailable-date input"),
+    (input) => input.value,
+  ).filter(Boolean);
+
+  return {
+    officeName: document.getElementById("settings-office-name")?.value || "",
+    officeHours: document.getElementById("settings-office-hours")?.value || "",
+    officeEmail: document.getElementById("settings-office-email")?.value || "",
+    contactNumber:
+      document.getElementById("settings-contact-number")?.value || "",
+    officeLocation:
+      document.getElementById("settings-office-location")?.value || "",
+    appointmentAvailability: {
+      bookingEnabled: Boolean(
+        document.getElementById("settings-booking-enabled")?.checked,
+      ),
+      officeAvailability: availabilityWindows,
+      holidays: [],
+      academicCalendarExclusions: [],
+      unavailableDates,
+      appointmentSlots: settingsChoices("settings-appointment-slots"),
+      appointmentCategories: settingsChoices("settings-appointment-categories"),
+      consultationModes: settingsChoices("settings-consultation-modes"),
+    },
+  };
+}
+
+function renderPersistedSettings(settings) {
+  persistedSettings = settings || null;
+  const availability = settings?.appointmentAvailability || null;
+  const fields = {
+    "settings-office-name": settings?.officeName || "",
+    "settings-office-hours": settings?.officeHours || "",
+    "settings-office-email": settings?.officeEmail || "",
+    "settings-contact-number": settings?.contactNumber || "",
+    "settings-office-location": settings?.officeLocation || "",
+    "settings-appointment-slots": (availability?.appointmentSlots || []).join(
+      "\n",
+    ),
+    "settings-appointment-categories": (
+      availability?.appointmentCategories || []
+    ).join("\n"),
+    "settings-consultation-modes": (availability?.consultationModes || []).join(
+      "\n",
+    ),
+  };
+  Object.entries(fields).forEach(([id, value]) => {
+    const input = document.getElementById(id);
+    if (input) input.value = value;
+  });
+  const bookingEnabled = document.getElementById("settings-booking-enabled");
+  if (bookingEnabled)
+    bookingEnabled.checked = Boolean(availability?.bookingEnabled);
+  renderAvailabilityConfiguration(availability);
+  const configurationState = settings?.appointmentConfigurationState;
+  setSettingsStatus(
+    configurationState === "configured"
+      ? "Persisted settings loaded."
+      : configurationState === "booking_disabled"
+        ? "Appointment booking is disabled. Incomplete booking configuration is preserved but unavailable to students and manual entry."
+        : "Appointment configuration is unconfigured. Booking is unavailable until it is saved with availability, categories, and modes.",
+    configurationState === "configured" ||
+      configurationState === "booking_disabled"
+      ? "success"
+      : "error",
+  );
+  settingsBaseline = getSettingsFormState();
+  updateSettingsSaveButtons();
+}
+
+async function loadPersistedSettings() {
+  const response = await fetchJson(`${API_BASE}/api/settings`);
+  renderPersistedSettings(response.data);
+}
+
+function createFaqField(labelText, id, control) {
+  const field = document.createElement("div");
+  const label = document.createElement("label");
+  field.className = "field-group";
+  label.htmlFor = id;
+  label.textContent = labelText;
+  control.id = id;
+  field.append(label, control);
+  return field;
+}
+
+function createFaqEditorCard(faq) {
+  const card = document.createElement("article");
+  const header = document.createElement("div");
+  const heading = document.createElement("h4");
+  const activeLabel = document.createElement("label");
+  const active = document.createElement("input");
+  const title = document.createElement("input");
+  const question = document.createElement("input");
+  const answer = document.createElement("textarea");
+  const actions = document.createElement("div");
+  const save = document.createElement("button");
+  const remove = document.createElement("button");
+
+  card.className = "faq-editor-card";
+  header.className = "faq-editor-card-header";
+  heading.textContent = faq.title || "FAQ";
+  active.type = "checkbox";
+  active.checked = Boolean(faq.active);
+  active.id = `faq-active-${faq.id}`;
+  activeLabel.className = "faq-active-toggle";
+  activeLabel.htmlFor = active.id;
+  activeLabel.append(active, document.createTextNode("Active"));
+  header.append(heading, activeLabel);
+
+  title.type = "text";
+  title.value = faq.title || "";
+  question.type = "text";
+  question.value = faq.question || "";
+  answer.rows = 4;
+  answer.value = faq.answer || "";
+
+  const initialState = () =>
+    JSON.stringify({
+      title: title.value,
+      question: question.value,
+      answer: answer.value,
+      active: active.checked,
+    });
+  const savedState = initialState();
+  const updateSaveState = () => {
+    setSaveButtonState(save, initialState() !== savedState);
+  };
+
+  actions.className = "faq-editor-card-actions";
+  save.type = "button";
+  save.className = "btn btn-primary btn-sm";
+  save.textContent = "Save FAQ";
+  remove.type = "button";
+  remove.className = "btn btn-outline btn-sm";
+  remove.textContent = "Remove";
+  actions.append(save, remove);
+  card.append(
+    header,
+    createFaqField("Title", `faq-title-${faq.id}`, title),
+    createFaqField("Question", `faq-question-${faq.id}`, question),
+    createFaqField("Answer", `faq-answer-${faq.id}`, answer),
+    actions,
+  );
+
+  [title, question, answer, active].forEach((control) => {
+    control.addEventListener("input", updateSaveState);
+    control.addEventListener("change", updateSaveState);
+  });
+  updateSaveState();
+
+  save.addEventListener("click", async () => {
+    if (save.disabled) return;
+    if (!window.confirm("Save changes to this FAQ?")) return;
+    save.disabled = true;
+    setFaqStatus("Saving FAQ...");
+    try {
+      await fetchJson(
+        `${API_BASE}/api/settings/faqs/${encodeURIComponent(faq.id)}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: title.value,
+            question: question.value,
+            answer: answer.value,
+            active: active.checked,
+          }),
+        },
+      );
+      await loadFaqs();
+      setFaqStatus("FAQ saved.", "success");
+    } catch (error) {
+      setFaqStatus(error.message || "Unable to save FAQ.", "error");
+    } finally {
+      save.disabled = false;
+    }
+  });
+
+  remove.addEventListener("click", async () => {
+    if (!window.confirm("Remove this FAQ?")) return;
+    remove.disabled = true;
+    setFaqStatus("Removing FAQ...");
+    try {
+      await fetchJson(
+        `${API_BASE}/api/settings/faqs/${encodeURIComponent(faq.id)}`,
+        {
+          method: "DELETE",
+        },
+      );
+      await loadFaqs();
+      setFaqStatus("FAQ removed.", "success");
+    } catch (error) {
+      setFaqStatus(error.message || "Unable to remove FAQ.", "error");
+      remove.disabled = false;
+    }
+  });
+  return card;
+}
+
+function renderFaqs(items) {
+  const list = document.getElementById("faq-list");
+  if (!list) return;
+  list.replaceChildren();
+  if (!items.length) {
+    const empty = document.createElement("p");
+    empty.className = "settings-status";
+    empty.textContent = "No persisted FAQs are available.";
+    list.appendChild(empty);
+    return;
+  }
+  items.forEach((faq) => list.appendChild(createFaqEditorCard(faq)));
+}
+
+async function loadFaqs() {
+  setFaqStatus("Loading FAQs...");
+  const response = await fetchJson(`${API_BASE}/api/settings/faqs`);
+  persistedFaqs = Array.isArray(response.data?.items)
+    ? response.data.items
+    : [];
+  renderFaqs(persistedFaqs);
+  setFaqStatus("");
+}
+
+function updateAddFaqButton() {
+  const title = document.getElementById("new-faq-title")?.value.trim();
+  const question = document.getElementById("new-faq-question")?.value.trim();
+  const answer = document.getElementById("new-faq-answer")?.value.trim();
+  setSaveButtonState(
+    document.getElementById("add-faq-btn"),
+    Boolean(title && question && answer),
+  );
+}
+
+async function saveSettingsToApi() {
+  setSettingsStatus("Saving settings...");
+  try {
+    const response = await fetchJson(`${API_BASE}/api/settings`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(getSettingsSnapshot()),
+    });
+    await loadPersistedSettings();
+    setSettingsStatus(response.message || "Settings saved.", "success");
+    createToast("Settings saved", "success");
+    return true;
+  } catch (error) {
+    setSettingsStatus(error.message || "Unable to save settings.", "error");
+    return false;
   }
 }
 
@@ -1763,17 +2787,77 @@ function bindSettingsInteractions() {
   if (!root) return;
 
   root.addEventListener("click", (event) => {
-    const remove = event.target.closest(".chip-remove");
-    if (remove) {
-      const chip = remove.closest(".chip");
-      chip?.remove();
-      saveSettingsToStorage(undefined, false);
+    if (event.target.closest("#add-availability-window-btn")) {
+      document
+        .getElementById("appointment-availability-windows")
+        ?.appendChild(createAvailabilityWindow());
     }
+    if (event.target.closest("#add-unavailable-date-btn")) {
+      document
+        .getElementById("appointment-unavailable-dates")
+        ?.appendChild(createUnavailableDate());
+    }
+    event.target
+      .closest("[data-remove-availability-window]")
+      ?.parentElement?.remove();
+    event.target
+      .closest("[data-remove-unavailable-date]")
+      ?.parentElement?.remove();
+    updateSettingsSaveButtons();
   });
+  root.addEventListener("input", updateSettingsSaveButtons);
+  root.addEventListener("change", updateSettingsSaveButtons);
+}
 
-  root.addEventListener("input", (event) => {
-    if (event.target.matches("input, textarea, select")) {
-      saveSettingsToStorage(undefined, false);
+function bindInboxControls() {
+  document
+    .getElementById("inbox-search-input")
+    ?.addEventListener("input", renderInquiryTable);
+  document
+    .getElementById("inbox-filter")
+    ?.addEventListener("change", renderInquiryTable);
+  document.getElementById("inbox-retry")?.addEventListener("click", () => {
+    void loadBackendData();
+  });
+}
+
+function bindFaqManagement() {
+  const form = document.getElementById("add-faq-form");
+  if (!form) return;
+  form.addEventListener("input", updateAddFaqButton);
+  form.addEventListener("change", updateAddFaqButton);
+  updateAddFaqButton();
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const title = document.getElementById("new-faq-title");
+    const question = document.getElementById("new-faq-question");
+    const answer = document.getElementById("new-faq-answer");
+    if (
+      !title?.value.trim() ||
+      !question?.value.trim() ||
+      !answer?.value.trim()
+    ) {
+      updateAddFaqButton();
+      return;
+    }
+    if (!window.confirm("Add this FAQ?")) return;
+    setFaqStatus("Saving FAQ...");
+    try {
+      await fetchJson(`${API_BASE}/api/settings/faqs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: title?.value || "",
+          question: question?.value || "",
+          answer: answer?.value || "",
+        }),
+      });
+      form.reset();
+      updateAddFaqButton();
+      await loadFaqs();
+      setFaqStatus("FAQ added.", "success");
+    } catch (error) {
+      setFaqStatus(error.message || "Unable to add FAQ.", "error");
     }
   });
 }
@@ -1849,9 +2933,11 @@ const headerSub = document.getElementById("header-sub");
 const headerActions = document.getElementById("header-actions");
 const sidebar = document.getElementById("sidebar");
 const sidebarToggle = document.getElementById("sidebar-toggle");
+const sidebarClose = document.getElementById("sidebar-close");
 const sidebarOverlay = document.getElementById("sidebar-overlay");
-const filterTabs = document.querySelectorAll(".filter-tab");
+const dashboardLogout = document.getElementById("dashboard-logout");
 const currentLocation = window.location.pathname || "";
+const compactNavigation = window.matchMedia("(max-width: 900px)");
 
 const viewMeta = {
   inbox: {
@@ -1869,12 +2955,6 @@ const viewMeta = {
   appointments: {
     title: "Appointments",
     sub: "Monitor appointment requests, appointment history, and counselor interventions.",
-    actions: "",
-  },
-
-  resolved: {
-    title: "Resolved Inquiries",
-    sub: "Cases that have been closed or marked resolved",
     actions: "",
   },
 
@@ -1897,8 +2977,8 @@ const viewMeta = {
     actions: '<div class="report-period-badge">This Month</div>',
   },
   settings: {
-    title: "Settings & FAQ Management",
-    sub: "Update chatbot responses, office details, categories, and escalation messages.",
+    title: "Guidance Office Settings",
+    sub: "Manage live office information and appointment booking availability.",
     actions:
       '<button class="btn btn-primary" data-dashboard-action="save-settings">Save Changes</button>',
   },
@@ -1918,7 +2998,34 @@ const viewMeta = {
 
 let currentView = "inbox";
 let prevView = "inbox";
-let currentInboxFilter = "all";
+const dashboardSections = {
+  appointments: "overview",
+  reports: "overview",
+};
+const dashboardViewIds = new Set(
+  Array.from(navItems, (item) => item.dataset.view),
+);
+
+function updateDashboardLocation(
+  viewId,
+  sectionId = dashboardSections[viewId],
+) {
+  const hash = sectionId ? `#${viewId}:${sectionId}` : `#${viewId}`;
+  if (window.location.hash !== hash) {
+    window.history.replaceState(null, "", hash);
+  }
+}
+
+function restoreDashboardLocation() {
+  const [viewId, sectionId] = window.location.hash.slice(1).split(":");
+  if (!dashboardViewIds.has(viewId)) return;
+
+  const view = document.getElementById(`view-${viewId}`);
+  const hasSection =
+    sectionId && view?.querySelector(`[data-dashboard-section="${sectionId}"]`);
+  if (hasSection) dashboardSections[viewId] = sectionId;
+  switchView(viewId, false);
+}
 
 function initials(name) {
   return name
@@ -1962,6 +3069,7 @@ function updateHeader(viewId) {
   headerActions
     .querySelector('[data-dashboard-action="save-settings"]')
     ?.addEventListener("click", saveSettings);
+  if (viewId === "settings") updateSettingsSaveButtons();
 
   const backToSettingsBtn = document.getElementById("back-to-settings-btn");
   if (backToSettingsBtn) {
@@ -1971,7 +3079,7 @@ function updateHeader(viewId) {
   }
 }
 
-function switchView(viewId) {
+function switchView(viewId, updateLocation = true) {
   prevView = currentView;
   currentView = viewId;
 
@@ -1984,6 +3092,10 @@ function switchView(viewId) {
   });
 
   updateHeader(viewId);
+  if (dashboardSections[viewId]) {
+    showDashboardSection(viewId, dashboardSections[viewId], false);
+  }
+  if (updateLocation) updateDashboardLocation(viewId);
   window.scrollTo(0, 0);
 }
 
@@ -1992,113 +3104,263 @@ function goBack() {
 }
 
 async function saveSettings() {
-  return saveSettingsToStorage(getSettingsSnapshot());
+  if (!settingsHaveChanges()) {
+    updateSettingsSaveButtons();
+    return false;
+  }
+  if (!window.confirm("Save changes to Guidance Office settings?"))
+    return false;
+  return saveSettingsToApi();
+}
+
+function showDashboardSection(viewId, sectionId, updateLocation = true) {
+  const view = document.getElementById(`view-${viewId}`);
+  if (!view || !sectionId) return;
+
+  dashboardSections[viewId] = sectionId;
+  view.querySelectorAll("[data-dashboard-section]").forEach((section) => {
+    section.hidden = section.dataset.dashboardSection !== sectionId;
+  });
+
+  const navigation = document.querySelector(
+    `[data-dashboard-section-nav="${viewId}"]`,
+  );
+  navigation
+    ?.querySelectorAll("[data-dashboard-section-target]")
+    .forEach((button) => {
+      const isActive = button.dataset.dashboardSectionTarget === sectionId;
+      button.classList.toggle("active", isActive);
+      button.setAttribute("aria-pressed", String(isActive));
+    });
+
+  if (updateLocation && currentView === viewId) {
+    updateDashboardLocation(viewId, sectionId);
+  }
+}
+
+function bindDashboardSectionNavigation() {
+  document
+    .querySelectorAll("[data-dashboard-section-nav]")
+    .forEach((navigation) => {
+      const viewId = navigation.dataset.dashboardSectionNav;
+      navigation
+        .querySelectorAll("[data-dashboard-section-target]")
+        .forEach((button) => {
+          button.addEventListener("click", () => {
+            showDashboardSection(viewId, button.dataset.dashboardSectionTarget);
+          });
+        });
+      showDashboardSection(viewId, dashboardSections[viewId]);
+    });
+}
+
+function setSidebarOpen(open, restoreFocus = false) {
+  sidebar.classList.toggle("open", open);
+  sidebarOverlay.classList.toggle("open", open);
+  sidebarToggle.setAttribute("aria-expanded", String(open));
+  document.body.classList.toggle("sidebar-drawer-open", open);
+
+  if (open) {
+    sidebarClose?.focus();
+  } else if (restoreFocus) {
+    sidebarToggle.focus();
+  }
 }
 
 navItems.forEach((item) => {
-  item.addEventListener("click", () => switchView(item.dataset.view));
+  item.addEventListener("click", () => {
+    switchView(item.dataset.view);
+    if (compactNavigation.matches) {
+      setSidebarOpen(false);
+    }
+  });
 });
 
 sidebarToggle.addEventListener("click", () => {
-  sidebar.classList.toggle("open");
-  sidebarOverlay.classList.toggle("open");
+  setSidebarOpen(!sidebar.classList.contains("open"));
 });
 
 sidebarOverlay.addEventListener("click", () => {
-  sidebar.classList.remove("open");
-  sidebarOverlay.classList.remove("open");
+  setSidebarOpen(false, true);
 });
 
-function makeRow(inquiry) {
-  const tr = document.createElement("tr");
-  const actionsCell = "<td></td>";
+sidebarClose?.addEventListener("click", () => setSidebarOpen(false, true));
 
-  const preview = inquiry.summary
-    ? inquiry.summary.length > 80
-      ? inquiry.summary.slice(0, 80) + "..."
-      : inquiry.summary
-    : inquiry.message || "No preview available";
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && sidebar.classList.contains("open")) {
+    setSidebarOpen(false, true);
+  }
+});
 
-  tr.innerHTML = `
-    <td>
-      <div class="student-cell">
-        <div class="student-avatar">${escapeHtml(initials(inquiry.student))}</div>
-        <div>
-          <div class="student-name">${escapeHtml(inquiry.student)}</div>
-          <div class="student-id">${escapeHtml(inquiry.studentId)}</div>
-        </div>
-      </div>
-    </td>
-    <td>
-      <div class="msg-preview">
-        ${escapeHtml(preview)}
-      </div>
-    </td>
-    <td>${escapeHtml(inquiry.category)}</td>
-    <td>${badgeHTML(inquiry.status)}</td>
-    <td class="time-cell">${escapeHtml(inquiry.time)}</td>
-    ${actionsCell}
-  `;
+compactNavigation.addEventListener("change", (event) => {
+  if (!event.matches) {
+    setSidebarOpen(false);
+  }
+});
 
-  return tr;
+dashboardLogout?.addEventListener("click", logout);
+
+function appendTableEmptyState(tbody, columnCount, message) {
+  const row = document.createElement("tr");
+  const cell = document.createElement("td");
+  cell.colSpan = columnCount;
+  cell.className = "table-empty-state";
+  cell.textContent = message;
+  row.appendChild(cell);
+  tbody.appendChild(row);
 }
 
-function renderTable(tbodyId, filter) {
-  const tbody = document.getElementById(tbodyId);
-  if (!tbody) return;
-  tbody.innerHTML = "";
-
-  const list =
-    filter === "all"
-      ? sampleInquiries
-      : sampleInquiries.filter((inquiry) => inquiry.status === filter);
-
-  if (!list.length) {
-    tbody.innerHTML =
-      '<tr><td colspan="6" style="text-align:center;color:var(--gray-400);padding:30px">No inquiries found.</td></tr>';
-    return;
+function formatInboxTimestamp(value) {
+  if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
+    return "Unavailable";
   }
-
-  list.forEach((inquiry) => tbody.appendChild(makeRow(inquiry)));
+  return value.toLocaleString();
 }
 
-function renderConversationTable(tbodyId, filter) {
-  const tbody = document.getElementById(tbodyId);
+function setInboxState(message, type = "") {
+  const state = document.getElementById("inbox-state");
+  if (!state) return;
+  state.textContent = message || "";
+  state.classList.toggle("error", type === "error");
+}
 
-  if (!tbody) return;
+function inboxItemsForCurrentFilter() {
+  const query = String(
+    document.getElementById("inbox-search-input")?.value || "",
+  )
+    .trim()
+    .toLowerCase();
+  const filter = document.getElementById("inbox-filter")?.value || "all";
 
-  tbody.innerHTML = "";
-
-  let list = conversationSummaries;
-
-  if (filter === "negative") {
-    list = list.filter((item) => item.flagged);
-  } else if (filter === "resolved") {
-    list = list.filter((item) => item.status === "resolved");
-  } else if (filter === "pending") {
-    list = list.filter((item) => item.status === "pending");
-  }
-
-  if (!list.length) {
-    tbody.innerHTML =
-      '<tr><td colspan="6" style="text-align:center;color:var(--gray-400);padding:30px">No conversations found.</td></tr>';
-    return;
-  }
-
-  list.forEach((summary) => {
-    tbody.appendChild(makeRow(summary));
+  return staffInboxItems.filter((item) => {
+    const matchesFilter =
+      filter === "all" ||
+      (filter === "flagged" && item.flagged) ||
+      (filter === "routine" && !item.flagged) ||
+      item.status === filter;
+    if (!matchesFilter) return false;
+    if (!query) return true;
+    return [
+      item.studentName,
+      item.studentNumber,
+      item.program,
+      item.category,
+      item.summary,
+    ].some((value) =>
+      String(value || "")
+        .toLowerCase()
+        .includes(query),
+    );
   });
 }
 
-function renderAllTables() {
-  renderConversationTable("inquiry-tbody", currentInboxFilter);
-  renderFlaggedConversations();
-  renderConversationTable("resolved-tbody", "resolved");
+function createInboxStatusBadge(item) {
+  const badge = document.createElement("span");
+  const status = String(item.status || "routine").toLowerCase();
+  badge.className = "badge";
+  if (status === "pending") {
+    badge.classList.add("negative");
+    badge.textContent = "Pending review";
+  } else if (status === "reviewed") {
+    badge.classList.add("resolved");
+    badge.textContent = "Reviewed";
+  } else if (item.flagged) {
+    badge.classList.add("negative");
+    badge.textContent = "Flagged";
+  } else {
+    badge.classList.add("neutral");
+    badge.textContent = "Routine";
+  }
+  return badge;
 }
 
-function appendTableCell(row, value) {
+function renderInquiryTable() {
+  const tbody = document.getElementById("inbox-tbody");
+  if (!tbody) return;
+
+  tbody.replaceChildren();
+  if (inboxLoadState === "loading") {
+    appendTableEmptyState(tbody, 7, "Loading current student summary items...");
+    return;
+  }
+  if (inboxLoadState === "error") {
+    appendTableEmptyState(
+      tbody,
+      7,
+      "Inbox items are unavailable. Retry to load persisted summaries.",
+    );
+    return;
+  }
+
+  const items = inboxItemsForCurrentFilter();
+  if (!items.length) {
+    appendTableEmptyState(
+      tbody,
+      7,
+      staffInboxItems.length
+        ? "No current student summary items match this filter."
+        : "No finalized student summary items are available yet.",
+    );
+    return;
+  }
+
+  items.forEach((item) => {
+    const row = document.createElement("tr");
+    row.className = "inbox-record";
+    const student = document.createElement("td");
+    const studentName = document.createElement("strong");
+    const studentNumber = document.createElement("span");
+    student.dataset.label = "Student";
+    studentName.className = "inbox-student-name";
+    studentName.textContent = item.studentName;
+    studentNumber.className = "inbox-student-number";
+    studentNumber.textContent = item.studentNumber;
+    student.append(studentName, studentNumber);
+    row.appendChild(student);
+    appendTableCell(row, item.program, "Program");
+    appendTableCell(row, item.category, "Concern");
+    const preview = document.createElement("td");
+    const previewText = document.createElement("div");
+    preview.dataset.label = "Summary Preview";
+    previewText.className = "inbox-summary-preview";
+    previewText.textContent = item.summary;
+    preview.appendChild(previewText);
+    row.appendChild(preview);
+    const status = document.createElement("td");
+    status.dataset.label = "Status";
+    status.appendChild(createInboxStatusBadge(item));
+    row.appendChild(status);
+    appendTableCell(row, formatInboxTimestamp(item.createdAt), "Updated");
+    const action = document.createElement("td");
+    const open = document.createElement("button");
+    action.dataset.label = "Action";
+    open.type = "button";
+    open.className = "action-link";
+    open.textContent = "Open";
+    open.addEventListener("click", () => {
+      void openInboxItem(item);
+    });
+    action.appendChild(open);
+    row.appendChild(action);
+    tbody.appendChild(row);
+  });
+
+  setInboxState(
+    `${items.length} current student summary ${items.length === 1 ? "item" : "items"} shown.`,
+  );
+}
+
+function renderAllTables() {
+  renderInquiryTable();
+  renderFlaggedConversations();
+}
+
+function appendTableCell(row, value, label = "") {
   const cell = document.createElement("td");
   cell.textContent = value;
+  if (label) {
+    cell.dataset.label = label;
+  }
   row.appendChild(cell);
 }
 
@@ -2109,20 +3371,33 @@ function renderFlaggedConversations() {
   tbody.replaceChildren();
 
   if (!flaggedConversations.length) {
-    const row = document.createElement("tr");
-    const cell = document.createElement("td");
-    cell.colSpan = 6;
-    cell.style.cssText = "text-align:center;color:var(--gray-400);padding:30px";
-    cell.textContent = "No flagged conversations found.";
-    row.appendChild(cell);
-    tbody.appendChild(row);
+    appendTableEmptyState(
+      tbody,
+      6,
+      "No flagged conversations require review right now.",
+    );
     return;
   }
 
   flaggedConversations.forEach((conversation) => {
     const row = document.createElement("tr");
-    appendTableCell(row, "Confidential conversation");
-    appendTableCell(row, conversation.summary);
+    const student = document.createElement("td");
+    const studentName = document.createElement("strong");
+    const studentNumber = document.createElement("span");
+    studentName.className = "flagged-student-name";
+    studentName.textContent = conversation.studentName || "Authorized student";
+    studentNumber.className = "flagged-student-number";
+    studentNumber.textContent = conversation.studentNumber || "—";
+    student.append(studentName, studentNumber);
+    row.appendChild(student);
+
+    const summary = document.createElement("td");
+    const summaryText = document.createElement("div");
+    summaryText.className = "flagged-summary-preview";
+    summaryText.textContent = conversation.summary;
+    summary.appendChild(summaryText);
+    row.appendChild(summary);
+
     appendTableCell(row, conversation.category);
     appendTableCell(
       row,
@@ -2141,65 +3416,11 @@ function renderFlaggedConversations() {
     viewButton.className = "action-link";
     viewButton.textContent = "View";
     viewButton.addEventListener("click", () => {
-      openFlaggedConversationDetails(conversation);
+      void openInboxItem(conversation);
     });
     actionCell.appendChild(viewButton);
     row.appendChild(actionCell);
     tbody.appendChild(row);
-  });
-}
-
-function renderConversationSummaries() {
-  const tbody = document.getElementById("conversation-summary-tbody");
-
-  if (!tbody) return;
-
-  tbody.innerHTML = "";
-
-  if (!conversationSummaries.length) {
-    tbody.innerHTML =
-      '<tr><td colspan="6" style="text-align:center;color:var(--gray-400);padding:30px">No conversation summaries found.</td></tr>';
-    return;
-  }
-
-  conversationSummaries.forEach((summary) => {
-    const tr = document.createElement("tr");
-    const createdAt = summary.createdAt
-      ? summary.createdAt.toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        })
-      : "—";
-
-    tr.innerHTML = `
-      <td>${escapeHtml(summary.student)}</td>
-      <td>${escapeHtml(summary.category)}</td>
-      <td>${escapeHtml(capitalize(summary.emotion))}</td>
-      <td>${escapeHtml(createdAt)}</td>
-      <td>
-        <button
-          class="action-link view-summary-btn"
-          data-id="${escapeHtml(summary.id)}"
-        >
-          View
-        </button>
-      </td>
-    `;
-
-    tbody.appendChild(tr);
-  });
-
-  tbody.querySelectorAll(".view-summary-btn").forEach((button) => {
-    button.addEventListener("click", () => {
-      const summary = conversationSummaries.find(
-        (item) => String(item.id) === button.dataset.id,
-      );
-
-      if (summary) {
-        openConversationSummary(summary);
-      }
-    });
   });
 }
 
@@ -2209,7 +3430,7 @@ function renderReports() {
 
 function overviewValue(elementId, value) {
   const element = document.getElementById(elementId);
-  if (element) element.textContent = String(value || 0);
+  if (element) element.textContent = displayAggregateValue(value);
 }
 
 function latestTrendRow(trends) {
@@ -2244,34 +3465,70 @@ function renderDashboardOverview() {
   );
 
   appendReportRows("reports-overview-appointment-summary", [
-    ["Total appointments", appointment.total_appointments || 0],
+    [
+      "Total appointments",
+      displayAggregateValue(appointment.total_appointments),
+    ],
     ...(appointment.status_distribution || []).map((item) => [
       `Persisted appointment status: ${item.status}`,
       item.count,
     ]),
   ]);
   appendReportRows("reports-overview-chatbot-summary", [
-    ["Total chatbot messages", chatbot.total_chatbot_messages || 0],
-    ["Conversation finalizations", chatbot.conversation_finalization_count || 0],
-    ["Escalations", chatbot.escalation_count || 0],
+    [
+      "Total chatbot messages",
+      displayAggregateValue(chatbot.total_chatbot_messages),
+    ],
+    [
+      "Conversation finalizations",
+      displayAggregateValue(chatbot.conversation_finalization_count),
+    ],
+    ["Escalations", displayAggregateValue(chatbot.escalation_count)],
   ]);
   appendReportRows("reports-overview-workload-summary", [
-    ["Authorized appointments", workload.authorized_appointment_count || 0],
-    ["Pending appointments", workload.pending_appointment_count || 0],
-    ["Confirmed appointments", workload.confirmed_appointment_count || 0],
-    ["Completed appointments", workload.completed_appointment_count || 0],
-    ["Active referrals", workload.active_referral_count || 0],
-    ["Active interventions", workload.active_intervention_count || 0],
-    ["Completed interventions", workload.completed_intervention_count || 0],
+    [
+      "Authorized appointments",
+      displayAggregateValue(workload.authorized_appointment_count),
+    ],
+    [
+      "Pending appointments",
+      displayAggregateValue(workload.pending_appointment_count),
+    ],
+    [
+      "Confirmed appointments",
+      displayAggregateValue(workload.confirmed_appointment_count),
+    ],
+    [
+      "Completed appointments",
+      displayAggregateValue(workload.completed_appointment_count),
+    ],
+    ["Active referrals", displayAggregateValue(workload.active_referral_count)],
+    [
+      "Active interventions",
+      displayAggregateValue(workload.active_intervention_count),
+    ],
+    [
+      "Completed interventions",
+      displayAggregateValue(workload.completed_intervention_count),
+    ],
   ]);
   appendReportRows("reports-overview-flagged-case-summary", [
-    ["Total flagged cases", flaggedCases.total_flagged_cases || 0],
+    [
+      "Total flagged cases",
+      displayAggregateValue(flaggedCases.total_flagged_cases),
+    ],
     [
       "Pending flagged-case reviews",
-      flaggedCases.pending_flagged_case_reviews || 0,
+      displayAggregateValue(flaggedCases.pending_flagged_case_reviews),
     ],
-    ["Reviewed flagged cases", flaggedCases.reviewed_flagged_cases || 0],
-    ["Current confidential cases", flaggedCases.current_confidential_case_count || 0],
+    [
+      "Reviewed flagged cases",
+      displayAggregateValue(flaggedCases.reviewed_flagged_cases),
+    ],
+    [
+      "Current confidential cases",
+      displayAggregateValue(flaggedCases.current_confidential_case_count),
+    ],
   ]);
 
   const recentActivity = [
@@ -2292,19 +3549,16 @@ function renderDashboardOverview() {
 
 function navigateOverview(target) {
   const destinations = {
-    appointment: { view: "appointments", panelId: "appointment-analytics-panel" },
-    chatbot: { view: "reports", panelId: "chatbot-analytics-panel" },
-    workload: { view: "reports", panelId: "counselor-workload-panel" },
-    "flagged-cases": { view: "reports", panelId: "flagged-case-analytics-panel" },
+    appointment: { view: "appointments", section: "overview" },
+    chatbot: { view: "reports", section: "chatbot" },
+    workload: { view: "reports", section: "workload" },
+    "flagged-cases": { view: "reports", section: "flagged-cases" },
   };
   const destination = destinations[target];
   if (!destination) return;
 
   switchView(destination.view);
-  document.getElementById(destination.panelId)?.scrollIntoView({
-    behavior: "smooth",
-    block: "start",
-  });
+  showDashboardSection(destination.view, destination.section);
 }
 
 function bindDashboardOverviewNavigation() {
@@ -2322,12 +3576,11 @@ function appendReportRows(containerId, rows) {
   container.replaceChildren();
 
   if (!rows.length) {
-    const row = document.createElement("tr");
-    const cell = document.createElement("td");
-    cell.colSpan = 2;
-    cell.textContent = "No aggregate data for this period.";
-    row.appendChild(cell);
-    container.appendChild(row);
+    appendTableEmptyState(
+      container,
+      2,
+      "No aggregate data is available for the selected period.",
+    );
     return;
   }
 
@@ -2359,7 +3612,10 @@ function renderCombinedReports() {
   const flaggedCases = reports.flaggedCases || {};
 
   appendReportRows("reports-appointment-rows", [
-    ["Total appointments", appointment.total_appointments || 0],
+    [
+      "Total appointments",
+      displayAggregateValue(appointment.total_appointments),
+    ],
     ...(appointment.status_distribution || []).map((item) => [
       `Status: ${item.status}`,
       item.count,
@@ -2375,12 +3631,18 @@ function renderCombinedReports() {
 
   const chatbotVolume = chatbot.message_volume || {};
   appendReportRows("reports-chatbot-rows", [
-    ["Total chatbot messages", chatbot.total_chatbot_messages || 0],
-    ["Conversation finalizations", chatbot.conversation_finalization_count || 0],
-    ["Escalations", chatbot.escalation_count || 0],
+    [
+      "Total chatbot messages",
+      displayAggregateValue(chatbot.total_chatbot_messages),
+    ],
+    [
+      "Conversation finalizations",
+      displayAggregateValue(chatbot.conversation_finalization_count),
+    ],
+    ["Escalations", displayAggregateValue(chatbot.escalation_count)],
     [
       "Average finalized conversation length",
-      chatbot.average_finalized_conversation_length ?? "—",
+      displayAggregateValue(chatbot.average_finalized_conversation_length),
     ],
     ...(chatbot.persisted_emotion_result_distribution || []).map((item) => [
       `Persisted emotion result: ${item.emotion_result}`,
@@ -2392,13 +3654,31 @@ function renderCombinedReports() {
   ]);
 
   appendReportRows("reports-workload-rows", [
-    ["Authorized appointments", workload.authorized_appointment_count || 0],
-    ["Pending appointments", workload.pending_appointment_count || 0],
-    ["Confirmed appointments", workload.confirmed_appointment_count || 0],
-    ["Completed appointments", workload.completed_appointment_count || 0],
-    ["Active referrals", workload.active_referral_count || 0],
-    ["Active interventions", workload.active_intervention_count || 0],
-    ["Completed interventions", workload.completed_intervention_count || 0],
+    [
+      "Authorized appointments",
+      displayAggregateValue(workload.authorized_appointment_count),
+    ],
+    [
+      "Pending appointments",
+      displayAggregateValue(workload.pending_appointment_count),
+    ],
+    [
+      "Confirmed appointments",
+      displayAggregateValue(workload.confirmed_appointment_count),
+    ],
+    [
+      "Completed appointments",
+      displayAggregateValue(workload.completed_appointment_count),
+    ],
+    ["Active referrals", displayAggregateValue(workload.active_referral_count)],
+    [
+      "Active interventions",
+      displayAggregateValue(workload.active_intervention_count),
+    ],
+    [
+      "Completed interventions",
+      displayAggregateValue(workload.completed_intervention_count),
+    ],
     ...(workload.workload_by_program || []).map((item) => [
       `Authorized program: ${item.program}`,
       item.count,
@@ -2407,17 +3687,23 @@ function renderCombinedReports() {
 
   const escalationTrends = flaggedCases.escalation_trends || {};
   appendReportRows("reports-flagged-case-rows", [
-    ["Total flagged cases", flaggedCases.total_flagged_cases || 0],
+    [
+      "Total flagged cases",
+      displayAggregateValue(flaggedCases.total_flagged_cases),
+    ],
     [
       "Pending flagged-case reviews",
-      flaggedCases.pending_flagged_case_reviews || 0,
+      displayAggregateValue(flaggedCases.pending_flagged_case_reviews),
     ],
-    ["Reviewed flagged cases", flaggedCases.reviewed_flagged_cases || 0],
-    ["Referrals", flaggedCases.referral_count || 0],
-    ["Interventions", flaggedCases.intervention_count || 0],
+    [
+      "Reviewed flagged cases",
+      displayAggregateValue(flaggedCases.reviewed_flagged_cases),
+    ],
+    ["Referrals", displayAggregateValue(flaggedCases.referral_count)],
+    ["Interventions", displayAggregateValue(flaggedCases.intervention_count)],
     [
       "Current confidential cases",
-      flaggedCases.current_confidential_case_count || 0,
+      displayAggregateValue(flaggedCases.current_confidential_case_count),
     ],
     ...(flaggedCases.persisted_case_status_distribution || []).map((item) => [
       `Persisted case status: ${item.status}`,
@@ -2490,7 +3776,11 @@ function reportCsvRows() {
   };
 
   const appointment = reports.appointment || {};
-  add("Appointment", "Total appointments", appointment.total_appointments || 0);
+  add(
+    "Appointment",
+    "Total appointments",
+    appointment.total_appointments ?? "",
+  );
   (appointment.status_distribution || []).forEach((item) =>
     add("Appointment", "Persisted appointment status", item.count, item.status),
   );
@@ -2502,9 +3792,17 @@ function reportCsvRows() {
   );
 
   const chatbot = reports.chatbot || {};
-  add("Chatbot", "Total chatbot messages", chatbot.total_chatbot_messages || 0);
-  add("Chatbot", "Conversation finalizations", chatbot.conversation_finalization_count || 0);
-  add("Chatbot", "Escalations", chatbot.escalation_count || 0);
+  add(
+    "Chatbot",
+    "Total chatbot messages",
+    chatbot.total_chatbot_messages ?? "",
+  );
+  add(
+    "Chatbot",
+    "Conversation finalizations",
+    chatbot.conversation_finalization_count ?? "",
+  );
+  add("Chatbot", "Escalations", chatbot.escalation_count ?? "");
   add(
     "Chatbot",
     "Average finalized conversation length",
@@ -2527,9 +3825,16 @@ function reportCsvRows() {
     ["Active referrals", workload.active_referral_count],
     ["Active interventions", workload.active_intervention_count],
     ["Completed interventions", workload.completed_intervention_count],
-  ].forEach(([metric, value]) => add("Counselor Workload", metric, value || 0));
+  ].forEach(([metric, value]) =>
+    add("Counselor Workload", metric, value ?? ""),
+  );
   (workload.workload_by_program || []).forEach((item) =>
-    add("Counselor Workload", "Authorized program appointments", item.count, item.program),
+    add(
+      "Counselor Workload",
+      "Authorized program appointments",
+      item.count,
+      item.program,
+    ),
   );
 
   const flaggedCases = reports.flaggedCases || {};
@@ -2539,15 +3844,22 @@ function reportCsvRows() {
     ["Reviewed flagged cases", flaggedCases.reviewed_flagged_cases],
     ["Referrals", flaggedCases.referral_count],
     ["Interventions", flaggedCases.intervention_count],
-    ["Current confidential cases", flaggedCases.current_confidential_case_count],
-  ].forEach(([metric, value]) => add("Flagged Case", metric, value || 0));
+    [
+      "Current confidential cases",
+      flaggedCases.current_confidential_case_count,
+    ],
+  ].forEach(([metric, value]) => add("Flagged Case", metric, value ?? ""));
   (flaggedCases.persisted_case_status_distribution || []).forEach((item) =>
     add("Flagged Case", "Persisted case status", item.count, item.status),
   );
   const escalationTrends = flaggedCases.escalation_trends || {};
   addTrends("Flagged Case", "Daily escalation trend", escalationTrends.daily);
   addTrends("Flagged Case", "Weekly escalation trend", escalationTrends.weekly);
-  addTrends("Flagged Case", "Monthly escalation trend", escalationTrends.monthly);
+  addTrends(
+    "Flagged Case",
+    "Monthly escalation trend",
+    escalationTrends.monthly,
+  );
 
   return rows;
 }
@@ -2603,13 +3915,9 @@ function bindReportsControls() {
 }
 
 function updateFlaggedCount() {
-  const count = flaggedConversations.length;
+  const count = flaggedConversationsLoaded ? flaggedConversations.length : "—";
   const flaggedCount = document.getElementById("flagged-count");
-  const statFlagged = document.getElementById("stat-flagged");
-  const statFlagged2 = document.getElementById("stat-flagged-2");
   if (flaggedCount) flaggedCount.textContent = count;
-  if (statFlagged) statFlagged.textContent = count;
-  if (statFlagged2) statFlagged2.textContent = count;
 }
 
 function formatCaseNoteTimestamp(timestamp) {
@@ -2991,12 +4299,197 @@ function renderCaseConfidentiality(confidentiality) {
   }
 }
 
-async function openFlaggedConversationDetails(conversation) {
+function formatReviewedCaseTimestamp(value) {
+  if (!value) return "Reviewed date unavailable";
+  const timestamp = new Date(value);
+  return Number.isNaN(timestamp.getTime())
+    ? "Reviewed date unavailable"
+    : timestamp.toLocaleString();
+}
+
+async function renderReviewedCaseHistory(summaryId) {
+  const card = document.getElementById("case-history-card");
+  const list = document.getElementById("case-history-list");
+  if (!card || !list) return;
+
+  card.hidden = true;
+  list.replaceChildren();
   try {
     const response = await fetchJson(
-      `${API_BASE}/api/flagged-conversations/${conversation.id}`,
+      `${API_BASE}/api/staff/inbox/${encodeURIComponent(summaryId)}/history`,
+      { cache: "no-store" },
+    );
+    const items = response.data?.items || [];
+    if (!items.length) return;
+
+    items.forEach((item) => {
+      const row = document.createElement("div");
+      row.className = "case-history-row";
+      const content = document.createElement("div");
+      content.className = "case-history-content";
+      const title = document.createElement("strong");
+      title.textContent = item.primary_concern || "Guidance Office case";
+      const meta = document.createElement("span");
+      meta.textContent = `Reviewed ${formatReviewedCaseTimestamp(item.reviewed_at)}`;
+      const preview = document.createElement("p");
+      preview.textContent =
+        item.summary_preview || "No AI summary preview is available.";
+      content.append(title, meta, preview);
+
+      const actions = document.createElement("div");
+      actions.className = "case-history-actions";
+      const status = document.createElement("span");
+      status.className = "badge resolved";
+      status.textContent = "Reviewed";
+      const open = document.createElement("button");
+      open.type = "button";
+      open.className = "action-link";
+      open.textContent = "Open";
+      open.addEventListener("click", () => {
+        void openInboxItem({ id: item.summary_id });
+      });
+      actions.append(status, open);
+      row.append(content, actions);
+      list.appendChild(row);
+    });
+    card.hidden = false;
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+async function openInboxItem(item) {
+  try {
+    const response = await fetchJson(
+      `${API_BASE}/api/staff/inbox/${encodeURIComponent(item.id)}`,
     );
     const detail = response.data;
+    const conversation = {
+      ...item,
+      id: detail.summary_id,
+      studentName: detail.student_name,
+      studentNumber: detail.student_number,
+      program: detail.program,
+      category: detail.primary_concern,
+      emotion: detail.emotion_results,
+      flagged: Boolean(detail.flagged_status),
+      status: detail.review_status,
+      summary: detail.summary_preview,
+    };
+
+    if (detail.flagged_status) {
+      await openFlaggedConversationDetails(conversation, detail);
+      return;
+    }
+    await openRoutineInboxDetails(conversation, detail);
+  } catch (error) {
+    console.error(error);
+    createToast("Unable to open the authorized summary item.", "info");
+  }
+}
+
+async function openRoutineInboxDetails(conversation, detail) {
+  const reviewButton = document.getElementById("case-resolve-btn");
+  const pendingButton = document.getElementById("case-pending-btn");
+  const notesCard = document.querySelector(".staff-notes-card");
+  const referralsCard = document.getElementById("case-referrals-card");
+  const interventionsCard = document.getElementById("case-interventions-card");
+  const confidentialityCard = document.getElementById(
+    "case-confidentiality-card",
+  );
+  const badge = document.getElementById("case-badge");
+  const staffActionsNote = document.getElementById("case-staff-actions-note");
+
+  document.getElementById("case-avatar").textContent = initials(
+    detail.student_name || "Student",
+  );
+  document.getElementById("case-name").textContent =
+    detail.student_name || "Authorized student";
+  document.getElementById("case-meta").textContent = [
+    detail.student_number || "Student number unavailable",
+    detail.program || "Program unavailable",
+  ].join(" · ");
+  document.getElementById("case-message").textContent = detail.summary;
+  document.getElementById("case-category").textContent =
+    detail.primary_concern || "General inquiry";
+  document.getElementById("case-emotion").textContent = capitalize(
+    detail.emotion_results || "Unavailable",
+  );
+  applySafetyRisk(detail);
+  document.getElementById("case-time").textContent = detail.created_at
+    ? new Date(detail.created_at).toLocaleString()
+    : "Unavailable";
+  document.getElementById("case-recommendation").textContent =
+    detail.recommendations || "No AI recommendation available.";
+  document.getElementById("case-total-messages").textContent = Number.isFinite(
+    Number(detail.total_messages),
+  )
+    ? String(detail.total_messages)
+    : "—";
+  document.getElementById("case-student-messages").textContent = "Not retained";
+  document.getElementById("case-ai-messages").textContent = "Not retained";
+  document.getElementById("case-escalation-status").textContent =
+    "No escalation record";
+  document.getElementById("case-escalation-reason").textContent =
+    "Routine summary item";
+  document.getElementById("case-status-label").textContent = "Routine";
+  badge.className = "badge neutral";
+  badge.textContent = "Routine";
+  staffActionsNote.textContent =
+    "No immediate intervention is required. Continue with the requested appointment and monitor the student's progress.";
+
+  reviewButton.hidden = true;
+  pendingButton.hidden = true;
+  notesCard.hidden = true;
+  referralsCard.hidden = true;
+  interventionsCard.hidden = true;
+  confidentialityCard.hidden = true;
+  await renderReviewedCaseHistory(detail.summary_id);
+  switchView("case-details");
+}
+
+function displayCaseEmotion(detail) {
+  return capitalize(detail.emotion_results || "Unavailable");
+}
+
+function safetyRiskPresentation(detail) {
+  if (!detail.flagged_status) {
+    return { label: "No immediate safety concern", badgeClass: "neutral" };
+  }
+
+  const safetyMetadata = [detail.escalation_reason, detail.primary_concern]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  const isImmediateRisk =
+    /safety escalation|crisis|self[ -]?harm|suicid|high-risk/.test(
+      safetyMetadata,
+    );
+
+  return isImmediateRisk
+    ? { label: "Immediate safety concern", badgeClass: "negative" }
+    : { label: "Elevated concern", badgeClass: "pending" };
+}
+
+function applySafetyRisk(detail) {
+  const risk = safetyRiskPresentation(detail);
+  const element = document.getElementById("case-safety-risk");
+  element.className = `badge ${risk.badgeClass}`;
+  element.textContent = risk.label;
+}
+
+async function openFlaggedConversationDetails(
+  conversation,
+  inboxDetail = null,
+) {
+  try {
+    const detail =
+      inboxDetail ||
+      (
+        await fetchJson(
+          `${API_BASE}/api/staff/inbox/${encodeURIComponent(conversation.id)}`,
+        )
+      ).data;
     const reviewButton = document.getElementById("case-resolve-btn");
     const pendingButton = document.getElementById("case-pending-btn");
     const notesCard = document.querySelector(".staff-notes-card");
@@ -3047,24 +4540,31 @@ async function openFlaggedConversationDetails(conversation) {
     let confidentiality = confidentialityResponse.data;
     let editingNoteId = null;
 
-    document.getElementById("case-avatar").textContent = "FC";
-    document.getElementById("case-name").textContent = "Flagged Conversation";
-    document.getElementById("case-meta").textContent =
-      "Confidential staff conversation record";
+    document.getElementById("case-avatar").textContent = initials(
+      detail.student_name || conversation.studentName || "Student",
+    );
+    document.getElementById("case-name").textContent =
+      detail.student_name || conversation.studentName || "Authorized student";
+    document.getElementById("case-meta").textContent = [
+      detail.student_number ||
+        conversation.studentNumber ||
+        "Student number unavailable",
+      detail.program || conversation.program || "Program unavailable",
+    ].join(" · ");
     document.getElementById("case-message").textContent = detail.summary;
     document.getElementById("case-category").textContent =
       detail.primary_concern || "General inquiry";
-    document.getElementById("case-emotion").textContent = capitalize(
-      detail.emotion_results || "neutral",
-    );
+    document.getElementById("case-emotion").textContent =
+      displayCaseEmotion(detail);
+    applySafetyRisk(detail);
     document.getElementById("case-time").textContent = detail.created_at
       ? new Date(detail.created_at).toLocaleString()
       : "Unavailable";
     document.getElementById("case-recommendation").textContent =
       detail.recommendations || "No recommendation available.";
-    document.getElementById("case-total-messages").textContent = String(
-      detail.total_messages || 0,
-    );
+    const totalMessages = Number(detail.total_messages);
+    document.getElementById("case-total-messages").textContent =
+      Number.isFinite(totalMessages) ? String(totalMessages) : "—";
     document.getElementById("case-student-messages").textContent =
       "Not retained";
     document.getElementById("case-ai-messages").textContent = "Not retained";
@@ -3076,12 +4576,15 @@ async function openFlaggedConversationDetails(conversation) {
       detail.escalation_status === "reviewed" ? "Reviewed" : "Pending review";
 
     const badge = document.getElementById("case-badge");
+    const staffActionsNote = document.getElementById("case-staff-actions-note");
     badge.className =
       detail.escalation_status === "reviewed"
         ? "badge resolved"
         : "badge negative";
     badge.textContent =
       detail.escalation_status === "reviewed" ? "Reviewed" : "Pending review";
+    staffActionsNote.textContent =
+      "Immediate Guidance Office review is recommended. Assess the student's immediate safety, follow the approved Guidance Office protocol, and document the action taken.";
 
     pendingButton.hidden = true;
     notesCard.hidden = false;
@@ -3098,8 +4601,7 @@ async function openFlaggedConversationDetails(conversation) {
           { method: "PATCH" },
         );
         conversation.status = reviewed.data.escalation_status;
-        renderFlaggedConversations();
-        updateFlaggedCount();
+        await loadBackendData();
         await openFlaggedConversationDetails(conversation);
         createToast("Flagged conversation marked as reviewed.", "success");
       } catch (error) {
@@ -3412,90 +4914,12 @@ async function openFlaggedConversationDetails(conversation) {
     };
     updateConfidentialityControls();
 
+    await renderReviewedCaseHistory(detail.summary_id);
     switchView("case-details");
   } catch (error) {
     console.error(error);
     createToast("Unable to open flagged conversation.", "info");
   }
-}
-
-filterTabs.forEach((tab) => {
-  tab.addEventListener("click", () => {
-    filterTabs.forEach((item) => item.classList.remove("active"));
-    tab.classList.add("active");
-    currentInboxFilter = tab.dataset.filter;
-    renderConversationTable("inquiry-tbody", currentInboxFilter);
-  });
-});
-
-function openConversationSummary(summary) {
-  if (!summary) {
-    createToast("Unable to open conversation summary.", "info");
-    return;
-  }
-
-  document.getElementById("summary-student").textContent =
-    summary.student_name || "Unknown";
-
-  document.getElementById("summary-topic").textContent =
-    summary.topic || "General";
-
-  document.getElementById("summary-emotion").textContent = capitalize(
-    summary.emotion,
-  );
-
-  document.getElementById("summary-language").textContent = capitalize(
-    summary.language,
-  );
-
-  document.getElementById("summary-flagged").innerHTML = summary.flagged
-    ? '<span class="badge negative">Flagged</span>'
-    : '<span class="badge neutral">Normal</span>';
-
-  document.getElementById("summary-created-at").textContent = summary.created_at
-    ? new Date(summary.created_at).toLocaleString()
-    : "—";
-
-  document.getElementById("summary-text").textContent =
-    summary.summary?.trim() || "No summary available.";
-
-  document.getElementById("summary-recommendation").textContent =
-    summary.recommendation?.trim() || "No recommendation available.";
-
-  let transcript = [];
-
-  try {
-    if (Array.isArray(summary.conversation_json)) {
-      transcript = summary.conversation_json;
-    } else if (typeof summary.conversation_json === "string") {
-      transcript = JSON.parse(summary.conversation_json);
-    }
-  } catch (error) {
-    transcript = [];
-    console.error("Unable to parse transcript:", error);
-  }
-
-  const totalMessages = transcript.length;
-
-  const studentMessages = transcript.filter(
-    (message) => message.from === "user",
-  ).length;
-
-  const aiMessages = transcript.filter(
-    (message) => message.from === "bot",
-  ).length;
-
-  document.getElementById("summary-total-messages").textContent = totalMessages;
-
-  document.getElementById("summary-student-messages").textContent =
-    studentMessages;
-
-  document.getElementById("summary-ai-messages").textContent = aiMessages;
-
-  document.getElementById("summary-escalation-status").textContent =
-    summary.flagged ? "Flagged for Review" : "No Escalation";
-
-  switchView("conversation-summary-details");
 }
 
 function openAppointmentDetails(appointment) {
@@ -3738,31 +5162,36 @@ function openAppointmentDetails(appointment) {
 }
 
 async function loadBackendData() {
+  inboxLoadState = "loading";
+  renderInquiryTable();
   try {
-    const inquiries = await fetchJson(`${API_BASE}/api/inquiries`);
-    sampleInquiries = (inquiries.items || []).map(mapInquiry);
-  } catch (error) {
-    console.error(error);
-    sampleInquiries = [];
-  }
-
-  try {
-    const summaries = await fetchJson(`${API_BASE}/api/conversation-summaries`);
-
-    conversationSummaries = (summaries.items || []).map(mapConversationSummary);
-  } catch (error) {
-    console.error(error);
-    conversationSummaries = [];
-  }
-
-  try {
-    const flagged = await fetchJson(`${API_BASE}/api/flagged-conversations`);
-    flaggedConversations = (flagged.data?.items || []).map(
-      mapFlaggedConversation,
+    const inbox = await fetchJson(`${API_BASE}/api/staff/inbox`, {
+      cache: "no-store",
+    });
+    staffInboxItems = (inbox.data?.items || []).map(mapInboxItem);
+    flaggedConversations = staffInboxItems.filter(
+      (item) => item.flagged && item.status === "pending",
     );
+    flaggedConversationsLoaded = true;
+    inboxLoadState = "ready";
   } catch (error) {
     console.error(error);
+    staffInboxItems = [];
     flaggedConversations = [];
+    flaggedConversationsLoaded = false;
+    inboxLoadState = "error";
+    setInboxState(
+      "Inbox items are unavailable. Retry to load persisted summaries.",
+      "error",
+    );
+  }
+
+  try {
+    await loadInboxStatistics();
+  } catch (error) {
+    console.error(error);
+    inboxStatistics = null;
+    renderInboxStatistics();
   }
 
   try {
@@ -3770,9 +5199,11 @@ async function loadBackendData() {
     window.backendAppointments = (appointments.data?.items || []).map(
       mapAppointment,
     );
+    appointmentsLoaded = true;
   } catch (error) {
     console.error(error);
     window.backendAppointments = [];
+    appointmentsLoaded = false;
   }
 
   try {
@@ -3811,29 +5242,67 @@ async function loadBackendData() {
   }
 
   try {
-    const settings = await fetchJson(`${API_BASE}/api/settings`);
-    localStorage.setItem(settingsStorageKey, JSON.stringify(settings));
+    await loadPersistedSettings();
   } catch (error) {
     console.error(error);
+    renderPersistedSettings(null);
+    setSettingsStatus("Unable to load persisted settings.", "error");
+  }
+
+  try {
+    await loadCounselorProfile();
+  } catch (error) {
+    console.error(error);
+    setCounselorProfileStatus("Unable to load counselor profile.", "error");
+  }
+
+  try {
+    await loadFaqs();
+  } catch (error) {
+    console.error(error);
+    persistedFaqs = [];
+    renderFaqs(persistedFaqs);
+    setFaqStatus("Unable to load persisted FAQs.", "error");
+  }
+
+  try {
+    const bookingOptions = await fetchJson(
+      `${API_BASE}/api/appointments/booking-options`,
+    );
+    appointmentBookingOptions = bookingOptions.data || {
+      state: "unconfigured",
+      bookingEnabled: false,
+    };
+  } catch (error) {
+    console.error(error);
+    appointmentBookingOptions = {
+      state: "unconfigured",
+      bookingEnabled: false,
+    };
   }
 
   renderAllTables();
   updateFlaggedCount();
-  renderConversationSummaries();
-  renderSettingsFromStorage();
   renderReports();
   renderAppointmentDashboard();
 }
 
 function logout() {
+  let redirected = false;
+  const redirectToLogin = () => {
+    if (redirected) return;
+    redirected = true;
+    sessionStorage.removeItem("hau_user");
+    window.location.replace("/login?reason=logged-out");
+  };
+  const fallbackTimer = setTimeout(redirectToLogin, 1500);
+
   fetch(`${API_BASE}/auth/logout`, { method: "POST" })
     .catch(() => {})
     .finally(() => {
-      sessionStorage.removeItem("hau_user");
+      clearTimeout(fallbackTimer);
       createToast("Logged out.", "info");
-      if (window.getLoginUrl) {
-        setTimeout(() => window.location.replace(window.getLoginUrl()), 700);
-      }
+      setTimeout(redirectToLogin, 300);
     });
 }
 
@@ -3842,6 +5311,10 @@ window.addEventListener("error", (event) => {
 });
 
 bindSettingsInteractions();
+bindPasswordChange();
+bindCounselorProfile();
+bindInboxControls();
+bindFaqManagement();
 bindAppointmentSearch();
 bindAppointmentCalendar();
 bindAppointmentAnalyticsFilters();
@@ -3850,34 +5323,10 @@ bindCounselorWorkloadAnalyticsFilters();
 bindFlaggedCaseAnalyticsFilters();
 bindReportsControls();
 bindDashboardOverviewNavigation();
+bindDashboardSectionNavigation();
+restoreDashboardLocation();
+window.addEventListener("hashchange", restoreDashboardLocation);
 loadBackendData();
-
-async function addFaqFromButton() {
-  const title = await showPrompt(
-    "FAQ Title",
-    "Short title (e.g. Office Hours)",
-  );
-  if (!title) return;
-  const question = await showPrompt(
-    "FAQ Question",
-    "Example: What are your office hours?",
-  );
-  if (!question) return;
-  const answer = await showPrompt("FAQ Answer", "Answer text", true);
-  const container = createFaqBlock(title, question, answer);
-  const faqPanel = getFaqPanel();
-  if (appendFaqBlock(container, faqPanel)) {
-    createToast("FAQ added", "success");
-    saveSettingsToStorage(undefined, false);
-  } else {
-    createToast("Unable to add FAQ right now", "info");
-  }
-}
-
-// Add FAQ button
-document
-  .getElementById("add-faq-btn")
-  ?.addEventListener("click", addFaqFromButton);
 
 // Save settings button in the UI
 document
@@ -3887,4 +5336,3 @@ document
 window.saveSettings = saveSettings;
 window.goBack = goBack;
 window.logout = window.logout || logout;
-window.addFaqFromButton = addFaqFromButton;

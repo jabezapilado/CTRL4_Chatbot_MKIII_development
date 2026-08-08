@@ -2,7 +2,7 @@
 
 > **Current reference.** This document describes the implemented system through
 > Sprint 10. Start at the [documentation index](../README.md). For
-> implementation constraints, read [AGENTS.md](../../AGENTS.md) and for frozen
+> implementation constraints, follow the repository documentation, architecture notes, and current test contracts
 > decisions, read [Project Context](project_context.md). Documents in
 > [roadmap/](../roadmap/) are historical planning artifacts.
 
@@ -40,8 +40,10 @@ parallel pipelines.
 Authentication uses Flask **server-side** sessions. `backend/server/auth.py`
 is the only session owner: it clears/rotates a session after login, stores the
 authenticated user as `hau_user`, marks the session permanent, and clears it
-on logout. Route guards reuse `require_login`, `require_role`, and
-`require_any_role`.
+on logout. New student sessions require explicit Terms and Conditions
+acceptance before `/chat`; the acceptance flag is server-side and the route
+rejects missing, false, or expired acceptance. Declining uses logout. Route
+guards reuse `require_login`, `require_role`, and `require_any_role`.
 
 | Role | Implemented authority |
 | --- | --- |
@@ -93,6 +95,13 @@ history, interventions and append-only history, and current confidentiality
 state with append-only history. Student case status is a privacy-projected,
 generic status view only.
 
+The staff dashboard uses privacy-safe summaries rather than raw transcripts.
+Inbox presents one current summary item per student/case priority, Flagged
+Cases presents active pending flagged cases, and reviewed cases remain available
+through Reviewed Case History. Case Details presents Detected Emotion and Safety
+Risk as distinct fields. Crisis or sensitive cases remain pending until review;
+routine follow-up must not erase an unresolved flagged case.
+
 Notifications are persistent, recipient-scoped, in-app records. A recipient
 marks a notification read explicitly. Notification writes are best-effort and
 never roll back an authoritative appointment action.
@@ -112,11 +121,18 @@ Language Detection
 
 Language support is English, Filipino, and Taglish. Shared lexicon terms are
 neutral evidence; Taglish requires exclusive evidence from both languages.
+The released emotion model is English-focused; Filipino/Tagalog and Taglish
+emotion classification remains a limitation rather than a claim of equivalent
+model validation.
 SafetyService is authoritative for pre-generation crisis and diagnosis
 handling. ResponseSafetyService validates generated output and replaces an
 unsafe reply as a whole; it does not change escalation policy. Conversation
 Intelligence outputs are internal unless an existing API exposes a current
-field. The chatbot is not a diagnostic or treatment service.
+field. The chatbot is not a diagnostic, treatment, or emergency service. Before
+chat use, students acknowledge the Guidance Office of the School of Computing
+at Holy Angel University scope, message recording/summarization for guidance
+support, confidentiality limits for safety/legal concerns, and immediate-danger
+directions to local emergency services or trusted school personnel.
 
 ## Analytics and reports
 

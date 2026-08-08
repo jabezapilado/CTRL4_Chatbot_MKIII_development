@@ -89,17 +89,37 @@ class SafetyService:
         r"\bkill myself\b",
         r"\bsuicide\b",
         r"\bend my life\b",
+        r"\b(?:i want to|i wanna|i wish i could) finish my life\b",
+        r"\b(?:i am|i'm) done with my life\b",
+        r"\blife (?:is not|isn't) worth living\b",
+        r"\blife (?:is not|isn't) worth it\b",
         r"\bwant to die\b",
         r"\bself harm\b",
         r"\bhurt myself\b",
-        r"\bi don't want to live\b",
+        r"\bi (?:don't|do not) want to live(?: anymore)?\b",
+        r"\bi (?:don't|do not) think i want to live(?: anymore)?\b",
+        r"\bi (?:don't|do not) want to exist anymore\b",
         r"\bi can't do this anymore\b",
         r"\bi can't go on\b",
         r"\bi give up\b",
         r"\bi want to disappear\b",
+        r"\bi wish i could disappear\b",
         r"\bi wish i was dead\b",
         r"\bi don't want to wake up\b",
+        r"\bi wish i would not wake up\b",
+        r"\bi am tired of living\b",
         r"\bnothing matters anymore\b",
+        r"\beveryone would be better off without me\b",
+        r"\bi want everything to end\b",
+        r"\bi should end everything\b",
+        r"\bi (?:don't|do not) see a reason to keep going\b",
+        r"\b(?:i am|i'm) being abused\b",
+        r"\b(?:someone|they) (?:is|are) hurting me\b",
+        r"\b(?:i want to|going to) hurt (?:someone|them)\b",
+        r"\b(?:i want to|going to) kill (?:someone|them)\b",
+        r"\bdanger to (?:myself|others)\b",
+        r"\bsevere depression\b",
+        r"\bpanic attacks?\b",
 
         # Filipino / Taglish
         r"\bmagpapakamatay\b",
@@ -107,12 +127,24 @@ class SafetyService:
         r"\bpapatayin ko ang sarili ko\b",
         r"\bsaktan ang sarili\b",
         r"\bhindi ko na kaya\b",
-        r"\bsuko na ako\b",
-        r"\bgusto ko nang mawala\b",
+        r"\bgusto ko na(?:ng)? mawala\b",
         r"\bwala nang saysay\b",
+        r"\bdi ko na kaya\b",
+    )
+
+    # These phrases are common expressions of academic frustration in
+    # Filipino.  They become crisis evidence only with an additional explicit
+    # self-harm, death, or loss-of-life signal; they are not safe to treat as
+    # crisis evidence in isolation.
+    AMBIGUOUS_FILIPINO_DISTRESS_PATTERNS: Final[tuple[str, ...]] = (
+        r"\bsuko na ako\b",
         r"\bpagod na pagod na ako\b",
         r"\bayoko na\b",
-        r"\bdi ko na kaya\b",
+    )
+    HIGH_RISK_FILIPINO_CONTEXT_PATTERNS: Final[tuple[str, ...]] = (
+        r"\b(?:magpapakamatay|magpakamatay|mamatay|papatayin|"
+        r"saktan)\b",
+        r"\b(?:sarili|mabuhay|mawala)\b",
     )
 
     DIAGNOSIS_PATTERNS: Final[tuple[str, ...]] = (
@@ -242,9 +274,28 @@ class SafetyService:
         text: str,
     ) -> bool:
 
-        return any(
+        if any(
             re.search(pattern, text)
             for pattern in self.CRISIS_PATTERNS
+        ):
+            return True
+
+        ambiguous_distress_matches = sum(
+            bool(re.search(pattern, text))
+            for pattern in self.AMBIGUOUS_FILIPINO_DISTRESS_PATTERNS
+        )
+        if ambiguous_distress_matches >= 2:
+            return True
+
+        return (
+            any(
+                re.search(pattern, text)
+                for pattern in self.AMBIGUOUS_FILIPINO_DISTRESS_PATTERNS
+            )
+            and any(
+                re.search(pattern, text)
+                for pattern in self.HIGH_RISK_FILIPINO_CONTEXT_PATTERNS
+            )
         )
 
     def _asks_for_diagnosis(

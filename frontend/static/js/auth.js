@@ -26,7 +26,6 @@ async function logout() {
         "hau_escalation_event",
         "hau_escalation_staff_msg",
         "hau_escalation_user_msg",
-        "hau_takeover_case",
       ].forEach((key) => localStorage.removeItem(key));
       sessionStorage.removeItem("current_escalation");
       window.location.replace("/login?reason=logged-out");
@@ -36,3 +35,5 @@ async function logout() {
 window.getLoginUrl = getLoginUrl;
 window.requireAuth = requireAuth;
 window.logout = logout;
+
+document.getElementById("chat-logout-btn")?.addEventListener("click", logout);

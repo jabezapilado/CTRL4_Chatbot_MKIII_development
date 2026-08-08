@@ -22,7 +22,7 @@ class ReleaseGateContractTests(unittest.TestCase):
 
         frontend_routes = _read("backend/server/routes/frontend_routes.py")
         self.assertIn('@frontend_bp.get("/admin")', frontend_routes)
-        self.assertIn('return render_template("admin.html")', frontend_routes)
+        self.assertIn('return render_template(\n        "admin.html",', frontend_routes)
         self.assertIn('if path == "/admin" and role != ROLE_ADMIN:', frontend_routes)
         self.assertIn('if path == "/dashboard" and role == ROLE_ADMIN:', frontend_routes)
         self.assertIn(
@@ -40,7 +40,6 @@ class ReleaseGateContractTests(unittest.TestCase):
     def test_current_readme_and_documents_use_mk_iii_branding(self) -> None:
         current_documents = (
             "README.md",
-            "AGENTS.md",
             "requirements.txt",
             "docs/architecture/project_architecture.md",
             "docs/deployment/deployment_guide.md",

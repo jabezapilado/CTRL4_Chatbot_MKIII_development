@@ -1,5 +1,6 @@
 import json
 import re
+from datetime import datetime
 
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -9,11 +10,14 @@ from ..db import (
     ALLOWED_GENDERS,
     create_account,
     fetch_account_by_id,
+    fetch_account_password_credentials,
     fetch_account_by_email,
     list_accounts,
+    search_student_accounts_by_programs,
+    update_account_password_hash,
     update_account_fields,
 )
-from ..config import Config
+from .program_service import program_service
 
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
@@ -41,14 +45,36 @@ STAFF_ACCOUNT_UPDATE_FIELDS = frozenset({
     "email",
     "gender",
     "assigned_programs",
+})
+STAFF_ADMIN_ACCOUNT_CREATE_FIELDS = frozenset({
+    "full_name",
+    "email",
+    "password",
+    "role",
+    "gender",
+    "assigned_programs",
+})
+STAFF_OPERATIONAL_PROFILE_FIELDS = frozenset({
     "office",
     "support_statement",
     "consultation_rooms",
     "consultation_schedules",
 })
+STAFF_OWN_PASSWORD_FIELDS = frozenset({
+    "current_password",
+    "new_password",
+    "confirm_password",
+})
 CONSULTATION_SCHEDULE_FIELDS = frozenset({"room", "days", "time"})
-
-config = Config()
+WEEKDAY_ORDER = (
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+)
 
 
 def _validate_full_name(value: object) -> str:
@@ -102,7 +128,7 @@ def _validate_student_program(value: object) -> str:
     program = str(value or "").strip()
     if not program:
         raise ValueError("Program is required.")
-    if program not in config.PROGRAMS:
+    if program not in program_service.active_program_names():
         raise ValueError("Invalid program.")
     return program
 
@@ -130,7 +156,7 @@ def _validate_program_list(value: object) -> list[str]:
         program = str(item or "").strip()
         if not program:
             raise ValueError("Assigned programs cannot contain blank values.")
-        if program not in config.PROGRAMS:
+        if program not in program_service.active_program_names():
             raise ValueError("Invalid assigned program.")
         if program in seen_programs:
             raise ValueError("Assigned programs cannot contain duplicates.")
@@ -195,8 +221,8 @@ def _validate_schedule_list(
             raise ValueError("Invalid consultation schedule fields.")
 
         room = str(item.get("room") or "").strip()
-        days = str(item.get("days") or "").strip()
-        time = str(item.get("time") or "").strip()
+        days = _normalize_schedule_days(item.get("days"))
+        time = _normalize_schedule_time(item.get("time"))
 
         if not room or not days or not time:
             raise ValueError("Consultation schedules require room, days, and time.")
@@ -212,6 +238,38 @@ def _validate_schedule_list(
         )
 
     return schedules
+
+
+def _normalize_schedule_days(value: object) -> str:
+    days = " ".join(str(value or "").split())
+    if not days:
+        raise ValueError("Consultation schedules require room, days, and time.")
+    if " to " in days:
+        start, end = (part.strip() for part in days.split(" to ", 1))
+    elif "-" in days:
+        start, end = (part.strip() for part in days.split("-", 1))
+    else:
+        start = end = days
+    if start not in WEEKDAY_ORDER or end not in WEEKDAY_ORDER:
+        raise ValueError("Consultation schedule days are invalid.")
+    if WEEKDAY_ORDER.index(start) > WEEKDAY_ORDER.index(end):
+        raise ValueError("Consultation schedule days are invalid.")
+    return start if start == end else f"{start} to {end}"
+
+
+def _normalize_schedule_time(value: object) -> str:
+    raw_time = " ".join(str(value or "").split())
+    if raw_time.count("-") != 1:
+        raise ValueError("Consultation schedule time is invalid.")
+    start_raw, end_raw = (part.strip() for part in raw_time.split("-"))
+    try:
+        start = datetime.strptime(start_raw, "%I:%M %p")
+        end = datetime.strptime(end_raw, "%I:%M %p")
+    except ValueError as exc:
+        raise ValueError("Consultation schedule time is invalid.") from exc
+    if start >= end:
+        raise ValueError("Consultation schedule end time must be after start time.")
+    return f"{start.strftime('%I:%M %p')} - {end.strftime('%I:%M %p')}"
 
 
 def _validate_staff_profile_fields(
@@ -360,7 +418,13 @@ def create_account_service(payload: dict) -> dict:
 
     staff_profile = {}
     if role == "staff":
-        staff_profile = _validate_staff_profile_fields(payload)
+        unsupported_fields = set(payload) - STAFF_ADMIN_ACCOUNT_CREATE_FIELDS
+        if unsupported_fields:
+            raise ValueError("Operational counselor fields are managed by Guidance staff.")
+        if "assigned_programs" in payload:
+            staff_profile["assigned_programs"] = _validate_program_list(
+                payload.get("assigned_programs")
+            )
 
     return _create_account_with_duplicate_email_translation(
         full_name=full_name,
@@ -387,6 +451,28 @@ def list_accounts_service(filters: dict) -> list[dict]:
         status = _validate_status(status)
 
     return list_accounts(role=role, status=status, query=query)
+
+
+def search_students_for_staff_service(staff_account: dict, query: object) -> list[dict]:
+    """Search public student identity fields within the staff member's programs."""
+    text = str(query or "").strip()
+    if not text:
+        return []
+
+    profile = fetch_account_by_id(int(staff_account["id"]), role="staff")
+    if not profile:
+        raise LookupError("Staff account not found.")
+    programs = _decode_list(profile.get("assigned_programs"))
+    normalized_programs = tuple(
+        dict.fromkeys(
+            str(program).strip()
+            for program in programs
+            if str(program).strip()
+        )
+    )
+    if not normalized_programs:
+        return []
+    return search_student_accounts_by_programs(text, normalized_programs)
 
 
 def update_student_account_service(account_id: int, payload: dict) -> dict:
@@ -439,12 +525,10 @@ def update_staff_account_service(account_id: int, payload: dict) -> dict:
         raise LookupError("Staff account not found.")
 
     updates = _validate_common_account_updates(payload, existing_account)
-    updates.update(
-        _validate_staff_profile_fields(
-            payload,
-            existing_account=existing_account,
+    if "assigned_programs" in payload:
+        updates["assigned_programs"] = _validate_program_list(
+            payload.get("assigned_programs")
         )
-    )
 
     if not updates:
         raise ValueError("No supported account fields were provided.")
@@ -458,6 +542,82 @@ def update_staff_account_service(account_id: int, payload: dict) -> dict:
         raise LookupError("Staff account not found.")
 
     return updated_account
+
+
+def get_own_staff_operational_profile_service(staff_account: dict) -> dict:
+    profile = fetch_account_by_id(int(staff_account["id"]), role="staff")
+    if not profile:
+        raise LookupError("Staff account not found.")
+    return {
+        "office": profile.get("office") or "",
+        "support_statement": profile.get("support_statement") or "",
+        "consultation_rooms": _decode_list(profile.get("consultation_rooms")),
+        "consultation_schedules": _decode_list(profile.get("consultation_schedules")),
+    }
+
+
+def update_own_staff_operational_profile_service(
+    staff_account: dict,
+    payload: dict,
+) -> dict:
+    if not isinstance(payload, dict):
+        raise ValueError("Invalid request payload.")
+    unsupported_fields = set(payload) - STAFF_OPERATIONAL_PROFILE_FIELDS
+    if unsupported_fields:
+        raise ValueError("Unsupported counselor operational profile field.")
+
+    existing = fetch_account_by_id(int(staff_account["id"]), role="staff")
+    if not existing:
+        raise LookupError("Staff account not found.")
+    updates = _validate_staff_profile_fields(payload, existing_account=existing)
+    if not updates:
+        raise ValueError("No supported operational profile fields were provided.")
+    updated = _update_account_fields_with_duplicate_email_translation(
+        int(staff_account["id"]),
+        updates,
+        role="staff",
+    )
+    if not updated:
+        raise LookupError("Staff account not found.")
+    return {
+        "office": updated.get("office") or "",
+        "support_statement": updated.get("support_statement") or "",
+        "consultation_rooms": _decode_list(updated.get("consultation_rooms")),
+        "consultation_schedules": _decode_list(updated.get("consultation_schedules")),
+    }
+
+
+def update_own_staff_password_service(staff_account: dict, payload: dict) -> None:
+    if not isinstance(payload, dict):
+        raise ValueError("Invalid request payload.")
+    unsupported_fields = set(payload) - STAFF_OWN_PASSWORD_FIELDS
+    if unsupported_fields:
+        raise ValueError("Unsupported password update field.")
+
+    current_password = str(payload.get("current_password", ""))
+    new_password = str(payload.get("new_password", ""))
+    confirm_password = str(payload.get("confirm_password", ""))
+    if not current_password or not new_password or not confirm_password:
+        raise ValueError("Current password, new password, and confirmation are required.")
+    if len(new_password) < 8:
+        raise ValueError("New password must be at least 8 characters long.")
+    if new_password != confirm_password:
+        raise ValueError("New passwords do not match.")
+
+    account_id = int(staff_account["id"])
+    credentials = fetch_account_password_credentials(account_id, role="staff")
+    if not credentials or credentials.get("status") != "active":
+        raise LookupError("Staff account not found.")
+    if not check_password_hash(str(credentials.get("password_hash", "")), current_password):
+        raise PermissionError("Current password is incorrect.")
+
+    updated = update_account_password_hash(
+        account_id,
+        generate_password_hash(new_password),
+        role="staff",
+    )
+    if not updated:
+        raise LookupError("Staff account not found.")
 
 
 def update_admin_account_service(account_id: int, payload: dict) -> dict:

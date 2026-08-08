@@ -23,7 +23,9 @@ Authors:
 
 from __future__ import annotations
 import logging
+import re
 import time
+from typing import Final
 
 from dataclasses import dataclass
 
@@ -40,8 +42,29 @@ from .conversation_state import ConversationState
 from .conversation_topic import ConversationTopic
 from .response_validator import ResponseValidator
 from .response_safety_service import ResponseSafetyService
+from .conversation_history import normalize_conversation_history
+from .operational_guidance_service import OperationalGuidanceService
+from .settings_service import SettingsService
 
 logger = logging.getLogger(__name__)
+
+_COURSE_CODE_PATTERN: Final[re.Pattern[str]] = re.compile(
+    r"\b(?:[A-Z]{5,}|[A-Z]{2,}[ -]?\d{2,4})\b"
+)
+_ROUTINE_DISTRESS_PATTERN: Final[re.Pattern[str]] = re.compile(
+    r"\b(?:overwhelmed|anxious|anxiety|stress(?:ed)?|worried|nervous|"
+    r"pressure|pressured|tired|exhausted|drained|burn(?:ed)? out)\b",
+    re.IGNORECASE,
+)
+_ANXIETY_PATTERN: Final[re.Pattern[str]] = re.compile(
+    r"\b(?:anxious|anxiety|worried|nervous)\b",
+    re.IGNORECASE,
+)
+_ACADEMIC_CONTEXT_PATTERN: Final[re.Pattern[str]] = re.compile(
+    r"\b(?:schoolwork|school|academic(?:s)?|coursework|class(?:es)?|"
+    r"exam(?:s)?|deadline(?:s)?|project(?:s)?|assignment(?:s)?|grade(?:s)?)\b",
+    re.IGNORECASE,
+)
 
 
 
@@ -89,6 +112,8 @@ class AIService:
         topic_classifier: TopicService | None = None,
         metadata_extractor: MetadataExtractionService | None = None,
         response_safety: ResponseSafetyService | None = None,
+        operational_guidance: OperationalGuidanceService | None = None,
+        faq_settings: SettingsService | None = None,
     ):
 
         self.safety = safety or SafetyService()
@@ -114,6 +139,9 @@ class AIService:
         self.response_validator = ResponseValidator()
 
         self.response_safety = response_safety or ResponseSafetyService()
+
+        self.operational_guidance = operational_guidance or OperationalGuidanceService()
+        self.faq_settings = faq_settings or SettingsService()
     
     def generate_text(
         self,
@@ -150,6 +178,46 @@ class AIService:
             )
 
         return llm.text
+
+    @classmethod
+    def _compose_deterministic_response(
+        cls,
+        factual_answer: str,
+        message: str,
+        normalized_emotion: str | None,
+    ) -> str:
+        """Add factual, routine empathy without replacing a source-owned answer."""
+        if not _ROUTINE_DISTRESS_PATTERN.search(message):
+            return factual_answer
+
+        if str(normalized_emotion or "").strip().lower() not in {
+            "distressed",
+            "negative",
+        }:
+            return factual_answer
+
+        if _ACADEMIC_CONTEXT_PATTERN.search(message):
+            if _ANXIETY_PATTERN.search(message):
+                acknowledgement = (
+                    "I'm sorry you've been feeling anxious about your grades. "
+                    "Academic challenges can feel overwhelming, and it's "
+                    "understandable to seek support. We can also talk about "
+                    "what has been making things especially difficult."
+                )
+            else:
+                acknowledgement = (
+                    "I'm sorry you've been feeling overwhelmed by your schoolwork. "
+                    "Managing several academic demands can feel difficult. We can "
+                    "talk through what is making the workload feel unmanageable or "
+                    "explore support available through the Guidance Office."
+                )
+        else:
+            acknowledgement = (
+                "I'm sorry you've been feeling overwhelmed. We can talk through "
+                "what has been making things feel difficult."
+            )
+
+        return f"{factual_answer}\n\n{acknowledgement}"
 
     def should_use_rag(
         self,
@@ -314,6 +382,7 @@ class AIService:
         EXPLORING_KEYWORDS = (
             "because",
             "it's because",
+            "it's just",
             "i feel",
             "i've been",
             "i have been",
@@ -343,6 +412,7 @@ class AIService:
         message: str,
     ) -> ConversationTopic:
 
+        raw_message = message
         message = message.lower()
 
         ACADEMICS = (
@@ -426,6 +496,9 @@ class AIService:
         if any(word in message for word in GUIDANCE):
             return ConversationTopic.GUIDANCE_OFFICE
 
+        if _COURSE_CODE_PATTERN.search(raw_message):
+            return ConversationTopic.ACADEMICS
+
         if any(word in message for word in ACADEMICS):
             return ConversationTopic.ACADEMICS
 
@@ -447,10 +520,12 @@ class AIService:
         self,
         message: str,
         conversation: list[dict] | None = None,
+        user: dict | None = None,
     ) -> ChatResponse:
 
         if conversation is None:
             conversation = []
+        conversation = normalize_conversation_history(conversation)
         
         # -----------------------------------------
         # Performance Tracking
@@ -505,22 +580,23 @@ class AIService:
             metadata = self.metadata_extractor.extract(message)
 
             if safety.response:
+                is_crisis = safety.reason == "crisis"
 
                 return ChatResponse(
                     success=True,
                     response=safety.response,
-                    emotion="Unknown",
-                    sentiment="Unknown",
+                    emotion="Crisis" if is_crisis else "Support Request",
+                    sentiment="Negative" if is_crisis else "Neutral",
                     language=language.language,
-                    topic="Unknown",
-                    state="Unknown",
+                    topic="Crisis Concern" if is_crisis else "General inquiry",
+                    state="Crisis" if is_crisis else "Support request",
                     escalated=safety.should_escalate,
                     confidence=0.0,
                     intent=intent,
                     normalized_emotion=(
                         "crisis" if safety.should_escalate else None
                     ),
-                    normalized_topic=normalized_topic,
+                    normalized_topic=("crisis" if is_crisis else normalized_topic),
                     metadata=metadata.to_dict(),
                 )
 
@@ -554,6 +630,73 @@ class AIService:
                 conversation_state.value,
                 conversation_topic.value,
             )
+
+            # Live operational answers are source-owned configuration, not RAG
+            # context or provider prior knowledge. Safety remains active before
+            # the deterministic response is returned.
+            operational_answer = self.operational_guidance.answer(message, user)
+            if operational_answer is not None:
+                composed_response = self._compose_deterministic_response(
+                    operational_answer.response,
+                    message,
+                    emotion.normalized_emotion,
+                )
+                response_safety = self.response_safety.validate(
+                    composed_response,
+                    [operational_answer],
+                )
+                response = (
+                    response_safety.replacement
+                    if not response_safety.allowed and response_safety.replacement
+                    else composed_response
+                )
+                return ChatResponse(
+                    success=True,
+                    response=response,
+                    emotion=emotion.emotion,
+                    sentiment=emotion.sentiment,
+                    language=language.language,
+                    topic=conversation_topic.value,
+                    state=conversation_state.value,
+                    escalated=safety.should_escalate,
+                    confidence=emotion.confidence,
+                    intent=intent,
+                    normalized_emotion=emotion.normalized_emotion,
+                    normalized_topic=normalized_topic,
+                    metadata=metadata.to_dict(),
+                )
+
+            faq_answer = self.faq_settings.answer_faq(message, user)
+            if faq_answer is not None:
+                composed_response = self._compose_deterministic_response(
+                    faq_answer.response,
+                    message,
+                    emotion.normalized_emotion,
+                )
+                response_safety = self.response_safety.validate(
+                    composed_response,
+                    [faq_answer],
+                )
+                response = (
+                    response_safety.replacement
+                    if not response_safety.allowed and response_safety.replacement
+                    else composed_response
+                )
+                return ChatResponse(
+                    success=True,
+                    response=response,
+                    emotion=emotion.emotion,
+                    sentiment=emotion.sentiment,
+                    language=language.language,
+                    topic=conversation_topic.value,
+                    state=conversation_state.value,
+                    escalated=safety.should_escalate,
+                    confidence=emotion.confidence,
+                    intent=intent,
+                    normalized_emotion=emotion.normalized_emotion,
+                    normalized_topic=normalized_topic,
+                    metadata=metadata.to_dict(),
+                )
 
             # -----------------------------------------
             # Knowledge Retrieval
@@ -625,27 +768,7 @@ class AIService:
                     "Response validation failed: %s",
                     reason,
                 )
-                if reason == "Repeated greeting detected.":
-                    llm_text = (
-                        "Let's continue from where we left off. "
-                        "What would you like to talk about next?"
-                    )
-                elif reason == "Repeated empathy detected.":
-                    llm_text = (
-                        "I want to better understand what you're experiencing. "
-                        "Could you tell me a little more about what's been happening?"
-                    )
-                elif reason == "Repeated introduction detected.":
-                    llm_text = (
-                        "Let's continue our conversation. "
-                        "What would you like to share or ask next?"
-                    )
-                elif reason == "Repeated closing detected.":
-                    llm_text = (
-                        "Before we end our conversation, "
-                        "is there anything else you'd like to talk about?"
-                    )
-                elif reason == "The response is too short.":
+                if reason == "The response is too short.":
                     llm_text = (
                         "I'd like to give you a more helpful response. "
                         "Could you tell me a little more about your situation?"
@@ -654,6 +777,11 @@ class AIService:
                     llm_text = (
                         "I want to make sure I understand you correctly. "
                         "Could you tell me a little more about what's on your mind?"
+                    )
+                elif reason == "Repeated response detected.":
+                    llm_text = (
+                        "I want to avoid repeating the same response. "
+                        "Please tell me which part would be most helpful to explore."
                     )
                 else:
                     llm_text = (
@@ -689,10 +817,7 @@ class AIService:
                 language=language.language,
                 topic=conversation_topic.value,
                 state=conversation_state.value,
-                escalated=(
-                    safety.should_escalate
-                    or emotion.is_negative
-                ),
+                escalated=safety.should_escalate,
 
                 confidence=emotion.confidence,
                 intent=intent,

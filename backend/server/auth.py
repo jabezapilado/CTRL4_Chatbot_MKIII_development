@@ -3,11 +3,14 @@ from __future__ import annotations
 import logging
 
 from flask import Blueprint, current_app, jsonify, request, session
+from .csrf import get_csrf_token
+from .services import transient_chat_service
 from .services.account_service import login_service
 
 
 logger = logging.getLogger(__name__)
 
+STUDENT_TERMS_ACCEPTED_SESSION_KEY = "student_terms_accepted"
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -44,8 +47,11 @@ def login():
         # Prevent session fixation by issuing a fresh authenticated session.
         session.clear()
         session["hau_user"] = user
+        if str(user.get("role", "")).lower() == "student":
+            session[STUDENT_TERMS_ACCEPTED_SESSION_KEY] = False
         _rotate_authenticated_session()
         session.permanent = True
+        get_csrf_token()
     except ValueError as exc:
         logger.warning("Login validation failed.")
         return jsonify(
@@ -84,6 +90,36 @@ def login():
     ), 200
 
 
+@auth_bp.post("/auth/terms/accept")
+def accept_student_terms():
+    user = get_logged_in_user()
+    if not user:
+        return jsonify(
+            {
+                "success": False,
+                "message": "Login required.",
+                "errors": None,
+            }
+        ), 401
+    if str(user.get("role", "")).lower() != "student":
+        return jsonify(
+            {
+                "success": False,
+                "message": "Student access required.",
+                "errors": None,
+            }
+        ), 403
+
+    session[STUDENT_TERMS_ACCEPTED_SESSION_KEY] = True
+    return jsonify(
+        {
+            "success": True,
+            "message": "Terms accepted.",
+            "data": None,
+        }
+    ), 200
+
+
 @auth_bp.post("/auth/logout")
 def logout():
     user = get_logged_in_user()
@@ -95,6 +131,10 @@ def logout():
                 "errors": None,
             }
         ), 401
+    # The visible exchange is deliberately server-owned and tied to the opaque
+    # session identifier. Remove it before clearing the session so a new login
+    # cannot recover a prior authenticated session's chat.
+    transient_chat_service.clear(getattr(session, "sid", ""), user.get("id"))
     session.clear()
     if user:
         logger.info("Authenticated session cleared.")

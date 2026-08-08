@@ -1,12 +1,25 @@
 import logging
-from flask import Blueprint, render_template, request, jsonify, redirect
+from flask import (
+    Blueprint,
+    render_template,
+    request,
+    jsonify,
+    redirect,
+    session,
+    make_response,
+)
 
-from ..auth import get_logged_in_user, role_landing_path
+from ..auth import (
+    STUDENT_TERMS_ACCEPTED_SESSION_KEY,
+    get_logged_in_user,
+    role_landing_path,
+)
 from ..request_validation import (
     ROLE_ADMIN,
     ROLE_STAFF,
     ROLE_STUDENT,
 )
+from ..services import transient_chat_service
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +38,26 @@ def login():
 
 @frontend_bp.get("/chatbot")
 def chatbot():
-    return render_template("chatbot.html")
+    user = get_logged_in_user() or {}
+    active_chat = []
+    terms_required = (
+        str(user.get("role", "")).lower() == ROLE_STUDENT
+        and session.get(STUDENT_TERMS_ACCEPTED_SESSION_KEY) is not True
+    )
+    if str(user.get("role", "")).lower() == ROLE_STUDENT and not terms_required:
+        active_chat = transient_chat_service.get_visible_history(
+            getattr(session, "sid", ""),
+            user.get("id"),
+        )
+    response = make_response(
+        render_template(
+            "chatbot.html",
+            active_chat=active_chat,
+            terms_required=terms_required,
+        )
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @frontend_bp.get("/case-status")
@@ -45,12 +77,9 @@ def dashboard():
 
 @frontend_bp.get("/admin")
 def admin_accounts():
-    return render_template("admin.html")
-
-
-@frontend_bp.get("/chatbot_admin")
-def chatbot_admin():
-    return render_template("chatbot_admin.html")
+    return render_template(
+        "admin.html",
+    )
 
 
 @frontend_bp.before_request
@@ -87,9 +116,7 @@ def require_login_for_private_routes():
         return redirect("/dashboard")
     if path == "/dashboard" and role == ROLE_ADMIN:
         return redirect("/admin")
-    if path == "/chatbot_admin" and role != ROLE_STAFF:
-        return redirect(role_landing_path(user))
-    if path in {"/dashboard", "/chatbot_admin"} and role == ROLE_STUDENT:
+    if path == "/dashboard" and role == ROLE_STUDENT:
         return redirect("/chatbot")
     if path == "/admin" and role != ROLE_ADMIN:
         return redirect(role_landing_path(user))

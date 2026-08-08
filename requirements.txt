@@ -3,7 +3,6 @@
 # backend/requirements.txt delegates to this file for legacy setup commands.
 
 Flask>=3.0,<4.0
-Flask-Cors>=4.0,<7.0
 Flask-Session>=0.8,<1.0
 cachelib>=0.15,<1.0
 gunicorn>=22.0,<24.0

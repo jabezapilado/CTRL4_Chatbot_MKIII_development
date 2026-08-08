@@ -122,13 +122,18 @@ Set `CHATBOT_DB_NAME=ctrl4_development` in `backend/.env`. The application may
 then start with initialization disabled in production because the complete
 schema already exists.
 
-### Existing development database — supported upgrade procedure
+### Existing database — controlled maintenance only
 
-`initialize_database()` is the runtime compatibility initializer. It creates
-missing current tables and applies only its known migrations, including legacy
-appointment status conversion and removal of the obsolete
-`conversation_summaries.transcript_json` column. It is **not** a universal
-migration engine for arbitrary historical schemas.
+The MK III audit found the live XAMPP MariaDB `soc_chatbot` schema structurally
+aligned with `db.py` and `schema.sql`. Its local demo cleanup removed only
+operational chat/case test data after a verified SQL backup and retained
+foundation accounts, settings, program catalog, FAQs, appointment availability,
+and staff assignments/rooms/schedules.
+
+`initialize_database()` remains legacy compatibility code, not a versioned
+migration framework or an approved routine-maintenance command. Migration work
+and nine candidate indexes identified by the audit are deferred. Do not run it
+against an existing database without an approved maintenance plan and backup.
 
 Before invoking it against an existing database:
 
@@ -246,6 +251,10 @@ cd backend
 
 The development server listens on `http://127.0.0.1:5001` by default.
 
+For a temporary Tailscale or local-network demonstration, use
+`CTRL4_HOST=0.0.0.0` and, if needed, `CTRL4_PORT=<port>`. The public-interface
+binding is opt-in and is not a production exposure recommendation.
+
 ### Production
 
 After explicit database preparation, run exactly one Gunicorn worker:
@@ -262,6 +271,14 @@ cd backend
 
 The reverse proxy should forward HTTPS traffic to this local listener. Do not
 expose the Gunicorn listener directly to the public network.
+
+## Deferred MK III work
+
+The saved `mkiii_startup_hardening_unvalidated.patch` is not part of the
+release and must not be applied as a validated migration/startup solution.
+Before a production deployment, validate a versioned migration strategy,
+consider the deferred indexes, complete environment-specific security hardening,
+and treat generated RAG artifacts as protected operational assets.
 
 ## Health and startup verification
 

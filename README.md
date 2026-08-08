@@ -3,7 +3,7 @@
 > **Development of an AI-Powered Guidance Chatbot for Inquiry Management Using
 > NLP-Based Negative Emotion Detection**
 
-[![Release](https://img.shields.io/badge/release-v1.0.0-2f6feb)](https://github.com/jabezapilado/CTRL4_Chatbot_MKIII/releases/tag/v1.0.0)
+[![Release](https://img.shields.io/badge/release-v1.0.5-2f6feb)](https://github.com/jabezapilado/CTRL4_Chatbot_MKIII/releases/tag/v1.0.5)
 ![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-3.x-000000?logo=flask&logoColor=white)
 ![Database](https://img.shields.io/badge/database-MySQL%20%7C%20MariaDB-4479A1)
@@ -25,7 +25,7 @@ Frontend → Route → Service → Database
 
 ## Project status
 
-**Current stable release:** [v1.0.0](https://github.com/jabezapilado/CTRL4_Chatbot_MKIII/releases/tag/v1.0.0)
+**Current stable release:** [v1.0.5](https://github.com/jabezapilado/CTRL4_Chatbot_MKIII/releases/tag/v1.0.5)
 
 MK III is the completed, current implementation. Historical roadmaps and MK II
 research records remain available for thesis provenance, but they are not the
@@ -35,7 +35,7 @@ current system contract.
 
 ### AI and chatbot
 
-- English, Filipino, and Taglish interaction.
+- English, Filipino, and Taglish interaction at the response/rule level.
 - Language Detection, SafetyService, internal intent/emotion/topic/metadata
   processing, RAG, PromptBuilder, and ResponseSafetyService.
 - Gemini and Ollama provider support through the existing provider abstraction.
@@ -43,9 +43,15 @@ current system contract.
 - An externally provisioned English emotion-model artifact; model weights are
   intentionally not stored in ordinary Git history.
 
+The released emotion model is English-focused. Filipino/Tagalog and Taglish
+language detection and response rules are implemented, but their emotion
+classification should not be treated as equivalent to a separately validated
+Filipino or Taglish emotion model.
+
 ### Student workflows
 
-- Authenticated chatbot use.
+- Authenticated chatbot use after accepting the per-session Terms and
+  Conditions acknowledgement.
 - Appointment booking, history, cancellation, and replacement rescheduling.
 - Recipient-scoped in-app notifications.
 - Privacy-projected personal case-status view.
@@ -56,6 +62,9 @@ current system contract.
 - Appointment lifecycle, counselor notes, and read-only calendar.
 - Flagged-case review, case notes, referrals, interventions, and
   confidentiality handling.
+- Summary-based Inbox, active Flagged Cases, privacy-safe Case Details
+  (including separate Detected Emotion and Safety Risk), and Reviewed Case
+  History.
 - Read-only appointment, chatbot, counselor-workload, and flagged-case
   analytics, plus aggregate-only CSV reports.
 
@@ -144,6 +153,25 @@ By default, the development server listens at
 ```bash
 curl --fail --silent --show-error http://127.0.0.1:5001/health
 ```
+
+For a temporary Tailscale or local-network demonstration only, start with
+`CTRL4_HOST=0.0.0.0`. This is opt-in; it is not the default binding. Use
+`CTRL4_PORT` to override port `5001` when needed.
+
+## MK III operational notes
+
+- The validated local XAMPP MariaDB database is `soc_chatbot`. The MK III audit
+  found `db.py`, `backend/sql/schema.sql`, and the live schema structurally
+  aligned. Demo chat/case test records were cleaned after a verified SQL backup;
+  foundation accounts, settings, program catalog, FAQs, appointment
+  availability, and staff profiles remain preserved.
+- Versioned database migrations and the audit's nine candidate indexes are
+  deferred. The saved `mkiii_startup_hardening_unvalidated.patch` is not part
+  of the release and must not be applied as a validated feature.
+- Generated RAG artifacts require deliberate review and handling; do not treat
+  them as ordinary disposable build output.
+- This thesis/demo system has meaningful access, privacy, and request controls,
+  but it is not represented as fully production-hardened.
 
 ## LLM provider configuration
 

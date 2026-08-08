@@ -23,7 +23,6 @@ from unittest.mock import patch
 
 _RUNTIME_DEPENDENCIES = (
     "flask",
-    "flask_cors",
     "mysql.connector",
     "dotenv",
 )
@@ -60,7 +59,13 @@ class SystemRuntimeIntegrationTests(unittest.TestCase):
                 "email": f"{role}{account_id}@example.test",
                 "role": role,
             }
+            session["_csrf_token"] = "system-integration-csrf-token"
         return client
+
+    @staticmethod
+    def _csrf_headers(client) -> dict[str, str]:
+        with client.session_transaction() as session:
+            return {"X-CSRF-Token": session["_csrf_token"]}
 
     def _assert_envelope(self, response, status: int) -> dict:
         self.assertEqual(response.status_code, status)
@@ -86,11 +91,14 @@ class SystemRuntimeIntegrationTests(unittest.TestCase):
 
         user = {"id": 7, "email": "student7@example.test", "role": "student"}
         client = self.app.test_client()
+        with client.session_transaction() as session:
+            session["_csrf_token"] = "login-csrf-token"
         with patch.object(auth, "login_service", return_value=user):
             login_payload = self._assert_envelope(
                 client.post(
                     "/auth/login",
                     json={"email": user["email"], "password": "not-persisted"},
+                    headers=self._csrf_headers(client),
                 ),
                 200,
             )
@@ -100,7 +108,10 @@ class SystemRuntimeIntegrationTests(unittest.TestCase):
             self.assertEqual(session["hau_user"], user)
             self.assertTrue(session.permanent)
 
-        logout_payload = self._assert_envelope(client.post("/auth/logout"), 200)
+        logout_payload = self._assert_envelope(
+            client.post("/auth/logout", headers=self._csrf_headers(client)),
+            200,
+        )
         self.assertIsNone(logout_payload["data"])
         with client.session_transaction() as session:
             self.assertNotIn("hau_user", session)
@@ -188,6 +199,58 @@ class SystemRuntimeIntegrationTests(unittest.TestCase):
                         403,
                     )
                     self.assertFalse(denied["success"])
+
+    def test_fresh_seed_pending_case_is_visible_to_its_assigned_counselor(self) -> None:
+        from backend.server import db
+        from backend.server.config import Config
+
+        config = Config()
+        db.seed_database()
+        student = db.fetch_account_by_email(config.SEED_STUDENT_EMAIL)
+        staff = db.fetch_account_by_email(config.SEED_STAFF_EMAIL)
+        self.assertIsNotNone(student)
+        self.assertIsNotNone(staff)
+
+        summary_id = db.save_conversation_summary(
+            {
+                "account_id": student["id"],
+                "primary_concern": "Crisis Concern",
+                "conversation_type": "general",
+                "emotion_results": "Crisis",
+                "flagged_status": True,
+                "appointment_recommendation": False,
+                "recommendations": "Immediate Guidance Office review is recommended.",
+                "suggested_intervention": "Immediate Guidance Office review is recommended.",
+                "language_used": "english",
+                "total_messages": 1,
+                "summary": "A current abstract crisis summary.",
+            }
+        )
+        db.save_escalation(
+            {
+                "account_id": student["id"],
+                "summary_id": summary_id,
+                "status": "pending",
+                "escalation_reason": "AI safety escalation.",
+            }
+        )
+
+        client = self._client_for("staff", account_id=staff["id"])
+        inbox = self._assert_envelope(client.get("/api/staff/inbox"), 200)
+        flagged = self._assert_envelope(
+            client.get("/api/flagged-conversations"),
+            200,
+        )
+
+        inbox_item = next(
+            item
+            for item in inbox["data"]["items"]
+            if item["summary_id"] == summary_id
+        )
+        self.assertEqual(inbox_item["review_status"], "pending")
+        self.assertTrue(inbox_item["flagged_status"])
+        self.assertEqual(flagged["data"]["items"], [inbox_item])
+        self.assertNotIn("conversation_json", inbox_item)
 
     def test_student_case_projection_and_staff_case_modules_are_role_isolated(self) -> None:
         from backend.server.routes import conversation_routes
@@ -301,7 +364,11 @@ class SystemRuntimeIntegrationTests(unittest.TestCase):
             return_value={"status": "saved"},
         ):
             chat_payload = self._assert_envelope(
-                client.post("/chat", json={"message": "I need help", "conversation": []}),
+                client.post(
+                    "/chat",
+                    json={"message": "I need help", "conversation": []},
+                    headers=self._csrf_headers(client),
+                ),
                 200,
             )
             self.assertEqual(chat_payload["data"]["response"], chat_result.response)
@@ -313,6 +380,7 @@ class SystemRuntimeIntegrationTests(unittest.TestCase):
                 client.post(
                     "/chat/finalize",
                     json={"conversation": [{"role": "user", "content": "I need help"}]},
+                    headers=self._csrf_headers(client),
                 ),
                 200,
             )

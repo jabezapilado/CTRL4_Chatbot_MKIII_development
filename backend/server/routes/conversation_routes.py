@@ -24,9 +24,10 @@ from ..services.confidentiality_service import (
     update_staff_case_confidentiality,
 )
 from ..services.conversation_service import (
-    get_staff_flagged_conversation,
+    get_staff_inbox_item,
+    list_staff_inbox_items,
+    list_staff_reviewed_case_history,
     list_student_cases,
-    list_staff_flagged_conversations,
     list_staff_conversation_summaries,
     list_staff_escalations,
     list_staff_inquiries,
@@ -42,13 +43,126 @@ conversation_bp = Blueprint(
 )
 
 
-@conversation_bp.get("/inquiries")
-def inquiries():
-    _, error = require_role("staff")
+def _authorized_flagged_case_or_not_found(staff_account: dict, summary_id: int):
+    """Reuse Staff Inbox program scope for every flagged-case subresource."""
+    item = get_staff_inbox_item(staff_account, summary_id)
+    if item is not None and item.get("flagged_status"):
+        return item, None
+    return None, (
+        jsonify(
+            {
+                "success": False,
+                "message": "Flagged conversation not found.",
+                "errors": None,
+            }
+        ),
+        404,
+    )
+
+
+@conversation_bp.get("/staff/inbox")
+def staff_inbox():
+    user, error = require_role("staff")
     if error:
         return error
     try:
-        items = list_staff_inquiries()
+        response = jsonify(
+            {
+                "success": True,
+                "message": "Staff inbox retrieved successfully.",
+                "data": {"items": list_staff_inbox_items(user)},
+            }
+        )
+        response.headers["Cache-Control"] = "no-store"
+        return response, 200
+    except Exception:
+        logger.exception("Failed to retrieve staff inbox.")
+        return jsonify(
+            {
+                "success": False,
+                "message": "Internal server error.",
+                "errors": None,
+            }
+        ), 500
+
+
+@conversation_bp.get("/staff/inbox/<int:summary_id>")
+def staff_inbox_detail(summary_id: int):
+    user, error = require_role("staff")
+    if error:
+        return error
+    try:
+        item = get_staff_inbox_item(user, summary_id)
+        if item is None:
+            return jsonify(
+                {
+                    "success": False,
+                    "message": "Inbox item not found.",
+                    "errors": None,
+                }
+            ), 404
+        response = jsonify(
+            {
+                "success": True,
+                "message": "Inbox item retrieved successfully.",
+                "data": item,
+            }
+        )
+        response.headers["Cache-Control"] = "no-store"
+        return response, 200
+    except Exception:
+        logger.exception("Failed to retrieve staff inbox item %s.", summary_id)
+        return jsonify(
+            {
+                "success": False,
+                "message": "Internal server error.",
+                "errors": None,
+            }
+        ), 500
+
+
+@conversation_bp.get("/staff/inbox/<int:summary_id>/history")
+def staff_reviewed_case_history(summary_id: int):
+    user, error = require_role("staff")
+    if error:
+        return error
+    try:
+        items = list_staff_reviewed_case_history(user, summary_id)
+        if items is None:
+            return jsonify(
+                {
+                    "success": False,
+                    "message": "Inbox item not found.",
+                    "errors": None,
+                }
+            ), 404
+        response = jsonify(
+            {
+                "success": True,
+                "message": "Reviewed case history retrieved successfully.",
+                "data": {"items": items},
+            }
+        )
+        response.headers["Cache-Control"] = "no-store"
+        return response, 200
+    except Exception:
+        logger.exception("Failed to retrieve reviewed case history for %s.", summary_id)
+        return jsonify(
+            {
+                "success": False,
+                "message": "Internal server error.",
+                "errors": None,
+            }
+        ), 500
+
+
+@conversation_bp.get("/inquiries")
+def inquiries():
+    user, error = require_role("staff")
+    if error:
+        return error
+    try:
+        items = list_staff_inquiries(user)
         return jsonify(
             {
                 "success": True,
@@ -71,11 +185,11 @@ def inquiries():
 
 @conversation_bp.get("/conversation-summaries")
 def conversation_summaries():
-    _, error = require_role("staff")
+    user, error = require_role("staff")
     if error:
         return error
     try:
-        items = list_staff_conversation_summaries()
+        items = list_staff_conversation_summaries(user)
         return jsonify(
             {
                 "success": True,
@@ -98,11 +212,11 @@ def conversation_summaries():
 
 @conversation_bp.get("/escalations")
 def escalations():
-    _, error = require_role("staff")
+    user, error = require_role("staff")
     if error:
         return error
     try:
-        items = list_staff_escalations()
+        items = list_staff_escalations(user)
         return jsonify(
             {
                 "success": True,
@@ -125,11 +239,15 @@ def escalations():
 
 @conversation_bp.get("/flagged-conversations")
 def flagged_conversations():
-    _, error = require_role("staff")
+    user, error = require_role("staff")
     if error:
         return error
     try:
-        items = list_staff_flagged_conversations()
+        items = [
+            item
+            for item in list_staff_inbox_items(user)
+            if item.get("flagged_status") and item.get("review_status") == "pending"
+        ]
         return jsonify(
             {
                 "success": True,
@@ -177,19 +295,13 @@ def student_cases():
 
 @conversation_bp.get("/flagged-conversations/<int:summary_id>")
 def flagged_conversation(summary_id: int):
-    _, error = require_role("staff")
+    user, error = require_role("staff")
     if error:
         return error
     try:
-        item = get_staff_flagged_conversation(summary_id)
-        if item is None:
-            return jsonify(
-                {
-                    "success": False,
-                    "message": "Flagged conversation not found.",
-                    "errors": None,
-                }
-            ), 404
+        item, access_error = _authorized_flagged_case_or_not_found(user, summary_id)
+        if access_error:
+            return access_error
         return jsonify(
             {
                 "success": True,
@@ -210,10 +322,13 @@ def flagged_conversation(summary_id: int):
 
 @conversation_bp.patch("/flagged-conversations/<int:summary_id>/review")
 def review_flagged_conversation(summary_id: int):
-    _, error = require_role("staff")
+    user, error = require_role("staff")
     if error:
         return error
     try:
+        _, access_error = _authorized_flagged_case_or_not_found(user, summary_id)
+        if access_error:
+            return access_error
         item = mark_staff_flagged_conversation_reviewed(summary_id)
         if item is None:
             return jsonify(
@@ -251,9 +366,12 @@ def review_flagged_conversation(summary_id: int):
 
 @conversation_bp.get("/flagged-conversations/<int:summary_id>/confidentiality")
 def case_confidentiality(summary_id: int):
-    _, error = require_role("staff")
+    user, error = require_role("staff")
     if error:
         return error
+    _, access_error = _authorized_flagged_case_or_not_found(user, summary_id)
+    if access_error:
+        return access_error
     try:
         confidentiality = get_staff_case_confidentiality(summary_id)
         return jsonify(
@@ -288,6 +406,9 @@ def update_case_confidentiality(summary_id: int):
     if error:
         return error
     payload = request.get_json(silent=True) or {}
+    _, access_error = _authorized_flagged_case_or_not_found(user, summary_id)
+    if access_error:
+        return access_error
 
     try:
         confidentiality = update_staff_case_confidentiality(
@@ -334,9 +455,12 @@ def update_case_confidentiality(summary_id: int):
 
 @conversation_bp.get("/flagged-conversations/<int:summary_id>/notes")
 def case_notes(summary_id: int):
-    _, error = require_role("staff")
+    user, error = require_role("staff")
     if error:
         return error
+    _, access_error = _authorized_flagged_case_or_not_found(user, summary_id)
+    if access_error:
+        return access_error
     try:
         items = list_staff_case_notes(summary_id)
         return jsonify(
@@ -371,6 +495,9 @@ def create_case_note(summary_id: int):
     if error:
         return error
     payload = request.get_json(silent=True) or {}
+    _, access_error = _authorized_flagged_case_or_not_found(user, summary_id)
+    if access_error:
+        return access_error
 
     try:
         note = create_staff_case_note(
@@ -422,6 +549,9 @@ def update_case_note(summary_id: int, note_id: int):
     if error:
         return error
     payload = request.get_json(silent=True) or {}
+    _, access_error = _authorized_flagged_case_or_not_found(user, summary_id)
+    if access_error:
+        return access_error
 
     try:
         note = update_staff_case_note(
@@ -477,9 +607,12 @@ def update_case_note(summary_id: int, note_id: int):
 
 @conversation_bp.get("/flagged-conversations/<int:summary_id>/referrals")
 def referrals(summary_id: int):
-    _, error = require_role("staff")
+    user, error = require_role("staff")
     if error:
         return error
+    _, access_error = _authorized_flagged_case_or_not_found(user, summary_id)
+    if access_error:
+        return access_error
     try:
         items = list_staff_referrals(summary_id)
         return jsonify(
@@ -514,6 +647,9 @@ def create_referral(summary_id: int):
     if error:
         return error
     payload = request.get_json(silent=True) or {}
+    _, access_error = _authorized_flagged_case_or_not_found(user, summary_id)
+    if access_error:
+        return access_error
 
     try:
         referral = create_staff_referral(
@@ -567,6 +703,9 @@ def update_referral_status(summary_id: int, referral_id: int):
     if error:
         return error
     payload = request.get_json(silent=True) or {}
+    _, access_error = _authorized_flagged_case_or_not_found(user, summary_id)
+    if access_error:
+        return access_error
 
     try:
         referral = update_staff_referral_status(
@@ -628,6 +767,9 @@ def add_referral_note(summary_id: int, referral_id: int):
     if error:
         return error
     payload = request.get_json(silent=True) or {}
+    _, access_error = _authorized_flagged_case_or_not_found(user, summary_id)
+    if access_error:
+        return access_error
 
     try:
         referral = add_staff_referral_note(
@@ -683,9 +825,12 @@ def add_referral_note(summary_id: int, referral_id: int):
 
 @conversation_bp.get("/flagged-conversations/<int:summary_id>/interventions")
 def interventions(summary_id: int):
-    _, error = require_role("staff")
+    user, error = require_role("staff")
     if error:
         return error
+    _, access_error = _authorized_flagged_case_or_not_found(user, summary_id)
+    if access_error:
+        return access_error
     try:
         items = list_staff_interventions(summary_id)
         return jsonify(
@@ -720,6 +865,9 @@ def create_intervention(summary_id: int):
     if error:
         return error
     payload = request.get_json(silent=True) or {}
+    _, access_error = _authorized_flagged_case_or_not_found(user, summary_id)
+    if access_error:
+        return access_error
 
     try:
         intervention = create_staff_intervention(
@@ -772,6 +920,9 @@ def update_intervention_progress(summary_id: int, intervention_id: int):
     if error:
         return error
     payload = request.get_json(silent=True) or {}
+    _, access_error = _authorized_flagged_case_or_not_found(user, summary_id)
+    if access_error:
+        return access_error
 
     try:
         intervention = update_staff_intervention_progress(
@@ -833,6 +984,9 @@ def record_intervention_outcome(summary_id: int, intervention_id: int):
     if error:
         return error
     payload = request.get_json(silent=True) or {}
+    _, access_error = _authorized_flagged_case_or_not_found(user, summary_id)
+    if access_error:
+        return access_error
 
     try:
         intervention = record_staff_intervention_outcome(

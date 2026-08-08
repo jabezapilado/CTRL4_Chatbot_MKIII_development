@@ -1,0 +1,670 @@
+/* Administrator account-management portal. Guidance data is intentionally absent. */
+
+.admin-page {
+  min-width: 0;
+  overflow-x: hidden;
+  background:
+    radial-gradient(
+      circle at top right,
+      rgba(243, 156, 18, 0.16),
+      transparent 28rem
+    ),
+    var(--gray-100);
+}
+
+.admin-shell {
+  width: min(1440px, calc(100% - 40px));
+  min-width: 0;
+  margin: 0 auto;
+  padding: 32px 0 48px;
+}
+
+.admin-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 24px;
+  padding: 24px;
+  border: 1px solid rgba(230, 126, 34, 0.2);
+  border-radius: var(--radius-lg);
+  background: var(--white);
+  box-shadow: var(--shadow-sm);
+}
+
+.admin-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: var(--gray-900);
+}
+
+.admin-brand-logo {
+  width: 46px;
+  height: 46px;
+  object-fit: contain;
+  border-radius: 50%;
+}
+
+.admin-brand strong,
+.admin-brand small {
+  display: block;
+}
+
+.admin-brand strong {
+  font-size: 14px;
+}
+
+.admin-brand small,
+.admin-eyebrow,
+.admin-header-copy p,
+.admin-panel-heading p,
+.account-form-help,
+.account-schedules-header p {
+  color: var(--gray-700);
+}
+
+.admin-brand small,
+.admin-eyebrow {
+  font-size: 12px;
+}
+
+.admin-eyebrow {
+  margin-bottom: 4px;
+  color: var(--dark-orange);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.admin-header-copy h1,
+.admin-panel-heading h2,
+.account-dialog-header h2 {
+  font-family: "Playfair Display", serif;
+  color: var(--gray-900);
+}
+
+.admin-header-copy h1 {
+  font-size: clamp(1.75rem, 3vw, 2.35rem);
+}
+
+.admin-header-copy p:last-child {
+  max-width: 760px;
+  margin-top: 6px;
+  line-height: 1.55;
+}
+
+.admin-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.admin-summary-card {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  background: var(--white);
+  box-shadow: var(--shadow-sm);
+}
+
+.admin-summary-card span {
+  display: block;
+  min-height: 2.4em;
+  color: var(--gray-700);
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.admin-summary-card strong {
+  display: block;
+  margin-top: 8px;
+  color: var(--orange);
+  font-size: 1.65rem;
+  line-height: 1;
+}
+
+.admin-panel {
+  min-width: 0;
+  overflow: hidden;
+  padding: 24px;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  background: var(--white);
+  box-shadow: var(--shadow-sm);
+}
+
+#admin-programs {
+  margin-top: 24px;
+}
+
+.admin-panel-heading,
+.account-schedules-header,
+.account-dialog-header,
+.account-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.admin-panel-heading {
+  margin-bottom: 20px;
+}
+
+.admin-panel-heading h2 {
+  font-size: 1.65rem;
+}
+
+.account-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 2fr) minmax(130px, 1fr) minmax(
+      130px,
+      1fr
+    ) auto;
+  align-items: end;
+  gap: 14px;
+  padding: 16px;
+  border-radius: var(--radius-md);
+  background: var(--gray-50);
+}
+
+.account-toolbar label,
+.account-form label {
+  display: grid;
+  gap: 7px;
+  color: var(--gray-700);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.account-toolbar label span,
+.account-form label span {
+  display: block;
+}
+
+.account-toolbar input,
+.account-toolbar select,
+.account-form input,
+.account-form select,
+.account-form textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  color: var(--gray-900);
+  font: inherit;
+  padding: 10px 12px;
+}
+
+.account-toolbar input:focus,
+.account-toolbar select:focus,
+.account-form input:focus,
+.account-form select:focus,
+.account-form textarea:focus {
+  outline: 3px solid rgba(230, 126, 34, 0.2);
+  border-color: var(--orange);
+}
+
+.account-form textarea {
+  min-height: 84px;
+  resize: vertical;
+}
+
+.account-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-feedback {
+  min-height: 1.25em;
+  margin: 14px 0;
+  color: var(--gray-700);
+  font-size: 13px;
+}
+
+.admin-feedback.is-error {
+  color: var(--danger-text);
+}
+
+.admin-feedback.is-success {
+  color: var(--success-text);
+}
+
+.admin-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+}
+
+.admin-account-table,
+.admin-program-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-account-table {
+  min-width: 940px;
+}
+
+.admin-program-table {
+  min-width: 680px;
+}
+
+.admin-account-table th,
+.admin-account-table td,
+.admin-program-table th,
+.admin-program-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--gray-200);
+  text-align: left;
+  vertical-align: top;
+}
+
+.admin-account-table th,
+.admin-program-table th {
+  color: var(--gray-700);
+  background: var(--gray-50);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.admin-account-table td,
+.admin-program-table td {
+  max-width: 280px;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+
+.admin-account-table tbody tr:last-child td,
+.admin-program-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.admin-account-table tbody tr:hover,
+.admin-program-table tbody tr:hover {
+  background: var(--gold-pale);
+}
+
+.admin-sort-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  text-align: left;
+  text-transform: inherit;
+}
+
+.admin-sort-button::after {
+  color: var(--gray-500);
+  content: "^";
+  font-size: 0.8rem;
+}
+
+.admin-sort-button[data-direction="desc"]::after {
+  content: "v";
+}
+
+.admin-sort-button[data-direction="none"]::after {
+  content: "-";
+}
+
+.admin-sort-button:hover,
+.admin-sort-button:focus-visible {
+  color: var(--dark-orange);
+}
+
+.admin-sort-button:focus-visible {
+  outline: 3px solid rgba(230, 126, 34, 0.2);
+  outline-offset: 3px;
+}
+
+.admin-status {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.admin-status--active {
+  color: var(--success-text);
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
+}
+
+.admin-status--disabled {
+  color: var(--gray-700);
+  background: var(--gray-100);
+  border: 1px solid var(--gray-200);
+}
+
+.admin-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-empty-state {
+  padding: 28px;
+  color: var(--gray-700);
+  text-align: center;
+}
+
+.account-dialog {
+  width: min(860px, calc(100vw - 32px));
+  max-height: min(90vh, 900px);
+  max-height: min(90dvh, 900px);
+  padding: 0;
+  overflow: auto;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--white);
+  box-shadow: 0 20px 60px rgba(44, 42, 40, 0.28);
+}
+
+.account-dialog::backdrop {
+  background: rgba(44, 42, 40, 0.48);
+}
+
+.account-form {
+  padding: 24px;
+}
+
+.account-dialog-header {
+  position: sticky;
+  top: -24px;
+  z-index: 1;
+  margin: -24px -24px 20px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--gray-200);
+  background: var(--white);
+}
+
+.account-dialog-close {
+  display: inline-grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid var(--gray-200);
+  border-radius: 50%;
+  background: var(--white);
+  color: var(--gray-700);
+  cursor: pointer;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.account-dialog-close:hover,
+.account-dialog-close:focus-visible {
+  border-color: var(--orange);
+  color: var(--dark-orange);
+}
+
+.account-form-section {
+  min-width: 0;
+  margin: 18px 0;
+  padding: 18px;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+}
+
+.account-form-section[hidden] {
+  display: none;
+}
+
+.account-form-section > legend,
+.program-fieldset > legend {
+  padding: 0 4px;
+  color: var(--gray-900);
+  font-weight: 700;
+}
+
+.account-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.account-form-wide {
+  grid-column: 1 / -1;
+}
+
+.account-form small {
+  color: var(--gray-700);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.program-field-placeholder {
+  visibility: hidden;
+}
+
+.account-form-help {
+  margin: 8px 0 16px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.program-fieldset {
+  grid-column: 1 / -1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+}
+
+.program-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 14px;
+  margin-top: 10px;
+}
+
+.program-options label {
+  display: flex;
+  align-items: start;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.program-options input {
+  width: auto;
+  margin-top: 2px;
+}
+
+.account-schedules-header {
+  align-items: flex-start;
+  margin-top: 20px;
+}
+
+.account-schedules-header h3 {
+  color: var(--gray-900);
+  font-size: 1rem;
+}
+
+.account-schedules-header p {
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.consultation-schedules {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.consultation-schedule-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(140px, 1fr) minmax(
+      150px,
+      1fr
+    ) auto;
+  align-items: end;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-sm);
+  background: var(--gray-50);
+}
+
+.consultation-schedule-row label {
+  font-size: 12px;
+}
+
+.account-form-actions {
+  margin-top: 24px;
+}
+
+@media (max-width: 1100px) {
+  .admin-summary-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .account-toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .account-toolbar-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 760px) {
+  .admin-shell {
+    width: min(100% - 24px, 1440px);
+    padding: 16px 0 32px;
+  }
+
+  .admin-header {
+    grid-template-columns: 1fr auto;
+    gap: 16px;
+    padding: 18px;
+  }
+
+  .admin-brand {
+    grid-column: 1 / -1;
+  }
+
+  .admin-header-copy {
+    min-width: 0;
+  }
+
+  .admin-header-copy h1 {
+    font-size: 1.7rem;
+  }
+
+  .admin-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-panel {
+    padding: 18px;
+  }
+
+  .admin-panel-heading,
+  .account-schedules-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-panel-heading .btn,
+  .account-schedules-header .btn {
+    width: 100%;
+  }
+
+  .account-toolbar,
+  .account-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .account-toolbar-actions .btn {
+    flex: 1 1 140px;
+  }
+
+  .program-options {
+    grid-template-columns: 1fr;
+  }
+
+  .consultation-schedule-row {
+    grid-template-columns: 1fr;
+  }
+
+  .consultation-schedule-row .btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-header {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-header > .btn {
+    width: 100%;
+  }
+
+  .admin-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-summary-card span {
+    min-height: 0;
+  }
+
+  .account-form {
+    padding: 18px;
+  }
+
+  .account-dialog-header {
+    top: -18px;
+    margin: -18px -18px 16px;
+    padding: 16px 18px;
+  }
+
+  .account-form-section {
+    padding: 14px;
+  }
+
+  .account-form-actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+
+  .account-form-actions .btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 900px) and (orientation: landscape) {
+  .admin-shell {
+    padding-top: 16px;
+  }
+
+  .admin-header {
+    margin-bottom: 16px;
+    padding: 16px;
+  }
+
+  .admin-summary-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

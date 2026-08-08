@@ -121,6 +121,7 @@ ollama/
 
 backend/data/rag_index/
 backend/data/sessions/
+backend/data/transient_chat/
 backend/data/logs/
 backend/data/backups/
 
@@ -149,3 +150,6 @@ backend/data/backups/
 # Hugging Face Checkpoints
 # ===========================================
 ai_engine/models/**/checkpoint-*/
+
+# Local Codex/Copilot instructions
+AGENTS.md

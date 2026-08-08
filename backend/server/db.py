@@ -4,7 +4,7 @@ import json
 import re
 from hashlib import sha256
 from datetime import date, datetime, time, timedelta
-from typing import Any
+from typing import Any, Iterable
 
 from typing import Final
 
@@ -139,6 +139,73 @@ def _json_column_value(value: Any) -> Any:
     return value
 
 
+APPROVED_CONSULTATION_ROOMS: Final[tuple[str, ...]] = (
+    "SJH-206",
+    "PGN-105",
+)
+APPROVED_CONSULTATION_SCHEDULES: Final[tuple[dict[str, str], ...]] = (
+    {"room": "SJH-206", "days": "Monday-Friday", "time": "7:00 AM - 5:00 PM"},
+    {"room": "PGN-105", "days": "Monday-Friday", "time": "7:00 AM - 9:00 PM"},
+)
+
+
+def _is_empty_json_list(value: object) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, bytes):
+        try:
+            value = value.decode("utf-8")
+        except UnicodeDecodeError:
+            return False
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except json.JSONDecodeError:
+            return not value.strip()
+    return isinstance(value, list) and not value
+
+
+def seed_missing_staff_operational_profiles() -> list[int]:
+    """Populate only completely unconfigured staff schedules from verified MK II metadata."""
+    initialize_database()
+    updated_ids: list[int] = []
+    with _database_connection() as connection:
+        with connection.cursor(dictionary=True) as cursor:
+            cursor.execute(
+                """
+                SELECT id, consultation_rooms, consultation_schedules
+                FROM accounts
+                WHERE role = 'staff'
+                  AND status = 'active'
+                """
+            )
+            staff_rows = cursor.fetchall()
+            for staff in staff_rows:
+                if not (
+                    _is_empty_json_list(staff.get("consultation_rooms"))
+                    and _is_empty_json_list(staff.get("consultation_schedules"))
+                ):
+                    continue
+                cursor.execute(
+                    """
+                    UPDATE accounts
+                    SET consultation_rooms = %s,
+                        consultation_schedules = %s
+                    WHERE id = %s
+                      AND role = 'staff'
+                    """,
+                    (
+                        _json_column_value(list(APPROVED_CONSULTATION_ROOMS)),
+                        _json_column_value(list(APPROVED_CONSULTATION_SCHEDULES)),
+                        staff["id"],
+                    ),
+                )
+                if cursor.rowcount == 1:
+                    updated_ids.append(int(staff["id"]))
+        connection.commit()
+    return updated_ids
+
+
 def _seed_accounts() -> list[tuple[Any, ...]]:
     accounts = [
         {
@@ -169,6 +236,7 @@ def _seed_accounts() -> list[tuple[Any, ...]]:
             "password": config.SEED_STAFF_PASSWORD,
             "role": "staff",
             "program": None,  
+            "assigned_programs": [config.SEED_STUDENT_PROGRAM],
             "gender": config.SEED_STAFF_GENDER,
         },
         {
@@ -179,6 +247,7 @@ def _seed_accounts() -> list[tuple[Any, ...]]:
             "password": config.SEED_STAFF2_PASSWORD,
             "role": "staff",
             "program": None,
+            "assigned_programs": [config.SEED_STUDENT2_PROGRAM],
             "gender": config.SEED_STAFF2_GENDER,
         },
         {
@@ -203,8 +272,7 @@ def _seed_accounts() -> list[tuple[Any, ...]]:
         staff_number = account.get("staff_number")
         gender = account.get("gender")
         program = account.get("program", None)
-        # All counselor fields initialized to None
-        assigned_programs = None
+        assigned_programs = account.get("assigned_programs")
         office = None
         support_statement = None
         consultation_rooms = None
@@ -223,7 +291,7 @@ def _seed_accounts() -> list[tuple[Any, ...]]:
                 staff_number,
                 gender,
                 program,
-                assigned_programs,
+                _json_column_value(assigned_programs),
                 office,
                 support_statement,
                 consultation_rooms,
@@ -269,6 +337,23 @@ def seed_database() -> None:
                 """,
                 seed_rows,
             )
+            for email, programs in (
+                (config.SEED_STAFF_EMAIL, [config.SEED_STUDENT_PROGRAM]),
+                (config.SEED_STAFF2_EMAIL, [config.SEED_STUDENT2_PROGRAM]),
+            ):
+                cursor.execute(
+                    """
+                    UPDATE accounts
+                    SET assigned_programs = %s
+                    WHERE email = %s
+                      AND role = 'staff'
+                      AND (
+                          assigned_programs IS NULL
+                          OR JSON_LENGTH(assigned_programs) = 0
+                      )
+                    """,
+                    (_json_column_value(programs), email),
+                )
             cursor.execute(
                 """
                 INSERT INTO settings (setting_key, setting_value, updated_at)
@@ -1125,6 +1210,53 @@ def save_conversation_summary(payload: dict[str, Any]) -> int:
 
     return int(summary_id)
 
+
+def fetch_open_conversation_case(account_id: int) -> dict[str, Any] | None:
+    """Return the student's current pending flagged case without transcript data."""
+    rows = fetch_rows(
+        """
+        SELECT
+            conversation_summaries.id AS summary_id,
+            conversation_summaries.summary,
+            conversation_summaries.total_messages,
+            conversation_summaries.created_at
+        FROM conversation_summaries
+        INNER JOIN escalations
+            ON escalations.summary_id = conversation_summaries.id
+        WHERE conversation_summaries.account_id = %s
+          AND conversation_summaries.flagged_status = 1
+          AND escalations.status = 'pending'
+        ORDER BY escalations.created_at DESC, escalations.id DESC
+        LIMIT 1
+        """,
+        (account_id,),
+    )
+    return rows[0] if rows else None
+
+
+def refresh_open_conversation_summary(
+    summary_id: int,
+    summary: str,
+    total_messages: int,
+) -> bool:
+    """Refresh an open case summary while retaining its original timestamp."""
+    initialize_database()
+    with _database_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE conversation_summaries
+                SET summary = %s,
+                    total_messages = %s
+                WHERE id = %s
+                  AND flagged_status = 1
+                """,
+                (summary, total_messages, summary_id),
+            )
+            updated = cursor.rowcount == 1
+        connection.commit()
+    return updated
+
 def list_conversation_summaries() -> list[dict[str, Any]]:
     initialize_database()
 
@@ -1135,6 +1267,301 @@ def list_conversation_summaries() -> list[dict[str, Any]]:
         ORDER BY created_at DESC
         """
     )
+
+
+def _normalized_programs(programs: object) -> tuple[str, ...]:
+    if not isinstance(programs, (list, tuple, set)):
+        return ()
+    return tuple(
+        dict.fromkeys(
+            str(program).strip()
+            for program in programs
+            if str(program).strip()
+        )
+    )
+
+
+def _student_program_scope_clause(
+    account_column: str,
+    programs: object | None,
+) -> tuple[str, tuple[str, ...]]:
+    """Build a fail-closed student-program filter for internal scoped queries."""
+    if programs is None:
+        return "", ()
+
+    authorized_programs = _normalized_programs(programs)
+    if not authorized_programs:
+        return " AND 1 = 0", ()
+
+    placeholders = ", ".join(["%s"] * len(authorized_programs))
+    return (
+        f"""
+        AND {account_column} IN (
+            SELECT id
+            FROM accounts
+            WHERE role = 'student'
+              AND status = 'active'
+              AND program IN ({placeholders})
+        )
+        """,
+        authorized_programs,
+    )
+
+
+def list_inquiries_for_programs(programs: object) -> list[dict[str, Any]]:
+    """Return inquiry metadata only for students in the supplied programs."""
+    authorized_programs = _normalized_programs(programs)
+    if not authorized_programs:
+        return []
+
+    placeholders = ", ".join(["%s"] * len(authorized_programs))
+    return fetch_rows(
+        f"""
+        SELECT inquiries.*
+        FROM inquiries
+        INNER JOIN accounts
+            ON accounts.id = inquiries.account_id
+        WHERE accounts.role = 'student'
+          AND accounts.status = 'active'
+          AND accounts.program IN ({placeholders})
+        ORDER BY inquiries.id DESC
+        LIMIT 100
+        """,
+        authorized_programs,
+    )
+
+
+def list_conversation_summaries_for_programs(programs: object) -> list[dict[str, Any]]:
+    """Return finalized summaries only for students in the supplied programs."""
+    authorized_programs = _normalized_programs(programs)
+    if not authorized_programs:
+        return []
+
+    placeholders = ", ".join(["%s"] * len(authorized_programs))
+    return fetch_rows(
+        f"""
+        SELECT conversation_summaries.*
+        FROM conversation_summaries
+        INNER JOIN accounts
+            ON accounts.id = conversation_summaries.account_id
+        WHERE accounts.role = 'student'
+          AND accounts.status = 'active'
+          AND accounts.program IN ({placeholders})
+        ORDER BY conversation_summaries.created_at DESC
+        """,
+        authorized_programs,
+    )
+
+
+def list_escalations_for_programs(programs: object) -> list[dict[str, Any]]:
+    """Return escalation metadata only for students in the supplied programs."""
+    authorized_programs = _normalized_programs(programs)
+    if not authorized_programs:
+        return []
+
+    placeholders = ", ".join(["%s"] * len(authorized_programs))
+    return fetch_rows(
+        f"""
+        SELECT escalations.*
+        FROM escalations
+        INNER JOIN conversation_summaries
+            ON conversation_summaries.id = escalations.summary_id
+        INNER JOIN accounts
+            ON accounts.id = conversation_summaries.account_id
+        WHERE accounts.role = 'student'
+          AND accounts.status = 'active'
+          AND accounts.program IN ({placeholders})
+        ORDER BY escalations.id DESC
+        LIMIT 100
+        """,
+        authorized_programs,
+    )
+
+
+def list_staff_inbox_summaries(programs: object) -> list[dict[str, Any]]:
+    """Return the newest finalized summary per authorized student program."""
+    authorized_programs = _normalized_programs(programs)
+    if not authorized_programs:
+        return []
+
+    placeholders = ", ".join(["%s"] * len(authorized_programs))
+    return fetch_rows(
+        f"""
+        SELECT
+            conversation_summaries.id AS summary_id,
+            accounts.id AS student_account_id,
+            accounts.full_name AS student_name,
+            accounts.student_number,
+            accounts.program,
+            conversation_summaries.primary_concern,
+            conversation_summaries.emotion_results,
+            conversation_summaries.flagged_status,
+            conversation_summaries.appointment_recommendation,
+            conversation_summaries.recommendations,
+            conversation_summaries.suggested_intervention,
+            conversation_summaries.language_used,
+            conversation_summaries.total_messages,
+            conversation_summaries.summary,
+            conversation_summaries.created_at,
+            escalations.status AS escalation_status,
+            escalations.escalation_reason,
+            escalations.created_at AS escalation_created_at,
+            escalations.reviewed_at,
+            EXISTS(
+                SELECT 1
+                FROM referrals
+                WHERE referrals.conversation_summary_id = conversation_summaries.id
+            ) AS has_referral,
+            EXISTS(
+                SELECT 1
+                FROM interventions
+                WHERE interventions.conversation_summary_id = conversation_summaries.id
+            ) AS has_intervention
+        FROM conversation_summaries
+        INNER JOIN (
+            SELECT
+                summaries.account_id,
+                COALESCE(
+                    MAX(
+                        CASE
+                            WHEN pending_escalations.status = 'pending'
+                             AND summaries.flagged_status = 1
+                            THEN summaries.id
+                        END
+                    ),
+                    MAX(summaries.id)
+                ) AS selected_summary_id
+            FROM conversation_summaries AS summaries
+            LEFT JOIN escalations AS pending_escalations
+                ON pending_escalations.summary_id = summaries.id
+               AND pending_escalations.status = 'pending'
+            WHERE summaries.account_id IS NOT NULL
+            GROUP BY summaries.account_id
+        ) AS selected_summary
+            ON selected_summary.selected_summary_id = conversation_summaries.id
+        INNER JOIN accounts
+            ON accounts.id = conversation_summaries.account_id
+        LEFT JOIN escalations
+            ON escalations.id = (
+                SELECT MAX(escalation.id)
+                FROM escalations AS escalation
+                WHERE escalation.summary_id = conversation_summaries.id
+            )
+        WHERE accounts.role = 'student'
+          AND accounts.status = 'active'
+          AND accounts.program IN ({placeholders})
+        ORDER BY
+            CASE
+                WHEN escalations.status = 'pending' THEN 0
+                WHEN conversation_summaries.flagged_status = 1 THEN 1
+                ELSE 2
+            END ASC,
+            conversation_summaries.created_at DESC,
+            conversation_summaries.id DESC
+        """,
+        authorized_programs,
+    )
+
+
+def list_staff_reviewed_case_history(
+    anchor_summary_id: int,
+    programs: object,
+) -> list[dict[str, Any]]:
+    """Return reviewed flagged cases for the student attached to one safe anchor."""
+    authorized_programs = _normalized_programs(programs)
+    if not authorized_programs:
+        return []
+
+    placeholders = ", ".join(["%s"] * len(authorized_programs))
+    return fetch_rows(
+        f"""
+        SELECT
+            reviewed_summaries.id AS summary_id,
+            accounts.full_name AS student_name,
+            accounts.student_number,
+            accounts.program,
+            reviewed_summaries.primary_concern,
+            reviewed_summaries.emotion_results,
+            reviewed_summaries.flagged_status,
+            reviewed_summaries.summary,
+            reviewed_summaries.created_at,
+            reviewed_escalations.status AS escalation_status,
+            reviewed_escalations.reviewed_at
+        FROM conversation_summaries AS anchor_summary
+        INNER JOIN conversation_summaries AS reviewed_summaries
+            ON reviewed_summaries.account_id = anchor_summary.account_id
+        INNER JOIN accounts
+            ON accounts.id = reviewed_summaries.account_id
+        INNER JOIN escalations AS reviewed_escalations
+            ON reviewed_escalations.id = (
+                SELECT MAX(escalation.id)
+                FROM escalations AS escalation
+                WHERE escalation.summary_id = reviewed_summaries.id
+            )
+        WHERE anchor_summary.id = %s
+          AND reviewed_summaries.flagged_status = 1
+          AND reviewed_escalations.status = 'reviewed'
+          AND accounts.role = 'student'
+          AND accounts.status = 'active'
+          AND accounts.program IN ({placeholders})
+        ORDER BY reviewed_escalations.reviewed_at DESC,
+                 reviewed_summaries.id DESC
+        """,
+        (anchor_summary_id, *authorized_programs),
+    )
+
+
+def fetch_staff_inbox_summary(summary_id: int) -> dict[str, Any] | None:
+    """Return one finalized summary with its student and safe case indicators."""
+    rows = fetch_rows(
+        """
+        SELECT
+            conversation_summaries.id AS summary_id,
+            accounts.id AS student_account_id,
+            accounts.full_name AS student_name,
+            accounts.student_number,
+            accounts.program,
+            conversation_summaries.primary_concern,
+            conversation_summaries.emotion_results,
+            conversation_summaries.flagged_status,
+            conversation_summaries.appointment_recommendation,
+            conversation_summaries.recommendations,
+            conversation_summaries.suggested_intervention,
+            conversation_summaries.language_used,
+            conversation_summaries.total_messages,
+            conversation_summaries.summary,
+            conversation_summaries.created_at,
+            escalations.status AS escalation_status,
+            escalations.escalation_reason,
+            escalations.created_at AS escalation_created_at,
+            escalations.reviewed_at,
+            EXISTS(
+                SELECT 1
+                FROM referrals
+                WHERE referrals.conversation_summary_id = conversation_summaries.id
+            ) AS has_referral,
+            EXISTS(
+                SELECT 1
+                FROM interventions
+                WHERE interventions.conversation_summary_id = conversation_summaries.id
+            ) AS has_intervention
+        FROM conversation_summaries
+        INNER JOIN accounts
+            ON accounts.id = conversation_summaries.account_id
+        LEFT JOIN escalations
+            ON escalations.id = (
+                SELECT MAX(escalation.id)
+                FROM escalations AS escalation
+                WHERE escalation.summary_id = conversation_summaries.id
+            )
+        WHERE conversation_summaries.id = %s
+          AND accounts.role = 'student'
+          AND accounts.status = 'active'
+        LIMIT 1
+        """,
+        (summary_id,),
+    )
+    return rows[0] if rows else None
 
 
 def list_inquiries() -> list[dict[str, Any]]:
@@ -1168,122 +1595,165 @@ def list_escalations() -> list[dict[str, Any]]:
 def list_chatbot_inquiries_for_analytics(
     start_at: datetime | None,
     end_at: datetime | None,
+    programs: object | None = None,
 ) -> list[dict[str, Any]]:
     """Return only the persisted fields needed for chatbot-message analytics."""
+    scope_clause, scope_params = _student_program_scope_clause(
+        "inquiries.account_id",
+        programs,
+    )
     return fetch_rows(
-        """
+        f"""
         SELECT created_at, emotion_result
         FROM inquiries
         WHERE inquiry_type = 'ai_chat'
+          {scope_clause}
           AND (%s IS NULL OR created_at >= %s)
           AND (%s IS NULL OR created_at < %s)
         ORDER BY created_at ASC
         """,
-        (start_at, start_at, end_at, end_at),
+        (*scope_params, start_at, start_at, end_at, end_at),
     )
 
 
 def list_conversation_finalizations_for_analytics(
     start_at: datetime | None,
     end_at: datetime | None,
+    programs: object | None = None,
 ) -> list[dict[str, Any]]:
     """Return only finalized-conversation aggregate input fields."""
+    scope_clause, scope_params = _student_program_scope_clause(
+        "conversation_summaries.account_id",
+        programs,
+    )
     return fetch_rows(
-        """
+        f"""
         SELECT created_at, total_messages
         FROM conversation_summaries
-        WHERE (%s IS NULL OR created_at >= %s)
+        WHERE 1 = 1
+          {scope_clause}
+          AND (%s IS NULL OR created_at >= %s)
           AND (%s IS NULL OR created_at < %s)
         ORDER BY created_at ASC
         """,
-        (start_at, start_at, end_at, end_at),
+        (*scope_params, start_at, start_at, end_at, end_at),
     )
 
 
 def list_escalations_for_analytics(
     start_at: datetime | None,
     end_at: datetime | None,
+    programs: object | None = None,
 ) -> list[dict[str, Any]]:
     """Return only escalation timestamps needed for aggregate analytics."""
+    scope_clause, scope_params = _student_program_scope_clause(
+        "escalations.account_id",
+        programs,
+    )
     return fetch_rows(
-        """
+        f"""
         SELECT created_at
         FROM escalations
-        WHERE (%s IS NULL OR created_at >= %s)
+        WHERE 1 = 1
+          {scope_clause}
+          AND (%s IS NULL OR created_at >= %s)
           AND (%s IS NULL OR created_at < %s)
         ORDER BY created_at ASC
         """,
-        (start_at, start_at, end_at, end_at),
+        (*scope_params, start_at, start_at, end_at, end_at),
     )
 
 
 def list_flagged_case_statuses_for_analytics(
     start_at: datetime | None,
     end_at: datetime | None,
+    programs: object | None = None,
 ) -> list[dict[str, Any]]:
     """Return persisted status values for flagged cases created in a range."""
+    scope_clause, scope_params = _student_program_scope_clause(
+        "conversation_summaries.account_id",
+        programs,
+    )
     return fetch_rows(
-        """
+        f"""
         SELECT escalations.status, conversation_summaries.created_at
         FROM conversation_summaries
         INNER JOIN escalations
             ON escalations.summary_id = conversation_summaries.id
         WHERE conversation_summaries.flagged_status = 1
+          {scope_clause}
           AND (%s IS NULL OR conversation_summaries.created_at >= %s)
           AND (%s IS NULL OR conversation_summaries.created_at < %s)
         ORDER BY conversation_summaries.created_at ASC
         """,
-        (start_at, start_at, end_at, end_at),
+        (*scope_params, start_at, start_at, end_at, end_at),
     )
 
 
 def list_flagged_case_referrals_for_analytics(
     start_at: datetime | None,
     end_at: datetime | None,
+    programs: object | None = None,
 ) -> list[dict[str, Any]]:
     """Return timestamps for referrals attached to flagged cases."""
+    scope_clause, scope_params = _student_program_scope_clause(
+        "conversation_summaries.account_id",
+        programs,
+    )
     return fetch_rows(
-        """
+        f"""
         SELECT referrals.created_at
         FROM referrals
         INNER JOIN conversation_summaries
             ON conversation_summaries.id = referrals.conversation_summary_id
         WHERE conversation_summaries.flagged_status = 1
+          {scope_clause}
           AND (%s IS NULL OR referrals.created_at >= %s)
           AND (%s IS NULL OR referrals.created_at < %s)
         ORDER BY referrals.created_at ASC
         """,
-        (start_at, start_at, end_at, end_at),
+        (*scope_params, start_at, start_at, end_at, end_at),
     )
 
 
 def list_flagged_case_interventions_for_analytics(
     start_at: datetime | None,
     end_at: datetime | None,
+    programs: object | None = None,
 ) -> list[dict[str, Any]]:
     """Return timestamps for interventions attached to flagged cases."""
+    scope_clause, scope_params = _student_program_scope_clause(
+        "conversation_summaries.account_id",
+        programs,
+    )
     return fetch_rows(
-        """
+        f"""
         SELECT interventions.created_at
         FROM interventions
         INNER JOIN conversation_summaries
             ON conversation_summaries.id = interventions.conversation_summary_id
         WHERE conversation_summaries.flagged_status = 1
+          {scope_clause}
           AND (%s IS NULL OR interventions.created_at >= %s)
           AND (%s IS NULL OR interventions.created_at < %s)
         ORDER BY interventions.created_at ASC
         """,
-        (start_at, start_at, end_at, end_at),
+        (*scope_params, start_at, start_at, end_at, end_at),
     )
 
 
 def list_flagged_case_confidentiality_for_analytics(
     start_at: datetime | None,
     end_at: datetime | None,
+    programs: object | None = None,
 ) -> list[dict[str, Any]]:
     """Return current confidentiality states for flagged-case records."""
+    scope_clause, scope_params = _student_program_scope_clause(
+        "conversation_summaries.account_id",
+        programs,
+    )
     return fetch_rows(
-        """
+        f"""
         SELECT case_confidentiality.confidentiality_status,
                case_confidentiality.created_at
         FROM case_confidentiality
@@ -1291,31 +1761,38 @@ def list_flagged_case_confidentiality_for_analytics(
             ON conversation_summaries.id =
                case_confidentiality.conversation_summary_id
         WHERE conversation_summaries.flagged_status = 1
+          {scope_clause}
           AND (%s IS NULL OR case_confidentiality.created_at >= %s)
           AND (%s IS NULL OR case_confidentiality.created_at < %s)
         ORDER BY case_confidentiality.created_at ASC
         """,
-        (start_at, start_at, end_at, end_at),
+        (*scope_params, start_at, start_at, end_at, end_at),
     )
 
 
 def list_flagged_case_escalations_for_analytics(
     start_at: datetime | None,
     end_at: datetime | None,
+    programs: object | None = None,
 ) -> list[dict[str, Any]]:
     """Return escalation timestamps for flagged cases."""
+    scope_clause, scope_params = _student_program_scope_clause(
+        "conversation_summaries.account_id",
+        programs,
+    )
     return fetch_rows(
-        """
+        f"""
         SELECT escalations.created_at
         FROM escalations
         INNER JOIN conversation_summaries
             ON conversation_summaries.id = escalations.summary_id
         WHERE conversation_summaries.flagged_status = 1
+          {scope_clause}
           AND (%s IS NULL OR escalations.created_at >= %s)
           AND (%s IS NULL OR escalations.created_at < %s)
         ORDER BY escalations.created_at ASC
         """,
-        (start_at, start_at, end_at, end_at),
+        (*scope_params, start_at, start_at, end_at, end_at),
     )
 
 
@@ -2317,6 +2794,63 @@ def fetch_account_by_id(
     return row
 
 
+def fetch_account_password_credentials(
+    account_id: int,
+    *,
+    role: str,
+) -> dict[str, Any] | None:
+    initialize_database()
+
+    normalized_role = role.strip().lower()
+    if normalized_role not in ALLOWED_ACCOUNT_ROLES:
+        raise ValueError("Invalid account role.")
+
+    with _database_connection() as connection:
+        with connection.cursor(dictionary=True) as cursor:
+            cursor.execute(
+                """
+                SELECT id, password_hash, status
+                FROM accounts
+                WHERE id = %s AND role = %s
+                LIMIT 1
+                """,
+                (account_id, normalized_role),
+            )
+            row = cursor.fetchone()
+
+    return row
+
+
+def update_account_password_hash(
+    account_id: int,
+    password_hash: str,
+    *,
+    role: str,
+) -> bool:
+    initialize_database()
+
+    normalized_role = role.strip().lower()
+    if normalized_role not in ALLOWED_ACCOUNT_ROLES:
+        raise ValueError("Invalid account role.")
+    if not password_hash.strip():
+        raise ValueError("Password hash is required.")
+
+    with _database_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE accounts
+                SET password_hash = %s
+                WHERE id = %s AND role = %s
+                """,
+                (password_hash, account_id, normalized_role),
+            )
+            updated = cursor.rowcount == 1
+        connection.commit()
+
+    return updated
+
+
 def list_accounts(
     *,
     role: str | None = None,
@@ -2363,10 +2897,19 @@ def list_accounts(
                         OR staff_number LIKE %s
                     )
                 )
+                OR (
+                    role = 'admin'
+                    AND (
+                        full_name LIKE %s
+                        OR email LIKE %s
+                    )
+                )
             )
             """
         )
         params.extend([
+            search_value,
+            search_value,
             search_value,
             search_value,
             search_value,
@@ -2488,6 +3031,45 @@ def search_student_accounts(query: str) -> list[dict[str, Any]]:
     return [_json_safe_row(row) for row in rows]
 
 
+def search_student_accounts_by_programs(
+    query: str,
+    programs: tuple[str, ...],
+) -> list[dict[str, Any]]:
+    """Return only authorized public student-search fields for staff workflows."""
+    if not programs:
+        return []
+
+    initialize_database()
+    search = f"%{query.strip()}%"
+    placeholders = ", ".join(["%s"] * len(programs))
+    with _database_connection() as connection:
+        with connection.cursor(dictionary=True) as cursor:
+            cursor.execute(
+                f"""
+                SELECT
+                    full_name,
+                    student_number,
+                    program,
+                    email
+                FROM accounts
+                WHERE role = 'student'
+                  AND status = 'active'
+                  AND program IN ({placeholders})
+                  AND (
+                        full_name LIKE %s
+                     OR student_number LIKE %s
+                     OR email LIKE %s
+                  )
+                ORDER BY full_name ASC, student_number ASC
+                LIMIT 10
+                """,
+                (*programs, search, search, search),
+            )
+            rows = cursor.fetchall()
+
+    return [_json_safe_row(row) for row in rows]
+
+
 # --- Helper: Get staff assigned to a program ---
 
 def get_staff_by_program(program: str) -> dict[str, Any] | None:
@@ -2557,6 +3139,25 @@ def get_student_by_id(
         (student_id,),
     )
 
+    return rows[0] if rows else None
+
+
+def get_student_by_student_number(student_number: str) -> dict[str, Any] | None:
+    rows = fetch_rows(
+        """
+        SELECT
+            id,
+            full_name,
+            student_number,
+            program
+        FROM accounts
+        WHERE student_number = %s
+          AND role = 'student'
+          AND status = 'active'
+        LIMIT 1
+        """,
+        (student_number,),
+    )
     return rows[0] if rows else None
 
 # --- Helper: List staff appointments by assigned programs ---
@@ -2630,62 +3231,92 @@ def list_student_appointments(
         (student_id,),
     )
 
-def get_dashboard_stats() -> dict[str, Any]:
+def get_dashboard_stats(programs: object | None = None) -> dict[str, Any]:
     initialize_database()
+
+    appointment_scope, appointment_params = _student_program_scope_clause(
+        "appointments.account_id",
+        programs,
+    )
+    escalation_scope, escalation_params = _student_program_scope_clause(
+        "escalations.account_id",
+        programs,
+    )
+    summary_scope, summary_params = _student_program_scope_clause(
+        "conversation_summaries.account_id",
+        programs,
+    )
+    student_scope, student_params = _student_program_scope_clause(
+        "accounts.id",
+        programs,
+    )
 
     with _database_connection() as connection:
         with connection.cursor() as cursor:
             cursor.execute(
-                """
+                f"""
                 SELECT COUNT(*)
                 FROM appointments
                 WHERE preferred_date = CURDATE()
-                """
+                  {appointment_scope}
+                """,
+                appointment_params,
             )
             appointments_today = cursor.fetchone()[0]
 
             cursor.execute(
-                """
+                f"""
                 SELECT COUNT(*)
                 FROM appointments
                 WHERE status = 'pending'
-                """
+                  {appointment_scope}
+                """,
+                appointment_params,
             )
             pending_appointments = cursor.fetchone()[0]
 
             cursor.execute(
-                """
+                f"""
                 SELECT COUNT(*)
                 FROM appointments
                 WHERE status = 'completed'
                   AND preferred_date = CURDATE()
-                """
+                  {appointment_scope}
+                """,
+                appointment_params,
             )
             completed_today = cursor.fetchone()[0]
 
             cursor.execute(
-                """
+                f"""
                 SELECT COUNT(*)
                 FROM escalations
                 WHERE status = 'pending'
-                """
+                  {escalation_scope}
+                """,
+                escalation_params,
             )
             active_escalations = cursor.fetchone()[0]
 
             cursor.execute(
-                """
+                f"""
                 SELECT COUNT(*)
                 FROM conversation_summaries
-                """
+                WHERE 1 = 1
+                  {summary_scope}
+                """,
+                summary_params,
             )
             conversation_summaries = cursor.fetchone()[0]
 
             cursor.execute(
-                """
+                f"""
                 SELECT COUNT(*)
                 FROM accounts
                 WHERE role = 'student'
-                """
+                  {student_scope}
+                """,
+                student_params,
             )
             total_students = cursor.fetchone()[0]
 
@@ -2757,9 +3388,6 @@ def create_account(
     if role == "student" and not program:
         raise ValueError("Program is required for students.")
 
-    if role == "student" and program not in config.PROGRAMS:
-        raise ValueError("Invalid program.")
-    
     # No longer require manual staff_number.
     if fetch_account_by_email(email):
         raise ValueError("An account with this email already exists.")
@@ -2887,6 +3515,40 @@ def load_settings() -> dict[str, Any]:
             settings[key] = value
 
     return settings
+
+
+def load_persisted_settings(setting_keys: Iterable[str]) -> dict[str, Any]:
+    """Return only explicitly persisted setting values for internal services."""
+
+    keys = tuple(
+        dict.fromkeys(
+            str(key).strip()
+            for key in setting_keys
+            if str(key).strip()
+        )
+    )
+    if not keys:
+        return {}
+
+    initialize_database()
+    placeholders = ", ".join(["%s"] * len(keys))
+    with _database_connection() as connection:
+        with connection.cursor(dictionary=True) as cursor:
+            cursor.execute(
+                f"""
+                SELECT setting_key, setting_value
+                FROM settings
+                WHERE setting_key IN ({placeholders})
+                """,
+                keys,
+            )
+            rows = cursor.fetchall()
+
+    return {
+        str(row["setting_key"]): row["setting_value"]
+        for row in rows
+        if row.get("setting_key") is not None
+    }
 
 
 def save_settings(settings: dict[str, Any]) -> None:

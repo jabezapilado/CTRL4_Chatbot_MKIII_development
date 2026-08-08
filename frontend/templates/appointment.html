@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="csrf-token" content="{{ csrf_token }}" />
     <meta
       name="description"
       content="Book a guidance counseling appointment at the SOC Guidance Office of Holy Angel University."
@@ -10,6 +11,11 @@
     <title>
       SOC Guidance Office – Appointment Request | Holy Angel University
     </title>
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="/static/img/hau_soc_logo_revised4.png"
+    />
     <link rel="stylesheet" href="/static/css/base.css" />
     <link rel="stylesheet" href="/static/css/appointment.css" />
     <link rel="stylesheet" href="/static/css/notifications.css" />
@@ -78,7 +84,10 @@
                 id="rescheduleTime"
                 class="form-input form-select"
                 required
-              ></select>
+                disabled
+              >
+                <option value="">Select an available time slot</option>
+              </select>
             </div>
           </div>
           <p
@@ -104,7 +113,7 @@
       <aside class="left-panel">
         <header class="panel-header">
           <img
-            src="/static/img/soc-logo.png"
+            src="/static/img/hau_soc_logo_revised4.svg"
             alt="SOC logo"
             class="university-seal brand-logo"
           />
@@ -157,12 +166,6 @@
             </div>
 
             <!-- Row 3: Preferred Date + Time -->
-            <!--
-          Temporary hardcoded values.
-
-          These values shall eventually be loaded dynamically
-          from Staff Appointment Settings (Sprint 8).
-          -->
             <div class="form-row">
               <div class="form-group">
                 <label class="form-label" for="prefDate">Preferred Date</label>
@@ -185,33 +188,14 @@
                   name="prefTime"
                   class="form-input form-select"
                   aria-required="true"
+                  disabled
                 >
-                  <option value="" disabled selected>
-                    Select a preferred time slot
-                  </option>
-
-                  <option value="08:00 AM">8:00 AM</option>
-
-                  <option value="09:00 AM">9:00 AM</option>
-
-                  <option value="10:00 AM">10:00 AM</option>
-
-                  <option value="01:00 PM">1:00 PM</option>
-
-                  <option value="02:00 PM">2:00 PM</option>
-
-                  <option value="03:00 PM">3:00 PM</option>
+                  <option value="">Select an available time slot</option>
                 </select>
                 <span class="error-msg" id="prefTime-error"> </span>
               </div>
             </div>
             <!-- Appointment Category -->
-            <!--
-          Temporary hardcoded values.
-
-          These values shall eventually be loaded dynamically
-          from Staff Appointment Settings (Sprint 8).
-          -->
 
             <div class="form-group full-width">
               <label class="form-label" for="appointmentCategory">
@@ -225,39 +209,14 @@
                 aria-required="true"
               >
                 <option value="" disabled selected>
-                  Select appointment category
+                  Loading appointment categories...
                 </option>
-
-                <option value="home_family">Home and Family</option>
-
-                <option value="relationships">
-                  Relationships with Peers/Opposite Sex
-                </option>
-
-                <option value="personality">Personality Development</option>
-
-                <option value="career_schooling">Career/Schooling</option>
-
-                <option value="religion">Religion/Spiritual Development</option>
-
-                <option value="health">Health and Recreation</option>
-
-                <option value="employment">Employment</option>
-
-                <option value="others">Others</option>
               </select>
 
               <span class="error-msg" id="appointmentCategory-error"> </span>
             </div>
 
             <!-- Appointment Mode -->
-            <!--
-          Temporary hardcoded values.
-
-          These values shall eventually be loaded dynamically
-          from Staff Appointment Settings (Sprint 8).
-          -->
-
             <div class="form-group full-width">
               <label class="form-label" for="appointmentMode">
                 Appointment Mode
@@ -270,12 +229,8 @@
                 aria-required="true"
               >
                 <option value="" disabled selected>
-                  Select appointment mode
+                  Loading consultation modes...
                 </option>
-
-                <option value="online">Online</option>
-
-                <option value="onsite">Onsite</option>
               </select>
 
               <span class="error-msg" id="appointmentMode-error"> </span>
@@ -296,6 +251,13 @@
               ></textarea>
               <span class="error-msg" id="reason-error"></span>
             </div>
+            <p
+              class="student-appointment-message"
+              id="bookingOptionsMessage"
+              role="status"
+              aria-live="polite"
+              hidden
+            ></p>
             <!-- Reminder Banner -->
             <div class="reminder-banner" role="note">
               <span class="reminder-dot"></span>
@@ -360,11 +322,15 @@
               aria-live="polite"
               hidden
             ></p>
-            <div id="studentAppointmentsList" class="student-appointments-list"></div>
+            <div
+              id="studentAppointmentsList"
+              class="student-appointments-list"
+            ></div>
           </section>
         </div>
       </main>
     </div>
+    <script src="/static/js/security.js"></script>
     <script src="/static/js/notifications.js"></script>
     <script src="/static/js/appointment.js"></script>
   </body>

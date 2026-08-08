@@ -31,9 +31,37 @@ class SecurityPrivacyContractTests(unittest.TestCase):
         self.assertIn("from cachelib.file import FileSystemCache", app_factory)
         self.assertIn('app.config["SESSION_CACHELIB"] = FileSystemCache(', app_factory)
         self.assertIn("Session(app)", app_factory)
+        self.assertIn("install_csrf_protection(app)", app_factory)
+        self.assertNotIn("flask_cors", app_factory)
         self.assertIn("session.clear()", auth)
         self.assertIn("_rotate_authenticated_session()", auth)
         self.assertIn("regenerate(session)", auth)
+
+    def test_csrf_and_same_origin_cors_controls_are_wired_centrally(self) -> None:
+        csrf = _source("backend/server/csrf.py")
+        security = _source("frontend/static/js/security.js")
+        app_factory = _source("backend/server/__init__.py")
+
+        self.assertIn('CSRF_HEADER_NAME = "X-CSRF-Token"', csrf)
+        self.assertIn('SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS", "TRACE"})', csrf)
+        self.assertIn('request.endpoint != "auth.login"', csrf)
+        self.assertIn("hmac.compare_digest", csrf)
+        self.assertIn('headers.set("X-CSRF-Token", csrfToken)', security)
+        self.assertIn("isSameOrigin(input)", security)
+        self.assertNotIn("CORS(app)", app_factory)
+
+        for template_name in (
+            "login.html",
+            "chatbot.html",
+            "case_status.html",
+            "appointment.html",
+            "dashboard.html",
+            "admin.html",
+        ):
+            template = _source(f"frontend/templates/{template_name}")
+            with self.subTest(template=template_name):
+                self.assertIn('name="csrf-token" content="{{ csrf_token }}"', template)
+                self.assertIn("js/security.js", template)
 
     def test_chat_logging_never_interpolates_protected_payloads(self) -> None:
         chatbot_routes = _source("backend/server/routes/chatbot_routes.py")
@@ -52,7 +80,6 @@ class SecurityPrivacyContractTests(unittest.TestCase):
 
     def test_chat_browser_storage_only_clears_legacy_protected_keys(self) -> None:
         chat = _source("frontend/static/js/chat.js")
-        chat_admin = _source("frontend/static/js/chat_admin.js")
         auth = _source("frontend/static/js/auth.js")
 
         for key in (
@@ -60,7 +87,6 @@ class SecurityPrivacyContractTests(unittest.TestCase):
             "hau_escalation_event",
             "hau_escalation_staff_msg",
             "hau_escalation_user_msg",
-            "hau_takeover_case",
         ):
             self.assertIn(key, chat)
             self.assertNotIn(f'localStorage.setItem("{key}"', chat)
@@ -68,36 +94,33 @@ class SecurityPrivacyContractTests(unittest.TestCase):
 
         self.assertIn('sessionStorage.removeItem("current_escalation")', chat)
         self.assertNotIn('sessionStorage.setItem("current_escalation"', chat)
-        self.assertIn('localStorage.removeItem(legacyTakeoverDataKey)', chat_admin)
-        self.assertNotIn("localStorage.setItem", chat_admin)
         self.assertIn("hau_escalations", auth)
-        self.assertIn("hau_takeover_case", auth)
 
-    def test_dashboard_protects_persisted_values_rendered_with_inner_html(self) -> None:
+    def test_legacy_takeover_surface_is_removed(self) -> None:
+        frontend_routes = _source("backend/server/routes/frontend_routes.py")
+        chat = _source("frontend/static/js/chat.js")
+        auth = _source("frontend/static/js/auth.js")
+
+        self.assertFalse((PROJECT_ROOT / "frontend/templates/chatbot_admin.html").exists())
+        self.assertFalse((PROJECT_ROOT / "frontend/static/js/chat_admin.js").exists())
+        self.assertNotIn("chatbot_admin", frontend_routes)
+        self.assertNotIn("hau_takeover_case", chat)
+        self.assertNotIn("hau_takeover_case", auth)
+
+    def test_dashboard_protects_persisted_values_in_html_and_dom_renderers(self) -> None:
         dashboard = _source("frontend/static/js/dashboard.js")
 
         self.assertIn("function escapeHtml(value)", dashboard)
         self.assertNotIn("option.innerHTML", dashboard)
         self.assertNotIn('onclick="', dashboard)
 
-        expected_escaped_values = (
-            "${escapeHtml(summary.student)}",
-            "${escapeHtml(summary.studentId)}",
-            "${escapeHtml(summary.recommendation || \"No recommendation available.\")}",
-            "${escapeHtml(title)}",
-            "${escapeHtml(question)}",
-            "${escapeHtml(answer || \"\")}",
-            "${escapeHtml(inquiry.student)}",
-            "${escapeHtml(inquiry.studentId)}",
-            "${escapeHtml(preview)}",
-            "${escapeHtml(inquiry.category)}",
-            "${escapeHtml(inquiry.time)}",
-            "${escapeHtml(summary.category)}",
-            "${escapeHtml(summary.id)}",
-        )
-        for escaped_value in expected_escaped_values:
-            with self.subTest(escaped_value=escaped_value):
-                self.assertIn(escaped_value, dashboard)
+        self.assertIn("function renderInquiryTable()", dashboard)
+        self.assertIn("studentName.textContent = item.studentName", dashboard)
+        self.assertIn("studentNumber.textContent = item.studentNumber", dashboard)
+        self.assertIn("previewText.textContent = item.summary", dashboard)
+        self.assertIn("function openInboxItem", dashboard)
+        self.assertNotIn("conversation_json", dashboard)
+        self.assertIn("cell.textContent = value", dashboard)
 
         # Persisted case-management values use textContent / DOM construction.
         for renderer in (

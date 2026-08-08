@@ -10,6 +10,9 @@ Guidance Office operations. Appointment records visible to you follow the
 existing authorized-program/dynamic-routing model; a current program route is
 not historical counselor ownership.
 
+The student Terms and Conditions acknowledgement applies only before student
+chat access. It does not block or alter staff dashboard workflows.
+
 Staff may create manual appointments for a student using the approved source
 and appointment fields. Manual appointments begin **confirmed**. Student
 requests begin **pending**. The only appointment lifecycle is:
@@ -30,7 +33,13 @@ it does not book, move, resize, or link replacement appointments.
 
 ## Conversation and case management
 
-Staff can review staff-visible inquiries, summaries, escalations, and flagged
+The dashboard Inbox shows one current privacy-safe summary item per
+student/case priority. Flagged Cases shows active pending flagged cases, and
+Reviewed Case History retains authorized reviewed records. Staff views do not
+expose raw chat transcripts. In Case Details, read Detected Emotion and Safety
+Risk as separate fields.
+
+Staff can review authorized inquiries, summaries, escalations, and flagged
 conversations. Use a flagged case's existing panels to:
 
 - mark a flagged conversation reviewed;
@@ -42,6 +51,11 @@ conversations. Use a flagged case's existing panels to:
 These records are sensitive Guidance Office data. Do not copy them into
 unapproved channels. Do not infer a personal reviewer or counselor ownership
 where the current record does not persist one.
+
+Crisis or otherwise sensitive cases remain pending until reviewed. A routine
+follow-up does not clear an unresolved flagged case. Staff access is
+program-scoped; do not attempt to access a student outside your authorized
+program scope.
 
 ## Settings and notifications
 

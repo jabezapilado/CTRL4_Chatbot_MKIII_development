@@ -6,6 +6,23 @@ The format follows the principles of **Keep a Changelog**.
 
 ---
 
+## [Unreleased] - MK III documentation finalization
+
+### Changed
+
+- Added a student-only Terms and Conditions acknowledgement before chatbot
+  access. Acceptance is required for each server-side session; declining ends
+  the session.
+- Documented the validated local host default (`127.0.0.1:5001`) and opt-in
+  `CTRL4_HOST=0.0.0.0` Tailscale/LAN demonstration binding.
+- Aligned current references with the MK III database audit and cleanup state,
+  deferred migration/index work, staff privacy-safe case views, and the
+  English-focused emotion-model limitation for Filipino/Taglish input.
+- Recorded that the startup auto-setup hardening patch is preserved but
+  unvalidated and is not part of the released system.
+
+---
+
 ## [3.0.0] - CTRL4 Chatbot MK III v1.0 — August 2026
 
 ### Added

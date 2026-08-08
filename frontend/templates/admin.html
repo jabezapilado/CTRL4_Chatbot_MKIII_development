@@ -3,40 +3,100 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="csrf-token" content="{{ csrf_token }}" />
     <meta
       name="description"
       content="Administrator account-management interface for CTRL4 Chatbot MK III."
     />
     <title>Account Management — CTRL4 Chatbot MK III</title>
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="/static/img/hau_soc_logo_revised4.png"
+    />
     <link rel="stylesheet" href="/static/css/base.css" />
+    <link rel="stylesheet" href="/static/css/admin.css" />
   </head>
-  <body>
-    <main class="page" style="max-width: 1100px; margin: 0 auto; padding: 32px 20px">
-      <header class="header" style="margin-bottom: 24px">
-        <div class="header-inner">
-          <div class="header-text">
-            <div class="header-title">Account Management</div>
-            <div class="header-sub">Administrator-only account listing</div>
-          </div>
-          <button class="btn btn-outline" type="button" id="admin-logout-btn">
-            Logout
-          </button>
+  <body class="admin-page">
+    <main class="admin-shell">
+      <header class="admin-header">
+        <a
+          class="admin-brand"
+          href="/admin"
+          aria-label="Account Management home"
+        >
+          <img
+            src="/static/img/hau_soc_logo_revised4.svg"
+            alt="SOC Guidance Office logo"
+            class="admin-brand-logo"
+          />
+          <span>
+            <strong>SOC Guidance</strong>
+            <small>Administrator Portal</small>
+          </span>
+        </a>
+        <div class="admin-header-copy">
+          <p class="admin-eyebrow">CTRL4 Chatbot MK III</p>
+          <h1>Account Management</h1>
+          <p>
+            Create, update, search, and deactivate accounts. Guidance Office
+            records and workflows are not available to administrators.
+          </p>
         </div>
+        <button class="btn btn-outline" type="button" id="admin-logout-btn">
+          Logout
+        </button>
       </header>
 
-      <section class="card" aria-labelledby="account-list-title">
-        <h1 id="account-list-title">Accounts</h1>
-        <p>
-          This page is limited to the account-management functions available to
-          administrators. Guidance Office records and operations are not shown.
-        </p>
-        <div style="display: flex; flex-wrap: wrap; gap: 12px; margin: 20px 0">
-          <label>
-            Search accounts
-            <input id="account-search" type="search" autocomplete="off" />
+      <section
+        class="admin-summary-grid"
+        aria-label="Displayed account summary"
+      >
+        <article class="admin-summary-card">
+          <span>Displayed accounts</span>
+          <strong id="account-summary-total">—</strong>
+        </article>
+        <article class="admin-summary-card">
+          <span>Students</span>
+          <strong id="account-summary-students">—</strong>
+        </article>
+        <article class="admin-summary-card">
+          <span>Guidance staff</span>
+          <strong id="account-summary-staff">—</strong>
+        </article>
+        <article class="admin-summary-card">
+          <span>Administrators</span>
+          <strong id="account-summary-admins">—</strong>
+        </article>
+        <article class="admin-summary-card">
+          <span>Active / disabled</span>
+          <strong id="account-summary-status">—</strong>
+        </article>
+      </section>
+
+      <section class="admin-panel" aria-labelledby="account-list-title">
+        <div class="admin-panel-heading">
+          <div>
+            <p class="admin-eyebrow">Authorized accounts</p>
+            <h2 id="account-list-title">Accounts</h2>
+          </div>
+          <button class="btn btn-primary" type="button" id="create-account-btn">
+            Create account
+          </button>
+        </div>
+
+        <form class="account-toolbar" id="account-filter-form">
+          <label class="account-toolbar-search" for="account-search">
+            <span>Search accounts</span>
+            <input
+              id="account-search"
+              type="search"
+              autocomplete="off"
+              placeholder="Name, email, or account number"
+            />
           </label>
-          <label>
-            Role
+          <label for="account-role-filter">
+            <span>Role</span>
             <select id="account-role-filter">
               <option value="">All roles</option>
               <option value="student">Student</option>
@@ -44,36 +104,349 @@
               <option value="admin">Administrator</option>
             </select>
           </label>
-          <label>
-            Status
+          <label for="account-status-filter">
+            <span>Status</span>
             <select id="account-status-filter">
               <option value="">All statuses</option>
               <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
+              <option value="disabled">Disabled</option>
             </select>
           </label>
-          <button class="btn btn-primary" type="button" id="account-search-btn">
-            Apply
-          </button>
-        </div>
-        <p id="account-list-message" role="status"></p>
-        <div style="overflow-x: auto">
-          <table>
+          <div class="account-toolbar-actions">
+            <button class="btn btn-primary" type="submit">Apply filters</button>
+            <button
+              class="btn btn-outline"
+              type="button"
+              id="account-reset-btn"
+            >
+              Reset
+            </button>
+          </div>
+        </form>
+
+        <p id="account-list-message" class="admin-feedback" role="status"></p>
+
+        <div class="admin-table-wrap" tabindex="0">
+          <table class="admin-account-table">
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Status</th>
-                <th>Account number</th>
+                <th scope="col" aria-sort="none">
+                  <button
+                    class="admin-sort-button"
+                    type="button"
+                    data-account-sort="full_name"
+                  >
+                    Name
+                  </button>
+                </th>
+                <th scope="col" aria-sort="none">
+                  <button
+                    class="admin-sort-button"
+                    type="button"
+                    data-account-sort="email"
+                  >
+                    Email
+                  </button>
+                </th>
+                <th scope="col" aria-sort="none">
+                  <button
+                    class="admin-sort-button"
+                    type="button"
+                    data-account-sort="role"
+                  >
+                    Role
+                  </button>
+                </th>
+                <th scope="col" aria-sort="none">
+                  <button
+                    class="admin-sort-button"
+                    type="button"
+                    data-account-sort="status"
+                  >
+                    Status
+                  </button>
+                </th>
+                <th scope="col" aria-sort="ascending">
+                  <button
+                    class="admin-sort-button"
+                    type="button"
+                    data-account-sort="account_number"
+                  >
+                    Account number
+                  </button>
+                </th>
+                <th scope="col" aria-sort="none">
+                  <button
+                    class="admin-sort-button"
+                    type="button"
+                    data-account-sort="programs"
+                  >
+                    Program / assigned programs
+                  </button>
+                </th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody id="account-list-body"></tbody>
           </table>
         </div>
       </section>
+
+      <section
+        class="admin-panel"
+        id="admin-programs"
+        aria-labelledby="program-catalog-title"
+      >
+        <div class="admin-panel-heading">
+          <div>
+            <p class="admin-eyebrow">Account master data</p>
+            <h2 id="program-catalog-title">Program Management</h2>
+          </div>
+          <button class="btn btn-primary" type="button" id="create-program-btn">
+            Create program
+          </button>
+        </div>
+        <p
+          id="program-catalog-message"
+          class="admin-feedback"
+          role="status"
+        ></p>
+        <div class="admin-table-wrap" tabindex="0">
+          <table class="admin-program-table">
+            <thead>
+              <tr>
+                <th scope="col" aria-sort="ascending">
+                  <button
+                    class="admin-sort-button"
+                    type="button"
+                    data-program-sort="display_name"
+                  >
+                    Program
+                  </button>
+                </th>
+                <th scope="col" aria-sort="none">
+                  <button
+                    class="admin-sort-button"
+                    type="button"
+                    data-program-sort="code"
+                  >
+                    Program code
+                  </button>
+                </th>
+                <th scope="col" aria-sort="none">
+                  <button
+                    class="admin-sort-button"
+                    type="button"
+                    data-program-sort="active"
+                  >
+                    Status
+                  </button>
+                </th>
+                <th scope="col">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="program-catalog-list"></tbody>
+          </table>
+        </div>
+      </section>
     </main>
 
+    <dialog
+      class="account-dialog"
+      id="account-dialog"
+      aria-labelledby="account-dialog-title"
+    >
+      <form class="account-form" id="account-form" novalidate>
+        <div class="account-dialog-header">
+          <div>
+            <p class="admin-eyebrow" id="account-dialog-kicker">New account</p>
+            <h2 id="account-dialog-title">Create account</h2>
+          </div>
+          <button
+            class="account-dialog-close"
+            type="button"
+            id="account-dialog-close"
+            aria-label="Close account form"
+          >
+            ×
+          </button>
+        </div>
+
+        <p id="account-form-message" class="admin-feedback" role="alert"></p>
+
+        <fieldset class="account-form-section">
+          <legend>Account details</legend>
+          <div class="account-form-grid">
+            <label for="account-full-name">
+              <span>Full name</span>
+              <input
+                id="account-full-name"
+                name="full_name"
+                autocomplete="name"
+                required
+              />
+            </label>
+            <label for="account-email">
+              <span>Email address</span>
+              <input
+                id="account-email"
+                name="email"
+                type="email"
+                autocomplete="email"
+                required
+              />
+            </label>
+            <label for="account-gender">
+              <span>Gender</span>
+              <select id="account-gender" name="gender" required>
+                <option value="">Select gender</option>
+                <option value="Female">Female</option>
+                <option value="Male">Male</option>
+                <option value="Other">Other</option>
+                <option value="Prefer not to say">Prefer not to say</option>
+              </select>
+            </label>
+            <label id="account-role-field" for="account-role">
+              <span>Role</span>
+              <select id="account-role" name="role" required>
+                <option value="student">Student</option>
+                <option value="staff">Guidance staff</option>
+                <option value="admin">Administrator</option>
+              </select>
+            </label>
+            <label id="account-password-field" for="account-password">
+              <span>Temporary password</span>
+              <input
+                id="account-password"
+                name="password"
+                type="password"
+                autocomplete="new-password"
+                minlength="8"
+              />
+              <small
+                >At least eight characters. Passwords are never displayed after
+                creation.</small
+              >
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset class="account-form-section" id="student-profile-fields">
+          <legend>Student profile</legend>
+          <label for="account-program">
+            <span>Program</span>
+            <select id="account-program" name="program"></select>
+          </label>
+        </fieldset>
+
+        <fieldset class="account-form-section" id="staff-profile-fields">
+          <legend>Guidance-staff account access</legend>
+          <p class="account-form-help">
+            Assigned programs define account authorization and routing scope.
+            Guidance operational profiles are managed by Guidance staff.
+          </p>
+          <div class="account-form-grid">
+            <fieldset class="program-fieldset">
+              <legend>Assigned programs</legend>
+              <div id="account-assigned-programs" class="program-options"></div>
+            </fieldset>
+          </div>
+        </fieldset>
+
+        <div class="account-form-actions">
+          <button
+            class="btn btn-outline"
+            type="button"
+            id="account-form-cancel"
+          >
+            Cancel
+          </button>
+          <button
+            class="btn btn-primary"
+            type="submit"
+            id="account-form-submit"
+          >
+            Save account
+          </button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog
+      class="account-dialog"
+      id="program-dialog"
+      aria-labelledby="program-dialog-title"
+    >
+      <form class="account-form" id="program-form" novalidate>
+        <div class="account-dialog-header">
+          <div>
+            <p class="admin-eyebrow" id="program-dialog-kicker">New program</p>
+            <h2 id="program-dialog-title">Create program</h2>
+          </div>
+          <button
+            class="account-dialog-close"
+            type="button"
+            id="program-dialog-close"
+            aria-label="Close program form"
+          >
+            ×
+          </button>
+        </div>
+
+        <p id="program-form-message" class="admin-feedback" role="alert"></p>
+
+        <fieldset class="account-form-section">
+          <legend>Program details</legend>
+          <div class="account-form-grid">
+            <label for="program-code">
+              <span>Program code</span>
+              <input
+                id="program-code"
+                name="code"
+                autocomplete="off"
+                maxlength="80"
+                required
+              />
+              <small id="program-code-help"
+                >Use uppercase letters, numbers, underscores, or hyphens.</small
+              >
+            </label>
+            <label for="program-display-name">
+              <span>Display name</span>
+              <input
+                id="program-display-name"
+                name="display_name"
+                autocomplete="off"
+                maxlength="160"
+                required
+              />
+              <small class="program-field-placeholder" aria-hidden="true"
+                >Placeholder</small
+              >
+            </label>
+          </div>
+        </fieldset>
+
+        <div class="account-form-actions">
+          <button
+            class="btn btn-outline"
+            type="button"
+            id="program-form-cancel"
+          >
+            Cancel
+          </button>
+          <button
+            class="btn btn-primary"
+            type="submit"
+            id="program-form-submit"
+          >
+            Create program
+          </button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="/static/js/security.js"></script>
     <script src="/static/js/auth.js"></script>
     <script src="/static/js/admin.js"></script>
   </body>

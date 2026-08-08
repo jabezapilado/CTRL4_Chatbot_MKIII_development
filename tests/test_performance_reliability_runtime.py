@@ -530,13 +530,17 @@ class PerformanceReliabilityRuntimeTests(unittest.TestCase):
                 "email": f"{role}{account_id}@performance.test",
                 "role": role,
             }
+            session["_csrf_token"] = "performance-csrf-token"
             session.permanent = True
         return client
 
     def _request(self, role: str, account_id: int, method: str, path: str, json_data: dict | None = None):
         client = self._client_for(role, account_id)
         started = time.perf_counter()
-        response = client.open(path, method=method, json=json_data)
+        headers = {}
+        if method.upper() in {"POST", "PUT", "PATCH", "DELETE"}:
+            headers = {"X-CSRF-Token": "performance-csrf-token"}
+        response = client.open(path, method=method, json=json_data, headers=headers)
         elapsed = time.perf_counter() - started
         payload = response.get_json()
         self.assertIsInstance(payload, dict)
@@ -910,10 +914,13 @@ class PerformanceReliabilityRuntimeTests(unittest.TestCase):
 
     def _login_measurement(self):
         client = self.app.test_client()
+        with client.session_transaction() as session:
+            session["_csrf_token"] = "performance-login-csrf-token"
         started = time.perf_counter()
         response = client.post(
             "/auth/login",
             json={"email": "student001@performance.test", "password": PERFORMANCE_PASSWORD},
+            headers={"X-CSRF-Token": "performance-login-csrf-token"},
         )
         return response, time.perf_counter() - started
 

@@ -2,9 +2,10 @@ import logging
 
 from flask import Blueprint, jsonify, request, session
 
+from ..auth import STUDENT_TERMS_ACCEPTED_SESSION_KEY
 from ..request_validation import require_login
 
-from ..services import ai_service
+from ..services import ai_service, transient_chat_service
 from ..services.conversation_service import (
     determine_escalation_reason,
     finalize_conversation,
@@ -16,6 +17,13 @@ logger = logging.getLogger(__name__)
 
 _ESCALATION_SESSION_KEY = "conversation_escalated"
 _ESCALATION_REASON_SESSION_KEY = "conversation_escalation_reason"
+_FINALIZATION_APPOINTMENT_KEY = "finalization_appointment"
+
+
+def _opaque_session_id() -> str:
+    """Return the server-side session identifier without exposing it to clients."""
+
+    return str(getattr(session, "sid", "") or "").strip()
 
 chatbot_bp = Blueprint(
     "chatbot",
@@ -37,6 +45,18 @@ def chat():
             }
         ), 401
 
+    if (
+        str(user.get("role", "")).lower() == "student"
+        and session.get(STUDENT_TERMS_ACCEPTED_SESSION_KEY) is not True
+    ):
+        return jsonify(
+            {
+                "success": False,
+                "message": "Accept the terms and conditions before starting the chat.",
+                "errors": None,
+            }
+        ), 403
+
     message = str(payload.get("message", "")).strip()
 
     if not message:
@@ -49,12 +69,16 @@ def chat():
         ), 400
 
     try:
+        prior_history = transient_chat_service.prior_history(
+            _opaque_session_id(),
+            user.get("id"),
+            payload.get("conversation", []),
+            message,
+        )
         result = ai_service.respond(
             message=message,
-            conversation=payload.get(
-                "conversation",
-                [],
-            ),
+            conversation=prior_history,
+            user=user,
         )
 
         logger.info(
@@ -81,11 +105,19 @@ def chat():
             emotion=result.emotion,
             escalated=result.escalated,
         )
+        transient_chat_service.record_exchange(
+            _opaque_session_id(),
+            user.get("id"),
+            prior_history,
+            message,
+            result.response,
+        )
 
         should_escalate = should_escalate_conversation(
             escalated=result.escalated,
             normalized_emotion=result.normalized_emotion,
         )
+        session_escalated = bool(session.get(_ESCALATION_SESSION_KEY))
         if should_escalate:
             session[_ESCALATION_SESSION_KEY] = True
             session[_ESCALATION_REASON_SESSION_KEY] = (
@@ -105,7 +137,9 @@ def chat():
                     "emotion": result.emotion,
                     "sentiment": result.sentiment,
                     "language": result.language,
-                    "escalated": result.escalated,
+                    "topic": result.topic,
+                    "escalated": should_escalate,
+                    "session_escalated": session_escalated or should_escalate,
                     "confidence": round(result.confidence, 4),
                 },
             }
@@ -139,16 +173,12 @@ def finalize_chat():
             }
         ), 401
 
-    conversation = payload.get("conversation", [])
-
-    if not conversation:
-        return jsonify(
-            {
-                "success": False,
-                "message": "Conversation is required.",
-                "errors": None,
-            }
-        ), 400
+    # Finalization trusts only server-owned transient exchanges. The browser
+    # welcome is display-only and must never become summary evidence.
+    conversation = transient_chat_service.get_visible_history(
+        _opaque_session_id(),
+        user.get("id"),
+    )
 
     try:
         result = finalize_conversation(
@@ -159,14 +189,23 @@ def finalize_chat():
             emotion=str(payload.get("emotion", "neutral")),
             flagged=bool(session.get(_ESCALATION_SESSION_KEY)),
             escalation_reason=session.get(_ESCALATION_REASON_SESSION_KEY),
+            appointment=session.get(_FINALIZATION_APPOINTMENT_KEY),
         )
         session.pop(_ESCALATION_SESSION_KEY, None)
         session.pop(_ESCALATION_REASON_SESSION_KEY, None)
+        session.pop(_FINALIZATION_APPOINTMENT_KEY, None)
+        transient_chat_service.clear(_opaque_session_id(), user.get("id"))
+
+        message = (
+            "No meaningful student message was recorded."
+            if result.get("status") == "skipped"
+            else "Conversation finalized successfully."
+        )
 
         return jsonify(
             {
                 "success": True,
-                "message": "Conversation finalized successfully.",
+                "message": message,
                 "data": result,
             }
         ), 200

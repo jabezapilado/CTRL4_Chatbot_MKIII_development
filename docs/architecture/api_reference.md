@@ -12,6 +12,11 @@ global 404/500 fallback handlers retain their pre-existing `{"error": "..."}`
 payload; they are not a documented alternative endpoint contract and were not
 redesigned by this documentation issue.
 
+All `POST`, `PUT`, `PATCH`, and `DELETE` requests made from a browser session,
+including login, must send the page bootstrap `X-CSRF-Token` header. The shared
+browser fetch layer supplies it for same-origin requests. Token failures return
+the standard JSON envelope with HTTP 403.
+
 ## Rendered frontend routes
 
 These are page routes, not JSON APIs. Their server-side route guard redirects
@@ -25,20 +30,22 @@ unauthenticated users to login and enforces the listed role boundary.
 | GET | `/appointment` | Student | Student appointment page |
 | GET | `/case-status` | Student | Student case-status page |
 | GET | `/dashboard` | Guidance staff | Staff dashboard |
-| GET | `/admin` | Administrator | Account-listing page only |
-| GET | `/chatbot_admin` | Guidance staff | Legacy staff compatibility page; it has no persisted takeover workflow |
+| GET | `/admin` | Administrator | Account-management portal only |
 
 ## Authentication and health
 
 | Method | Path | Access | Request | Success / important errors |
 | --- | --- | --- | --- | --- |
 | POST | `/auth/login` | Public | `email`, `password` | 200 authenticated user in `data`; 400 validation, 401 invalid credentials, 403 blocked account |
+| POST | `/auth/terms/accept` | Student | None | 200 marks the current server session as accepted; 401 no session, 403 non-student |
 | POST | `/auth/logout` | Authenticated | None | 200; 401 if no session |
 | GET | `/health` | Public | None | 200 service status; 500 only on health failure |
 
 Login establishes the server-side session. The returned account data supports
 the existing frontend redirect; the browser cookie is opaque and must not be
-treated as an API credential to inspect.
+treated as an API credential to inspect. Students must explicitly accept the
+Terms and Conditions in each new server session before chatbot access; declining
+uses the existing logout flow.
 
 ## Accounts
 
@@ -97,12 +104,19 @@ only `pending` and `confirmed` and return HTTP 409 with
 
 | Method | Path | Access | Request | Success / important errors |
 | --- | --- | --- | --- | --- |
-| POST | `/chat` | Authenticated | `message`; optional in-memory `conversation` | 200 response data; 400 missing message; 401 no session |
+| POST | `/chat` | Student with accepted Terms | `message`; optional in-memory `conversation` | 200 response data; 400 missing message; 401 no session; 403 Terms not accepted |
 | POST | `/chat/finalize` | Authenticated | non-empty `conversation`; optional `topic`, `language`, `emotion` | 200 finalization data; 400 missing conversation; 401 no session |
 
 The public chat contract exposes only its existing response fields. Internal
 intent, normalized topic, normalized emotion, metadata, prompts, and retrieval
 details are not API inputs or historical analytics fields.
+
+The student Terms and Conditions describe the Guidance Office of the School of
+Computing at Holy Angel University scope. They state that messages may be
+recorded and summarized for guidance support, confidentiality has safety/legal
+limits, and immediate danger requires local emergency services or trusted school
+personnel. The acknowledgement does not apply to staff or administrator
+dashboards.
 
 ## Notifications and settings
 
@@ -112,10 +126,32 @@ details are not API inputs or historical analytics fields.
 | PATCH | `/api/notifications/<notification_id>/read` | Student or staff recipient | None | 200; 404 for inaccessible/missing item |
 | GET | `/api/settings` | Staff | None | 200 current settings |
 | POST | `/api/settings` | Staff | settings payload | 200 saved status |
+| GET | `/api/settings/faqs` | Staff | None | 200 `data.items` persisted FAQ entries |
+| POST | `/api/settings/faqs` | Staff | title, question, answer; optional active/order | 201 created FAQ; 400 validation |
+| PATCH | `/api/settings/faqs/<faq_id>` | Staff | title, question, answer, active, or order | 200 updated FAQ; 400 validation; 404 |
+| DELETE | `/api/settings/faqs/<faq_id>` | Staff | None | 200 removed status; 404 |
 
 Settings include staff-maintained operational configuration. The descriptive
 `officeHours` value is informational; booking availability uses the validated
-`appointmentAvailability` configuration in the appointment service.
+`appointmentAvailability` configuration in the appointment service. Active FAQ
+entries are persisted Guidance Office knowledge and are evaluated after live
+operational settings but before RAG or provider output.
+
+## Account and program management
+
+| Method | Path | Access | Request | Success / important errors |
+| --- | --- | --- | --- | --- |
+| GET | `/api/accounts/programs` | Admin | None | 200 active and inactive program catalog |
+| GET | `/api/accounts/programs/active` | Admin or staff | None | 200 active program catalog |
+| POST | `/api/accounts/programs` | Admin | code, display_name; optional active/order | 201; 400 validation |
+| PATCH | `/api/accounts/programs/<program_code>` | Admin | display_name, active, or order | 200; 400 validation; 404 |
+| GET | `/api/accounts/staff/profile` | Staff | None | 200 authenticated staff operational profile only |
+| PATCH | `/api/accounts/staff/profile` | Staff | office, support statement, rooms, schedules | 200; 400 validation |
+
+Administrators manage account identity, role, account authorization, and active
+program assignments. Guidance operational profiles are self-service staff data;
+administrator account routes reject office, support-statement, consultation-room,
+and consultation-schedule writes.
 
 ## Conversation, escalation, and case management — staff only
 
@@ -124,6 +160,9 @@ privacy-projected; student APIs do not receive these records.
 
 | Method | Path | Request | Success / important errors |
 | --- | --- | --- | --- |
+| GET | `/api/staff/inbox` | None | 200 current authorized student summary items, one latest item per student |
+| GET | `/api/staff/inbox/<summary_id>` | None | 200 privacy-projected summary detail; 404 outside staff program scope or missing |
+| GET | `/api/staff/inbox/<summary_id>/history` | None | 200 reviewed flagged-case history for the same authorized student; 404 outside staff program scope or missing |
 | GET | `/api/inquiries` | None | 200 `data.items` |
 | GET | `/api/conversation-summaries` | None | 200 `data.items` |
 | GET | `/api/escalations` | None | 200 `data.items` |
@@ -143,6 +182,11 @@ privacy-projected; student APIs do not receive these records.
 | POST | `/api/flagged-conversations/<summary_id>/interventions` | `intervention_type`, `objective` | 201; 400/404 |
 | PATCH | `/api/flagged-conversations/<summary_id>/interventions/<intervention_id>/progress` | `progress_status` | 200; 400/404 |
 | PATCH | `/api/flagged-conversations/<summary_id>/interventions/<intervention_id>/outcome` | `outcome` | 200; 400/404 |
+
+Inbox and case endpoints return privacy-projected summaries, not raw chat
+transcripts. Active Flagged Cases are pending cases; reviewed records are
+available through the authorized inbox-history flow. A staff member outside the
+student's authorized program scope receives the existing not-found response.
 
 ## Student case status
 

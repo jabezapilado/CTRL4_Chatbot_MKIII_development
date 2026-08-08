@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import logging
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, session
 
 from ..request_validation import (
+    require_any_role,
     require_login,
     require_role,
 )
@@ -19,9 +20,8 @@ from ..services.appointment_service import (
     get_appointment_details_service,
     list_staff_appointments_service,
     list_student_appointments_service,
+    get_booking_options_service,
 )
-
-
 appointment_bp = Blueprint(
     "appointments",
     __name__,
@@ -29,6 +29,34 @@ appointment_bp = Blueprint(
 )
 
 logger = logging.getLogger(__name__)
+
+_FINALIZATION_APPOINTMENT_KEY = "finalization_appointment"
+
+
+@appointment_bp.get("/booking-options")
+def booking_options_route():
+    user, error = require_any_role("student", "staff")
+    if error:
+        return error
+    try:
+        options = get_booking_options_service(
+            user,
+            preferred_date=request.args.get("date"),
+            student_number=request.args.get("student_number"),
+        )
+        return jsonify(
+            {
+                "success": True,
+                "message": "Appointment booking options retrieved successfully.",
+                "data": options,
+            }
+        ), 200
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc), "errors": None}), 400
+    except PermissionError as exc:
+        return jsonify({"success": False, "message": str(exc), "errors": None}), 403
+    except LookupError as exc:
+        return jsonify({"success": False, "message": str(exc), "errors": None}), 404
 
 
 @appointment_bp.get("")
@@ -92,6 +120,11 @@ def create_appointment():
             }
         ), status
 
+    session[_FINALIZATION_APPOINTMENT_KEY] = {
+        "category": str(payload["appointment_category"]).strip(),
+        "preferred_date": str(payload["preferred_date"]).strip(),
+        "preferred_time_slot": str(payload["preferred_time_slot"]).strip(),
+    }
     logger.info("Student %s created appointment %s", user["id"], appointment_id)
     return jsonify(
         {

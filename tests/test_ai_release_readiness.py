@@ -85,13 +85,15 @@ def _rag_config(
     index_dir: Path,
     *,
     auto_build: bool,
+    chunk_size: int = 120,
+    chunk_overlap: int = 20,
 ) -> SimpleNamespace:
     return SimpleNamespace(
         RAG_DOCS_DIR=str(docs_dir),
         RAG_INDEX_DIR=str(index_dir),
         RAG_EMBEDDING_MODEL="release-test-embedding",
-        RAG_CHUNK_SIZE=120,
-        RAG_CHUNK_OVERLAP=20,
+        RAG_CHUNK_SIZE=chunk_size,
+        RAG_CHUNK_OVERLAP=chunk_overlap,
         RAG_TOP_K=5,
         RAG_MIN_SCORE=0.3,
         RAG_AUTO_BUILD_ON_START=auto_build,
@@ -117,6 +119,36 @@ def _bare_rag(module: types.ModuleType, config: SimpleNamespace) -> object:
 
 
 class RAGReleaseReadinessTests(unittest.TestCase):
+    def test_current_knowledge_base_builds_the_approved_source_set(self) -> None:
+        module = _load_rag_module()
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            index = Path(temporary_directory) / "index"
+            service = _bare_rag(
+                module,
+                _rag_config(
+                    ROOT / "ai_engine/knowledge_base",
+                    index,
+                    auto_build=False,
+                    chunk_size=700,
+                    chunk_overlap=120,
+                ),
+            )
+
+            count = service.build_index()
+            report = service.last_build_report
+
+            self.assertIsNotNone(report)
+            assert report is not None
+            self.assertEqual(len(report.discovered_sources), 28)
+            self.assertEqual(len(report.indexed_sources), 28)
+            self.assertEqual(report.skipped_sources, ())
+            self.assertEqual(count, 339)
+            self.assertNotIn(
+                "hau_guidance_counseling_official.md",
+                report.discovered_sources,
+            )
+            self.assertTrue(service._index_is_current()[0])
+
     def test_manifest_detects_stale_sources_and_preserves_legacy_index(self) -> None:
         module = _load_rag_module()
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -371,6 +403,38 @@ class ConversationFinalizationLoggingTests(unittest.TestCase):
 
 
 class EmergencyKnowledgeReleaseTests(unittest.TestCase):
+    def test_current_knowledge_uses_soc_guidance_identity_not_legacy_generic_centers(self) -> None:
+        knowledge_base = ROOT / "ai_engine/knowledge_base"
+        combined = "\n".join(
+            path.read_text(encoding="utf-8")
+            for path in sorted(knowledge_base.glob("*.json"))
+        )
+        for unsupported_name in (
+            "University Guidance Center",
+            "Student Counseling Center",
+            "Campus Wellness Office",
+            "Holy Angel University University Guidance Services",
+        ):
+            with self.subTest(unsupported_name=unsupported_name):
+                self.assertNotIn(unsupported_name, combined)
+
+        office_hours = json.loads(
+            (knowledge_base / "office_hours.json").read_text(encoding="utf-8")
+        )
+        official_record = next(record for record in office_hours if record["id"] == "OFF001")
+        self.assertIn("SOC Guidance Office", official_record["response"])
+        self.assertIn("8:00 AM to 5:00 PM", official_record["response"])
+
+    def test_appointment_knowledge_uses_the_current_confirmed_status_term(self) -> None:
+        appointments = json.loads(
+            (ROOT / "ai_engine/knowledge_base/appointment_process.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        preparation = next(record for record in appointments if record["id"] == "APPT002")
+        self.assertIn("confirmed", preparation["response"])
+        self.assertNotIn("approved", preparation["response"].casefold())
+
     def test_emergency_contacts_are_verified_and_have_no_deployment_placeholder(self) -> None:
         content = (ROOT / "ai_engine/knowledge_base/emergency_contacts.json").read_text(
             encoding="utf-8"

@@ -143,7 +143,10 @@ class EmotionService:
         if self.safety.check(normalized_text).should_escalate:
             return "crisis"
 
-        if any(word in normalized_text for word in DISTRESSED_KEYWORDS):
+        if (
+            emotion in NEGATIVE_EMOTIONS
+            and any(word in normalized_text for word in DISTRESSED_KEYWORDS)
+        ):
             return "distressed"
 
         if emotion in POSITIVE_EMOTIONS:

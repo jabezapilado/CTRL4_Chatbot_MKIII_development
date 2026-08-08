@@ -11,10 +11,11 @@ from ..db import (
     AppointmentConflictLockError,
     AppointmentConflictPersistenceError,
     fetch_rows,
+    fetch_account_by_id,
     get_staff_by_program,
     get_student_by_id,
+    get_student_by_student_number,
     list_appointments_by_date,
-    load_settings,
     save_appointment_if_available,
     get_appointment_by_id,
     list_staff_appointments,
@@ -23,6 +24,7 @@ from ..db import (
     update_appointment_status,
     update_counselor_notes,
 )
+from .settings_service import settings_service
 
 
 logger = logging.getLogger(__name__)
@@ -37,15 +39,6 @@ CONSULTATION_SCHEDULE_FIELDS: Final[frozenset[str]] = frozenset(
 )
 CONSULTATION_SCHEDULE_ERROR_MESSAGE: Final[str] = (
     "The selected date and time are outside the counselor's consultation schedule."
-)
-APPOINTMENT_AVAILABILITY_SETTING_KEY: Final[str] = "appointmentAvailability"
-APPOINTMENT_AVAILABILITY_FIELDS: Final[frozenset[str]] = frozenset(
-    {
-        "officeAvailability",
-        "holidays",
-        "academicCalendarExclusions",
-        "unavailableDates",
-    }
 )
 OFFICE_AVAILABILITY_FIELDS: Final[frozenset[str]] = frozenset(
     {"days", "time"}
@@ -512,6 +505,26 @@ def _has_valid_consultation_schedule(
     return has_matching_schedule
 
 
+def _has_configured_consultation_schedule(counselor: dict) -> bool:
+    """Fail closed when the routed counselor has no usable schedule metadata."""
+    raw_rooms = _decode_consultation_metadata_list(
+        counselor.get("consultation_rooms")
+    )
+    raw_schedules = _decode_consultation_metadata_list(
+        counselor.get("consultation_schedules")
+    )
+    if not raw_rooms or not raw_schedules:
+        return False
+    return any(
+        isinstance(schedule, dict)
+        and set(schedule) == CONSULTATION_SCHEDULE_FIELDS
+        and isinstance(schedule.get("room"), str)
+        and isinstance(schedule.get("days"), str)
+        and isinstance(schedule.get("time"), str)
+        for schedule in raw_schedules
+    )
+
+
 def _validate_consultation_schedule(
     counselor: dict,
     preferred_date: object,
@@ -528,24 +541,6 @@ def _validate_consultation_schedule(
                 ["preferred_date", "preferred_time_slot"],
             )
         )
-
-
-def _load_appointment_availability() -> dict | None:
-    availability = load_settings().get(APPOINTMENT_AVAILABILITY_SETTING_KEY)
-
-    if isinstance(availability, bytes):
-        try:
-            availability = availability.decode("utf-8")
-        except UnicodeDecodeError:
-            return None
-
-    if isinstance(availability, str):
-        try:
-            availability = json.loads(availability)
-        except json.JSONDecodeError:
-            return None
-
-    return availability if isinstance(availability, dict) else None
 
 
 def _parse_availability_date(value: object) -> datetime | None:
@@ -593,12 +588,10 @@ def _parse_unavailable_dates(value: object) -> set[str] | None:
 def _has_valid_appointment_availability(
     preferred_date: object,
     preferred_time_slot: object,
+    configuration: dict | None = None,
 ) -> bool:
-    availability = _load_appointment_availability()
-    if (
-        availability is None
-        or set(availability) != APPOINTMENT_AVAILABILITY_FIELDS
-    ):
+    availability = configuration or settings_service.get_appointment_configuration()
+    if availability is None or not availability.get("bookingEnabled", False):
         return False
 
     requested_date = _parse_availability_date(preferred_date)
@@ -652,10 +645,12 @@ def _has_valid_appointment_availability(
 def _validate_appointment_availability(
     preferred_date: object,
     preferred_time_slot: object,
+    configuration: dict | None = None,
 ) -> None:
     if not _has_valid_appointment_availability(
         preferred_date,
         preferred_time_slot,
+        configuration,
     ):
         raise ValueError(
             (
@@ -698,11 +693,113 @@ def _resolve_student_and_counselor(
     return student, counselor
 
 
+def _decode_programs(value: object) -> set[str]:
+    values = _decode_consultation_metadata_list(value)
+    if values is None:
+        return set()
+    return {
+        str(program).strip().casefold()
+        for program in values
+        if str(program).strip()
+    }
+
+
+def _require_staff_program_access(staff_account: dict, student: dict) -> None:
+    profile = fetch_account_by_id(int(staff_account["id"]), role="staff")
+    programs = _decode_programs((profile or {}).get("assigned_programs"))
+    student_program = str(student.get("program") or "").strip().casefold()
+    if not student_program or student_program not in programs:
+        raise PermissionError("Student is not in your assigned programs.")
+
+
+def _validate_configured_slot(
+    configuration: dict | None,
+    preferred_time_slot: object,
+) -> None:
+    if configuration is None:
+        return
+    slots = configuration.get("appointmentSlots")
+    if slots is None:
+        # Existing pre-slot configurations are normalized with default slots on
+        # persisted reads; retain compatibility for direct legacy callers.
+        return
+    normalized = _normalize_preferred_time_slot(preferred_time_slot)
+    if not isinstance(slots, list) or normalized not in slots:
+        raise ValueError(
+            (
+                "The selected appointment time is unavailable.",
+                ["preferred_time_slot"],
+            )
+        )
+
+
+def get_booking_options_service(
+    requester: dict,
+    *,
+    preferred_date: object = None,
+    student_number: object = None,
+) -> dict:
+    """Return date-specific slots after all current booking constraints."""
+    options = settings_service.get_student_booking_options()
+    options["availableSlots"] = []
+    if not options.get("bookingEnabled") or options.get("state") != "available":
+        return options
+    if preferred_date is None or not str(preferred_date).strip():
+        options["slotState"] = "date_required"
+        return options
+
+    role = str(requester.get("role") or "").lower()
+    if role == "student":
+        student = get_student_by_id(int(requester["id"]))
+    elif role == "staff":
+        identifier = str(student_number or "").strip()
+        if not identifier:
+            raise ValueError("Select a student before loading appointment slots.")
+        student = get_student_by_student_number(identifier)
+        if student:
+            _require_staff_program_access(requester, student)
+    else:
+        raise PermissionError("Booking options are unavailable.")
+
+    if not student:
+        raise LookupError("Student account not found.")
+
+    _student, counselor = _resolve_student_and_counselor(
+        int(student["id"]),
+        "No counselor is currently assigned to the student's program.",
+    )
+    configuration = settings_service.get_appointment_configuration()
+    if configuration is None:
+        return options
+
+    if not _has_configured_consultation_schedule(counselor):
+        options["slotState"] = "counselor_schedule_unconfigured"
+        return options
+
+    slots = configuration.get("appointmentSlots")
+    if not isinstance(slots, list):
+        return options
+    available_slots = [
+        slot
+        for slot in slots
+        if _has_valid_appointment_availability(preferred_date, slot, configuration)
+        and _has_valid_consultation_schedule(counselor, preferred_date, slot)
+        and not _has_appointment_conflict(str(preferred_date), slot)
+    ]
+    options["availableSlots"] = available_slots
+    options["slotState"] = "available" if available_slots else "no_slots"
+    return options
+
+
 def _validate_booking_constraints(
     counselor: dict,
     preferred_date: object,
     preferred_time_slot: object,
+    appointment_category: object = None,
+    appointment_mode: object = None,
 ) -> None:
+    configuration = settings_service.get_appointment_configuration()
+    _validate_configured_slot(configuration, preferred_time_slot)
     _validate_consultation_schedule(
         counselor,
         preferred_date,
@@ -711,7 +808,27 @@ def _validate_booking_constraints(
     _validate_appointment_availability(
         preferred_date,
         preferred_time_slot,
+        configuration,
     )
+    if configuration is None:
+        return
+
+    categories = configuration.get("appointmentCategories")
+    modes = configuration.get("consultationModes")
+    if categories is not None and appointment_category not in categories:
+        raise ValueError(
+            (
+                "The selected appointment category is unavailable.",
+                ["appointment_category"],
+            )
+        )
+    if modes is not None and appointment_mode not in modes:
+        raise ValueError(
+            (
+                "The selected consultation mode is unavailable.",
+                ["appointment_mode"],
+            )
+        )
 
 
 def _save_appointment_notification_safely(
@@ -842,6 +959,8 @@ def create_student_appointment(student_account: dict, payload: dict) -> int:
         counselor,
         payload["preferred_date"],
         payload["preferred_time_slot"],
+        payload["appointment_category"],
+        payload["appointment_mode"],
     )
 
     appointment_id = _save_appointment_with_atomic_conflict_check(
@@ -938,6 +1057,8 @@ def reschedule_student_appointment(
         counselor,
         payload["preferred_date"],
         payload["preferred_time_slot"],
+        appointment["appointment_category"],
+        appointment["appointment_mode"],
     )
 
     new_id = _save_appointment_with_atomic_conflict_check(
@@ -970,7 +1091,6 @@ def reschedule_student_appointment(
 
 def create_manual_appointment(staff_account: dict, payload: dict) -> int:
     required_fields = [
-        "account_id",
         "appointment_category",
         "appointment_mode",
         "preferred_date",
@@ -980,6 +1100,16 @@ def create_manual_appointment(staff_account: dict, payload: dict) -> int:
     ]
 
     _validate_required_fields(payload, required_fields)
+
+    student_number = str(payload.get("student_number") or "").strip()
+    if student_number:
+        selected_student = get_student_by_student_number(student_number)
+        if not selected_student:
+            raise LookupError("Student account not found.")
+        _require_staff_program_access(staff_account, selected_student)
+        payload = {**payload, "account_id": selected_student["id"]}
+    elif "account_id" not in payload:
+        raise ValueError(("Missing required fields.", ["student_number"]))
 
     if payload["appointment_source"] not in {
         "walk_in",
@@ -994,6 +1124,7 @@ def create_manual_appointment(staff_account: dict, payload: dict) -> int:
         payload["account_id"],
         "No counselor is currently assigned to the student's program.",
     )
+    _require_staff_program_access(staff_account, student)
 
     if _has_appointment_conflict(
         payload["preferred_date"],
@@ -1005,6 +1136,8 @@ def create_manual_appointment(staff_account: dict, payload: dict) -> int:
         counselor,
         payload["preferred_date"],
         payload["preferred_time_slot"],
+        payload["appointment_category"],
+        payload["appointment_mode"],
     )
 
     return _save_appointment_with_atomic_conflict_check(
