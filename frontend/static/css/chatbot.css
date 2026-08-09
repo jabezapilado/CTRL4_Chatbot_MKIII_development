@@ -628,6 +628,11 @@
 }
 
 .terms-dialog {
+  /* The global reset clears the browser's default dialog margin. Restore an
+     explicit viewport-centering rule for the modal's top-layer position. */
+  position: fixed;
+  inset: 0;
+  margin: auto;
   width: min(560px, calc(100vw - 32px));
   max-height: min(680px, calc(100dvh - 32px));
   border: 0;
