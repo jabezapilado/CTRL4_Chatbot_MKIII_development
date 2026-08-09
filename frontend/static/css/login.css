@@ -511,7 +511,8 @@ body {
 
   .login-brand,
   .login-form-panel {
-    min-height: 100%;
+    min-height: 0;
+    height: auto;
     overflow: hidden;
   }
 }
