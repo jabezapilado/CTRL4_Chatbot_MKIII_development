@@ -25,11 +25,14 @@ from ..services.confidentiality_service import (
 )
 from ..services.conversation_service import (
     get_staff_inbox_item,
+    list_staff_flagged_case_items,
     list_staff_inbox_items,
     list_staff_reviewed_case_history,
     list_student_cases,
     list_staff_conversation_summaries,
     list_staff_escalations,
+    list_staff_chatbot_feedback,
+    summarize_staff_chatbot_feedback,
     list_staff_inquiries,
     mark_staff_flagged_conversation_reviewed,
 )
@@ -77,6 +80,37 @@ def staff_inbox():
         return response, 200
     except Exception:
         logger.exception("Failed to retrieve staff inbox.")
+        return jsonify(
+            {
+                "success": False,
+                "message": "Internal server error.",
+                "errors": None,
+            }
+        ), 500
+
+
+@conversation_bp.get("/staff/chatbot-feedback")
+def staff_chatbot_feedback():
+    """Show only feedback from students in the logged-in counselor's programs."""
+    user, error = require_role("staff")
+    if error:
+        return error
+    try:
+        items = list_staff_chatbot_feedback(user)
+        response = jsonify(
+            {
+                "success": True,
+                "message": "Chatbot feedback retrieved successfully.",
+                "data": {
+                    "items": items,
+                    "insights": summarize_staff_chatbot_feedback(items),
+                },
+            }
+        )
+        response.headers["Cache-Control"] = "no-store"
+        return response, 200
+    except Exception:
+        logger.exception("Failed to retrieve chatbot feedback.")
         return jsonify(
             {
                 "success": False,
@@ -243,20 +277,17 @@ def flagged_conversations():
     if error:
         return error
     try:
-        items = [
-            item
-            for item in list_staff_inbox_items(user)
-            if item.get("flagged_status") and item.get("review_status") == "pending"
-        ]
-        return jsonify(
+        response = jsonify(
             {
                 "success": True,
                 "message": "Flagged conversations retrieved successfully.",
                 "data": {
-                    "items": items,
+                    "items": list_staff_flagged_case_items(user),
                 },
             }
-        ), 200
+        )
+        response.headers["Cache-Control"] = "no-store"
+        return response, 200
     except Exception:
         logger.exception("Failed to retrieve flagged conversations.")
         return jsonify(

@@ -59,6 +59,8 @@ STAFF_OPERATIONAL_PROFILE_FIELDS = frozenset({
     "support_statement",
     "consultation_rooms",
     "consultation_schedules",
+    "appointment_slots",
+    "consultation_modes",
 })
 STAFF_OWN_PASSWORD_FIELDS = frozenset({
     "current_password",
@@ -66,6 +68,9 @@ STAFF_OWN_PASSWORD_FIELDS = frozenset({
     "confirm_password",
 })
 CONSULTATION_SCHEDULE_FIELDS = frozenset({"room", "days", "time"})
+MAX_APPOINTMENT_SLOTS = 24
+MAX_CONSULTATION_MODES = 12
+MAX_CONSULTATION_MODE_LENGTH = 80
 WEEKDAY_ORDER = (
     "Monday",
     "Tuesday",
@@ -240,6 +245,50 @@ def _validate_schedule_list(
     return schedules
 
 
+def _validate_appointment_slot_list(value: object) -> list[str]:
+    if not isinstance(value, list) or not value:
+        raise ValueError("Appointment start times must contain at least one time.")
+    if len(value) > MAX_APPOINTMENT_SLOTS:
+        raise ValueError("Too many appointment start times were provided.")
+
+    slots: list[str] = []
+    for raw_slot in value:
+        if not isinstance(raw_slot, str):
+            raise ValueError("Appointment start times must contain valid times.")
+        try:
+            slot = datetime.strptime(" ".join(raw_slot.split()), "%I:%M %p").strftime(
+                "%I:%M %p"
+            )
+        except ValueError as exc:
+            raise ValueError("Appointment start times must contain valid times.") from exc
+        slots.append(slot)
+    if len(set(slots)) != len(slots):
+        raise ValueError("Appointment start times must not contain duplicates.")
+    return sorted(slots, key=lambda slot: datetime.strptime(slot, "%I:%M %p"))
+
+
+def _validate_consultation_mode_list(value: object) -> list[str]:
+    if not isinstance(value, list) or not value:
+        raise ValueError("Consultation modes must contain at least one mode.")
+    if len(value) > MAX_CONSULTATION_MODES:
+        raise ValueError("Too many consultation modes were provided.")
+
+    modes: list[str] = []
+    seen: set[str] = set()
+    for raw_mode in value:
+        if not isinstance(raw_mode, str):
+            raise ValueError("Consultation modes must contain text values.")
+        mode = " ".join(raw_mode.split())
+        if not mode or len(mode) > MAX_CONSULTATION_MODE_LENGTH:
+            raise ValueError("Consultation modes must contain valid text values.")
+        normalized = mode.casefold()
+        if normalized in seen:
+            raise ValueError("Consultation modes must not contain duplicates.")
+        seen.add(normalized)
+        modes.append(mode)
+    return modes
+
+
 def _normalize_schedule_days(value: object) -> str:
     days = " ".join(str(value or "").split())
     if not days:
@@ -315,6 +364,16 @@ def _validate_staff_profile_fields(
         _validate_schedule_list(
             _decode_list(existing_account.get("consultation_schedules")),
             allowed_rooms=effective_rooms,
+        )
+
+    if "appointment_slots" in payload:
+        updates["appointment_slots"] = _validate_appointment_slot_list(
+            payload.get("appointment_slots")
+        )
+
+    if "consultation_modes" in payload:
+        updates["consultation_modes"] = _validate_consultation_mode_list(
+            payload.get("consultation_modes")
         )
 
     return updates
@@ -553,6 +612,8 @@ def get_own_staff_operational_profile_service(staff_account: dict) -> dict:
         "support_statement": profile.get("support_statement") or "",
         "consultation_rooms": _decode_list(profile.get("consultation_rooms")),
         "consultation_schedules": _decode_list(profile.get("consultation_schedules")),
+        "appointment_slots": _decode_list(profile.get("appointment_slots")),
+        "consultation_modes": _decode_list(profile.get("consultation_modes")),
     }
 
 
@@ -584,6 +645,8 @@ def update_own_staff_operational_profile_service(
         "support_statement": updated.get("support_statement") or "",
         "consultation_rooms": _decode_list(updated.get("consultation_rooms")),
         "consultation_schedules": _decode_list(updated.get("consultation_schedules")),
+        "appointment_slots": _decode_list(updated.get("appointment_slots")),
+        "consultation_modes": _decode_list(updated.get("consultation_modes")),
     }
 
 

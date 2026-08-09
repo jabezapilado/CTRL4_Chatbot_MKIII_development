@@ -50,6 +50,37 @@ logger = logging.getLogger(__name__)
 INDEX_MANIFEST_VERSION: Final = 1
 INDEX_MANIFEST_FILENAME: Final = "manifest.json"
 LEGACY_INDEX_ARCHIVE_NAME: Final = "legacy_pre_manifest"
+DEFAULT_STUDENT_KNOWLEDGE_DIR: Final = (
+    Path(__file__).resolve().parents[3] / "ai_engine" / "knowledge_base"
+)
+# The default knowledge-base directory also holds implementation and staff
+# reference material. Only these explicitly reviewed student-facing sources may
+# become RAG context for a student response. New sources must be added here and
+# covered by release-readiness tests before they are indexed.
+DEFAULT_STUDENT_RAG_SOURCES: Final[frozenset[str]] = frozenset({
+    "academic_stress.json",
+    "adjustment.json",
+    "anxiety.json",
+    "appointment_process.json",
+    "burnout.json",
+    "confidentiality.json",
+    "coping_strategies.json",
+    "crisis_protocol.json",
+    "emergency_contacts.json",
+    "faq.json",
+    "goal_setting.json",
+    "guidance_services.json",
+    "loneliness.json",
+    "office_hours.json",
+    "review_techniques.json",
+    "self_care.json",
+    "self_esteem.json",
+    "stress_management.json",
+    "study_skills.json",
+    "suicide_prevention.json",
+    "time_management.json",
+    "welcome.json",
+})
 
 @dataclass
 class RetrievedDocument:
@@ -250,13 +281,25 @@ class RAGService:
         if not self.docs_dir.is_dir():
             return []
 
-        return sorted(
+        source_paths = sorted(
             path
             for path in self.docs_dir.rglob("*")
             if path.is_file()
             and not path.name.startswith("._")
             and path.suffix.lower() in SUPPORTED_DOCUMENT_TYPES
         )
+        # A custom configured documents directory is an explicit deployment
+        # decision and keeps its existing generic document behavior. The
+        # bundled directory is shared by student and staff documentation, so
+        # it requires the stricter student-facing allow-list above.
+        if self.docs_dir.resolve() != DEFAULT_STUDENT_KNOWLEDGE_DIR.resolve():
+            return source_paths
+
+        return [
+            path
+            for path in source_paths
+            if str(path.relative_to(self.docs_dir)) in DEFAULT_STUDENT_RAG_SOURCES
+        ]
 
     def _source_manifest(self, source_paths: list[Path]) -> dict[str, Any]:
         sources = [

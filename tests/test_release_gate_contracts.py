@@ -62,7 +62,7 @@ class ReleaseGateContractTests(unittest.TestCase):
 
         readme = _read("README.md")
         self.assertIn("CTRL4 Chatbot MK III", readme)
-        self.assertIn("v1.0.6", readme)
+        self.assertIn("v1.0.7", readme)
         self.assertIn("docs/README.md", readme)
         self.assertIn("http://127.0.0.1:5001", readme)
         self.assertNotIn("student123", readme)

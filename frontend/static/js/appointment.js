@@ -125,34 +125,10 @@ function parseAppointmentTime(value) {
   };
 }
 
-function dateMatchesAvailabilityWindow(dateValue, window) {
-  const selectedDate = new Date(`${dateValue}T00:00:00`);
-  if (Number.isNaN(selectedDate.getTime())) return false;
-  const days = [
-    "Sunday",
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
-  ];
-  const selectedDay = days[selectedDate.getDay()];
-  const range = String(window.days || "").split(" to ");
-  if (range.length === 1) return range[0] === selectedDay;
-  const start = days.indexOf(range[0]);
-  const end = days.indexOf(range[1]);
-  const current = days.indexOf(selectedDay);
-  return start >= 0 && end >= start && current >= start && current <= end;
-}
-
 function isConfiguredDateAvailable(dateValue, options = bookingOptions) {
   return Boolean(
     isBookingAvailable(options) &&
-    !options.unavailableDates?.includes(dateValue) &&
-    options.officeAvailability?.some((window) =>
-      dateMatchesAvailabilityWindow(dateValue, window),
-    ),
+    !options.unavailableDates?.includes(dateValue),
   );
 }
 
@@ -161,12 +137,6 @@ function isConfiguredTimeAvailable(dateValue, value, options = bookingOptions) {
     isConfiguredDateAvailable(dateValue, options) &&
     options.availableSlots?.includes(value),
   );
-}
-
-function configuredAvailabilityLabel(options = bookingOptions) {
-  return (options.officeAvailability || [])
-    .map((window) => `${window.days}, ${window.time}`)
-    .join("; ");
 }
 
 function renderBookingOptions() {

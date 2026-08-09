@@ -251,9 +251,42 @@ cd backend
 
 The development server listens on `http://127.0.0.1:5001` by default.
 
-For a temporary Tailscale or local-network demonstration, use
-`CTRL4_HOST=0.0.0.0` and, if needed, `CTRL4_PORT=<port>`. The public-interface
-binding is opt-in and is not a production exposure recommendation.
+### Temporary Tailscale demonstration (no code or `.env` changes)
+
+For a private demonstration, leave `backend/.env` unchanged and export runtime
+overrides only in the terminal that starts Flask. They take precedence for that
+one process and disappear when the terminal session ends.
+
+With Tailscale connected on the demo host, bind directly to its Tailscale IPv4
+address:
+
+```bash
+cd backend
+export CTRL4_HOST="$(tailscale ip -4)"
+export CTRL4_PORT=5001
+../.venv/bin/python app.py
+```
+
+The command `tailscale ip -4` prints the address to share with authorized
+demonstrators. They can open `http://TAILSCALE_IP:5001` from a device that is
+permitted in the same tailnet. Verify the private demonstration from such a
+device without submitting protected content:
+
+```bash
+curl --fail --silent --show-error http://TAILSCALE_IP:5001/health
+```
+
+If a local-network demonstration specifically requires all interfaces, use
+`export CTRL4_HOST=0.0.0.0` instead. This broader binding can expose the app on
+the host's LAN as well as Tailscale, so it requires an appropriate local
+firewall and trusted network. Do not use Tailscale Funnel, port forwarding, or
+another public-internet exposure method for CTRL4: the system handles student
+and case information. End the session with `Ctrl+C`, then run
+`unset CTRL4_HOST CTRL4_PORT` before a normal local start in the same terminal.
+
+This demonstration path is not the supported production topology. Production
+still requires the single-worker Gunicorn and HTTPS reverse-proxy arrangement
+described below.
 
 ### Production
 

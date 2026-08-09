@@ -6,6 +6,66 @@ The format follows the principles of **Keep a Changelog**.
 
 ---
 
+## [Unreleased]
+
+---
+
+## [1.0.7] - MK III Safety, Staff Workflow, and Release Update — August 2026
+
+### Added
+
+- Added immediate staff Inbox visibility for active student conversations,
+  using a single in-progress summary record that is updated when the
+  conversation is finalized rather than duplicated.
+- Added per-reply student chatbot feedback, privacy-safe counselor feedback
+  review, feedback filters, reply-context filtering, and review-signal cards.
+- Added pending and reviewed views for flagged cases, with the sidebar count
+  limited to cases that still require staff action.
+- Added clearer Global Office Settings and My Staff Settings views. Counselor
+  availability, selectable appointment start times, and consultation modes are
+  now explicitly per-staff; shared office information, booking rules, and FAQ
+  content remain global.
+- Added a student-only Terms and Conditions acknowledgement before chatbot
+  access. Acceptance is required for each server-side session; declining ends
+  the session.
+
+### Changed
+
+- Made safety detection and escalation authoritative before duplicate-response
+  prevention, generic fallbacks, and ordinary response variation. Crisis,
+  self-harm, harm-to-others, and escalation replies now bypass the repetition
+  guard.
+- Updated the staff Inbox, Flagged Cases, Feedback, notifications, settings,
+  and navigation interfaces for consistent filtering, sorting, status display,
+  responsive layout, and return-to-Inbox navigation.
+- Centered the student Terms and Conditions dialog and refined chatbot
+  feedback controls while preserving the CTRL4 color palette.
+- Updated the release, deployment, and user documentation for the v1.0.7
+  implementation, privacy-safe staff views, English-focused emotion-model
+  limitation for Filipino/Taglish input, and private Tailscale demonstration
+  procedure.
+
+### Verified
+
+- Verified normal student chat, per-reply feedback, appointment routing,
+  counselor-scoped Inbox visibility, staff feedback access, and program-scoped
+  privacy boundaries using the supported student and staff workflows.
+- Verified a crisis message receives the immediate safety response and is
+  surfaced as a pending flagged case for the routed counselor.
+- Passed the focused release regression suite covering chatbot quality,
+  feedback, settings, conversation finalization, staff/admin boundaries,
+  frontend contracts, and CSRF/CORS security.
+
+### Notes
+
+- v1.0.7 is suitable for a controlled release or demonstration once the
+  Guidance Office has approved the emergency contacts, escalation wording, and
+  local response procedure.
+- Generated RAG artifacts, `.env` files, SQL backups, and the deferred
+  hardening patch remain outside the release commit.
+
+---
+
 ## [1.0.6] - MK III Final Release — August 2026
 
 ### Added
@@ -43,23 +103,6 @@ The format follows the principles of **Keep a Changelog**.
 - This release represents the finalized CTRL4 Chatbot MK III implementation.
 - Historical MK I and MK II changes remain preserved in previous changelog
   entries.
-
----
-
-## [Unreleased] - MK III documentation finalization
-
-### Changed
-
-- Added a student-only Terms and Conditions acknowledgement before chatbot
-  access. Acceptance is required for each server-side session; declining ends
-  the session.
-- Documented the validated local host default (`127.0.0.1:5001`) and opt-in
-  `CTRL4_HOST=0.0.0.0` Tailscale/LAN demonstration binding.
-- Aligned current references with the MK III database audit and cleanup state,
-  deferred migration/index work, staff privacy-safe case views, and the
-  English-focused emotion-model limitation for Filipino/Taglish input.
-- Recorded that the startup auto-setup hardening patch is preserved but
-  unvalidated and is not part of the released system.
 
 ---
 

@@ -14,6 +14,30 @@ def _read(relative_path: str) -> str:
 
 
 class FrontendLayoutContractTests(unittest.TestCase):
+    def test_chatbot_feedback_uses_reply_icons_and_a_modal_dialog(self) -> None:
+        chat = _read("frontend/static/js/chat.js")
+        stylesheet = _read("frontend/static/css/chatbot.css")
+
+        self.assertIn("createThumbIcon(kind)", chat)
+        self.assertIn("function createThumbIcon(direction)", chat)
+        self.assertIn("openFeedbackDialog(feedbackToken, kind", chat)
+        self.assertIn('title.textContent = "Share feedback"', chat)
+        self.assertIn("chatbot-feedback-modal", stylesheet)
+        self.assertIn("chatbot-feedback-dialog", stylesheet)
+        self.assertIn(".chatbot-feedback-icon.selected", stylesheet)
+        self.assertIn("border: 1.5px solid var(--gray-400);", stylesheet)
+        self.assertNotIn("--gray-300", stylesheet)
+
+    def test_staff_feedback_view_aligns_its_copy_with_the_dashboard_panel(self) -> None:
+        template = _read("frontend/templates/dashboard.html")
+        stylesheet = _read("frontend/static/css/dashboard.css")
+
+        self.assertIn('class="stat-grid feedback-stat-grid"', template)
+        self.assertIn('id="feedback-pattern-detail"', template)
+        self.assertIn("#view-feedback > .panel > .sub", stylesheet)
+        self.assertIn(".feedback-stat-grid", stylesheet)
+        self.assertIn("padding: 9px 20px 7px;", stylesheet)
+
     def test_notifications_mount_in_the_dashboard_header(self) -> None:
         template = _read("frontend/templates/dashboard.html")
         notifications = _read("frontend/static/js/notifications.js")
@@ -28,8 +52,13 @@ class FrontendLayoutContractTests(unittest.TestCase):
         self.assertIn('toggle.setAttribute("aria-label", "Notifications")', notifications)
         self.assertIn("notifications-icon", notifications)
         self.assertIn("Notification%20Bell2.svg", notifications)
+        self.assertIn('notificationIsRead ? "article" : "button"', notifications)
+        self.assertIn("void markNotificationRead(notification.id, item)", notifications)
+        self.assertNotIn('markRead.textContent = "Mark as read"', notifications)
+        self.assertNotIn('readState.textContent = "Read"', notifications)
         self.assertIn(".notifications-widget--header .notifications-panel", stylesheet)
         self.assertIn(".notifications-icon", stylesheet)
+        self.assertIn(".notification-item:focus-visible", stylesheet)
 
     def test_mobile_header_spacing_and_chatbot_status_indicator_are_present(self) -> None:
         template = _read("frontend/templates/dashboard.html")
@@ -61,7 +90,12 @@ class FrontendLayoutContractTests(unittest.TestCase):
         self.assertIn("function bindDashboardSectionNavigation()", dashboard)
         self.assertIn("function restoreDashboardLocation()", dashboard)
         self.assertIn("window.addEventListener(\"hashchange\", restoreDashboardLocation)", dashboard)
-        self.assertIn("window.history.replaceState(null, \"\", hash)", dashboard)
+        self.assertIn("window.history.pushState({ viewId, sectionId: sectionId || null }, \"\", hash)", dashboard)
+        self.assertIn('switchView("inbox", false);', dashboard)
+        self.assertIn('id="dashboard-home"', template)
+        self.assertIn('aria-label="Go to Inbox home"', template)
+        self.assertIn("dashboardHome?.addEventListener", dashboard)
+        self.assertIn(".sidebar-home", stylesheet)
         self.assertIn("function setSidebarOpen(open", dashboard)
         self.assertIn('event.key === "Escape"', dashboard)
         self.assertIn('aria-controls="sidebar"', template)
@@ -94,6 +128,16 @@ class FrontendLayoutContractTests(unittest.TestCase):
         self.assertNotIn("def chatbot_admin", frontend_routes)
         self.assertIn('id="inbox-search-input"', template)
         self.assertIn('id="inbox-filter"', template)
+
+    def test_current_reviewed_case_history_item_is_visibly_inactive(self) -> None:
+        dashboard = _read("frontend/static/js/dashboard.js")
+        stylesheet = _read("frontend/static/css/dashboard.css")
+
+        self.assertIn("const isCurrentCase = String(item.summary_id) === String(summaryId);", dashboard)
+        self.assertIn('open.disabled = isCurrentCase;', dashboard)
+        self.assertIn('open.textContent = isCurrentCase ? "Current" : "Open";', dashboard)
+        self.assertIn(".case-history-row--current", stylesheet)
+        self.assertIn(".case-history-actions .action-link:disabled", stylesheet)
 
     def test_inbox_dashboard_uses_balanced_desktop_layout(self) -> None:
         template = _read("frontend/templates/dashboard.html")
@@ -197,19 +241,109 @@ class FrontendLayoutContractTests(unittest.TestCase):
         stylesheet = _read("frontend/static/css/dashboard.css")
 
         self.assertIn('id="view-settings"', template)
+        self.assertIn('data-dashboard-section-nav="settings"', template)
+        self.assertIn('data-dashboard-section-target="global"', template)
+        self.assertIn('data-dashboard-section-target="staff"', template)
+        self.assertIn('data-dashboard-section="global"', template)
+        self.assertIn('data-dashboard-section="staff"', template)
+        self.assertIn('settings: "global"', _read("frontend/static/js/dashboard.js"))
+        self.assertIn('class="settings-scope settings-scope-global"', template)
+        self.assertIn("Global Office Settings", template)
+        self.assertIn("Changes here apply to both counselors", template)
+        self.assertIn('class="settings-scope settings-scope-personal"', template)
+        self.assertIn('class="settings-staff-stack" data-dashboard-section="staff"', template)
+        self.assertIn("My Staff Settings", template)
+        self.assertIn("currently signed-in counselor", template)
         self.assertIn('class="settings-panel appointment-settings-panel"', template)
+        self.assertIn("Shared Appointment Booking Rules", template)
+        self.assertIn("Each counselor sets their own", template)
+        self.assertIn("My Appointment Availability", template)
+        self.assertIn("This applies only to students routed to", template)
+        self.assertNotIn('id="appointment-availability-windows"', template)
+        self.assertIn('id="counselor-profile-appointment-slots"', template)
+        self.assertIn('id="counselor-profile-consultation-modes"', template)
+        self.assertNotIn('id="settings-appointment-slots"', template)
+        self.assertNotIn('id="settings-consultation-modes"', template)
+        self.assertNotIn("appointment-availability-windows", _read("frontend/static/js/dashboard.js"))
+        self.assertNotIn(
+            "officeAvailability?.some",
+            _read("frontend/static/js/appointment.js"),
+        )
         self.assertIn('class="settings-panel faq-management-panel"', template)
         self.assertIn('class="settings-panel counselor-profile-panel"', template)
-        self.assertIn('class="settings-panel settings-password-panel"', template)
+        self.assertIn(
+            'class="settings-panel settings-password-panel settings-standalone-panel"',
+            template,
+        )
         self.assertIn('class="sub password-helper"', template)
+        self.assertEqual(template.count("data-settings-collapsible"), 5)
+        self.assertEqual(template.count("<summary>"), 5)
+        self.assertIn(
+            'class="settings-panel" data-settings-collapsible open>', template
+        )
+        self.assertIn(
+            'class="settings-panel counselor-profile-panel"\n'
+            '                data-settings-collapsible\n'
+            '                open',
+            template,
+        )
+        self.assertNotIn(
+            'class="settings-panel appointment-settings-panel"\n'
+            '                data-settings-collapsible\n'
+            '                open',
+            template,
+        )
+        self.assertNotIn(
+            'class="settings-panel faq-management-panel"\n'
+            '                data-settings-collapsible\n'
+            '                open',
+            template,
+        )
+        self.assertNotIn(
+            'id="student-password-panel"\n'
+            '                data-settings-collapsible\n'
+            '                open',
+            template,
+        )
+        self.assertIn('class="settings-collapsible-body"', template)
         self.assertNotIn('id="student-password-panel"\n              style=', template)
         self.assertNotIn('id="change-password-btn"\n                style=', template)
+        self.assertEqual(template.count('id="save-settings-btn"'), 1)
+        self.assertIn("Save Global Office Settings", template)
+        self.assertEqual(template.count('id="save-counselor-profile"'), 1)
+        self.assertIn("Save My Staff Settings", template)
+        self.assertIn('class="settings-scope-heading-copy"', template)
+        self.assertIn("availability, start times, and consultation modes", template)
+        dashboard_script = _read("frontend/static/js/dashboard.js")
+        settings_meta = dashboard_script.split('  settings: {', 1)[1].split(
+            '  "case-details": {', 1
+        )[0]
+        self.assertIn('actions: "",', settings_meta)
+        self.assertNotIn('data-dashboard-action="save-settings"', dashboard_script)
         self.assertIn("#view-settings .settings-panel", stylesheet)
+        self.assertIn("#view-settings .settings-section-nav", stylesheet)
+        self.assertIn("#view-settings .settings-scope", stylesheet)
+        self.assertIn("#view-settings .settings-scope > * + *", stylesheet)
+        self.assertIn("#view-settings .settings-scope-global,", stylesheet)
+        self.assertIn("#view-settings [data-dashboard-section][hidden]", stylesheet)
+        self.assertIn("#view-settings .settings-scope > .settings-grid", stylesheet)
+        self.assertIn("#view-settings .settings-global-actions", stylesheet)
+        self.assertIn("#view-settings .settings-scope-heading-copy", stylesheet)
+        self.assertIn("#view-settings .settings-standalone-panel", stylesheet)
+        self.assertIn("[data-settings-collapsible] > summary", stylesheet)
+        self.assertIn(".settings-collapsible-indicator", stylesheet)
+        self.assertNotIn("settings-scope-badge", template)
+        self.assertNotIn("settings-scope-badge", stylesheet)
         self.assertIn("#view-settings .field-grid-2", stylesheet)
         self.assertIn("grid-template-columns: repeat(2, minmax(220px, 1fr));", stylesheet)
         self.assertIn("#view-settings .appointment-availability-window", stylesheet)
         self.assertIn("#view-settings .counselor-schedule-row", stylesheet)
         self.assertIn("#view-settings .faq-editor-card", stylesheet)
+        self.assertIn(
+            '#view-settings .faq-active-toggle input[type="checkbox"]',
+            stylesheet,
+        )
+        self.assertIn("accent-color: var(--orange);", stylesheet)
         self.assertIn("#view-settings .settings-password-panel", stylesheet)
         self.assertIn("#view-settings .password-helper", stylesheet)
         self.assertIn("box-shadow: 0 0 0 3px rgba(211, 84, 0, 0.12);", stylesheet)
@@ -254,6 +388,9 @@ class FrontendLayoutContractTests(unittest.TestCase):
 
         self.assertIn('class="panel flagged-panel"', template)
         self.assertIn('class="inquiry-table flagged-table"', template)
+        self.assertIn('id="flagged-filter"', template)
+        self.assertIn('id="flagged-search-input"', template)
+        self.assertIn('class="stat-grid flagged-stat-grid"', template)
         self.assertIn("flagged-student-name", dashboard)
         self.assertIn("flagged-student-number", dashboard)
         self.assertIn("flagged-summary-preview", dashboard)
@@ -263,6 +400,8 @@ class FrontendLayoutContractTests(unittest.TestCase):
         self.assertIn("min-width: 900px;", stylesheet)
         self.assertIn(".flagged-table th:nth-child(2)", stylesheet)
         self.assertIn("width: 42%;", stylesheet)
+        self.assertIn(".table-sort", stylesheet)
+        self.assertIn(".flagged-stat-grid", stylesheet)
         self.assertIn(".flagged-summary-preview", stylesheet)
         self.assertIn("line-clamp: 2;", stylesheet)
         self.assertIn(".flagged-table .table-empty-state", stylesheet)
@@ -397,6 +536,14 @@ class FrontendLayoutContractTests(unittest.TestCase):
         self.assertNotIn("sessionStorage.setItem", chat)
         self.assertIn('transient_chat_service.clear(getattr(session, "sid", ""), user.get("id"))', _read("backend/server/auth.py"))
         self.assertIn('response.headers["Cache-Control"] = "no-store"', _read("backend/server/routes/frontend_routes.py"))
+
+    def test_terms_dialog_is_centered_in_the_viewport(self) -> None:
+        stylesheet = _read("frontend/static/css/chatbot.css")
+
+        self.assertIn(
+            ".terms-dialog {\n  position: fixed;\n  inset: 0;\n  margin: auto;",
+            stylesheet,
+        )
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 # CTRL4 Chatbot MK III Documentation
 
-This index separates the current CTRL4 Chatbot MK III v1.0.6 implementation
+This index separates the current CTRL4 Chatbot MK III v1.0.7 implementation
 references from research provenance and historical planning material. For
 development constraints, follow the repository documentation and current test contracts.
 
@@ -37,7 +37,8 @@ deliberately. They are not part of ordinary documentation or cleanup work.
   external model-artifact provisioning, RAG preparation, and development start.
 - [Deployment Guide](deployment/deployment_guide.md) — authoritative production
   topology, environment configuration, database preparation, backup/restore,
-  logging, and Gunicorn procedure.
+  logging, Gunicorn procedure, and the private no-code Tailscale demonstration
+  procedure using temporary `CTRL4_HOST`/`CTRL4_PORT` exports.
 
 ### User guides
 
@@ -71,7 +72,7 @@ deliberately. They are not part of ordinary documentation or cleanup work.
 
 - [Root README](../README.md) — project overview and quick start.
 - [Changelog](../CHANGELOG.md) — concise release history.
-- [v1.0.6 release tag](https://github.com/jabezapilado/CTRL4_Chatbot_MKIII/releases/tag/v1.0.6)
+- [v1.0.7 release tag](https://github.com/jabezapilado/CTRL4_Chatbot_MKIII/releases/tag/v1.0.7)
   — current stable release.
 
 Historical documents intentionally retain their original terminology, including

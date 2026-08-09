@@ -153,3 +153,6 @@ ai_engine/models/**/checkpoint-*/
 
 # Local Codex/Copilot instructions
 AGENTS.md
+
+# Local-only review material, backups, and deferred patches
+local_artifacts/

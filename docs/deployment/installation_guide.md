@@ -83,9 +83,21 @@ cd backend
 ../.venv/bin/python app.py
 ```
 
-The default listener is `127.0.0.1:5001`. For a temporary Tailscale or LAN
-demo, set `CTRL4_HOST=0.0.0.0`; it is intentionally not the default. Set
-`CTRL4_PORT` only when a different local port is required.
+The default listener is `127.0.0.1:5001`. For a temporary private Tailscale
+demo, no code or `.env` edit is necessary. In the terminal that starts Flask:
+
+```bash
+export CTRL4_HOST="$(tailscale ip -4)"
+export CTRL4_PORT=5001
+../.venv/bin/python app.py
+```
+
+Share the value from `tailscale ip -4` only with permitted devices in the same
+tailnet, using `http://TAILSCALE_IP:5001`. `CTRL4_HOST=0.0.0.0` is available
+only when a LAN demonstration genuinely requires it; it is broader because it
+also listens on LAN interfaces. Do not use Tailscale Funnel or public port
+forwarding. Stop with `Ctrl+C` and run `unset CTRL4_HOST CTRL4_PORT` before a
+normal start in that terminal.
 
 The generated manifest records a deterministic fingerprint of the configured
 source set and RAG settings. At startup, a mismatched index is rebuilt only

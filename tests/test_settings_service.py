@@ -69,7 +69,8 @@ class SettingsServiceTests(unittest.TestCase):
         self.assertEqual(len(store[FAQ_SETTING_KEY]), 3)
         options = service.get_student_booking_options()
         self.assertEqual(options["appointmentCategories"], availability["appointmentCategories"])
-        self.assertEqual(options["consultationModes"], availability["consultationModes"])
+        self.assertNotIn("appointmentSlots", options)
+        self.assertNotIn("consultationModes", options)
 
     def test_seed_preserves_staff_edits_and_is_idempotent(self) -> None:
         edited_availability = configured_availability()
@@ -234,7 +235,7 @@ class SettingsServiceTests(unittest.TestCase):
 
         self.assertEqual(options["state"], "unavailable")
         self.assertFalse(options["bookingEnabled"])
-        self.assertIn("officeAvailability", options)
+        self.assertNotIn("officeAvailability", options)
 
     def test_booking_disabled_allows_incomplete_configuration_but_blocks_booking(self) -> None:
         saved: list[dict] = []
@@ -466,7 +467,7 @@ class SettingsRouteTests(unittest.TestCase):
 
 
 class AppointmentSettingsIntegrationTests(unittest.TestCase):
-    def test_date_specific_slots_use_general_counselor_and_conflict_rules(self) -> None:
+    def test_date_specific_slots_and_modes_use_the_routed_counselor_profile(self) -> None:
         from backend.server.services import appointment_service
 
         configuration = configured_availability()
@@ -474,7 +475,9 @@ class AppointmentSettingsIntegrationTests(unittest.TestCase):
         counselor = {
             "id": 8,
             "consultation_rooms": '["Room 1"]',
-            "consultation_schedules": '[{"room":"Room 1","days":"Monday","time":"09:00 AM - 10:00 AM"}]',
+            "consultation_schedules": '[{"room":"Room 1","days":"Monday","time":"09:00 AM - 11:00 AM"}]',
+            "appointment_slots": '["10:00 AM"]',
+            "consultation_modes": '["Online"]',
         }
         student = {"id": 7, "program": "BSCS"}
         with patch.object(
@@ -511,7 +514,9 @@ class AppointmentSettingsIntegrationTests(unittest.TestCase):
                 preferred_date="2026-08-10",
             )
 
-        self.assertEqual(options["availableSlots"], ["09:00 AM"])
+        self.assertEqual(options["availableSlots"], ["10:00 AM"])
+        self.assertEqual(options["appointmentSlots"], ["10:00 AM"])
+        self.assertEqual(options["consultationModes"], ["Online"])
 
     def test_date_specific_slots_report_missing_counselor_schedule(self) -> None:
         from backend.server.services import appointment_service
@@ -629,6 +634,33 @@ class AppointmentSettingsIntegrationTests(unittest.TestCase):
                     "Academic",
                     "onsite",
                 )
+
+    def test_counselor_schedule_controls_availability_not_legacy_office_windows(self) -> None:
+        from backend.server.services import appointment_service
+
+        counselor = {
+            "consultation_rooms": '["Room 1"]',
+            "consultation_schedules": (
+                '[{"room":"Room 1","days":"Monday",'
+                '"time":"09:00 AM - 05:00 PM"}]'
+            ),
+        }
+        configuration = configured_availability()
+        configuration["officeAvailability"] = [
+            {"days": "Sunday", "time": "09:00 AM - 05:00 PM"}
+        ]
+        with patch.object(
+            appointment_service.settings_service,
+            "get_appointment_configuration",
+            return_value=configuration,
+        ):
+            appointment_service._validate_booking_constraints(
+                counselor,
+                "2026-08-10",
+                "09:00 AM",
+                "Academic",
+                "onsite",
+            )
 
     def test_operational_answers_read_the_settings_service(self) -> None:
         from backend.server.services.operational_guidance_service import (

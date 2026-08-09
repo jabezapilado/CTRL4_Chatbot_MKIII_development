@@ -105,11 +105,17 @@ only `pending` and `confirmed` and return HTTP 409 with
 | Method | Path | Access | Request | Success / important errors |
 | --- | --- | --- | --- | --- |
 | POST | `/chat` | Student with accepted Terms | `message`; optional in-memory `conversation` | 200 response data; 400 missing message; 401 no session; 403 Terms not accepted |
+| POST | `/chat/feedback` | Student with accepted Terms | session-issued `response_token`, feedback `category`, optional ≤500-character `comment` | 201; 400 expired token/invalid input; 401 no session; 403 role/Terms/CSRF failure |
 | POST | `/chat/finalize` | Authenticated | non-empty `conversation`; optional `topic`, `language`, `emotion` | 200 finalization data; 400 missing conversation; 401 no session |
 
 The public chat contract exposes only its existing response fields. Internal
 intent, normalized topic, normalized emotion, metadata, prompts, and retrieval
 details are not API inputs or historical analytics fields.
+
+The feedback token is opaque, short-lived, and session-owned. Feedback stores a
+category, optional note, and server-derived broad reply context only; it does
+not persist raw student messages or AI reply text. It is not an emergency
+reporting channel.
 
 The student Terms and Conditions describe the Guidance Office of the School of
 Computing at Holy Angel University scope. They state that messages may be
@@ -163,6 +169,7 @@ privacy-projected; student APIs do not receive these records.
 | GET | `/api/staff/inbox` | None | 200 current authorized student summary items, one latest item per student |
 | GET | `/api/staff/inbox/<summary_id>` | None | 200 privacy-projected summary detail; 404 outside staff program scope or missing |
 | GET | `/api/staff/inbox/<summary_id>/history` | None | 200 reviewed flagged-case history for the same authorized student; 404 outside staff program scope or missing |
+| GET | `/api/staff/chatbot-feedback` | None | 200 ratings, optional notes, broad reply contexts, and scoped aggregate quality signals; no raw chat/AI reply text |
 | GET | `/api/inquiries` | None | 200 `data.items` |
 | GET | `/api/conversation-summaries` | None | 200 `data.items` |
 | GET | `/api/escalations` | None | 200 `data.items` |

@@ -77,12 +77,12 @@ class OperationalGuidanceService:
             return self._office_hours_answer()
         if self._is_location_question(text):
             return self._office_location_answer()
+        if self._is_counselor_question(text):
+            return self._assigned_counselor_answer(student_account)
         if self._is_contact_question(text):
             return self._contact_answer()
         if self._is_duration_question(text):
             return self._unavailable("Appointment duration")
-        if self._is_counselor_question(text):
-            return self._assigned_counselor_answer(student_account)
         if self._is_availability_question(text):
             return self._appointment_availability_answer(student_account)
         if self._is_booking_question(text):
@@ -134,10 +134,13 @@ class OperationalGuidanceService:
     @staticmethod
     def _is_counselor_question(text: str) -> bool:
         explicit_counselor = re.search(
-            r"\b(?:assigned|my|who|sino|kanino)\b", text
+            r"\b(?:assigned|my|who|which|sino|kanino)\b", text
         ) and re.search(r"\b(?:counselor|counsellor|guidance|kausap)\b", text)
         direct_speaking_request = re.search(
-            r"\b(?:who|sino)\b.*\b(?:can i )?(?:speak|talk)\b", text
+            r"\b(?:who|sino)\b.*\b(?:can i )?(?:speak|talk)\b|"
+            r"\b(?:i )?(?:want|need|would like) to (?:speak|talk) "
+            r"(?:to |with )?(?:someone|a counselor|a counsellor)\b",
+            text,
         )
         return bool(explicit_counselor or direct_speaking_request)
 
@@ -230,18 +233,18 @@ class OperationalGuidanceService:
             )
 
         _student, counselor = self._student_and_counselor(student_account)
-        windows = "; ".join(
-            f"{window['days']}: {self._display_time_range(window['time'])}"
-            for window in availability["officeAvailability"]
-        )
-        response = (
-            "The currently configured appointment availability is: "
-            f"{windows}. Actual booking also checks your routed counselor's "
-            "consultation schedule and existing pending or confirmed appointments."
-        )
         if counselor is None:
-            response += " A counselor assignment for your program is not currently available."
-        return self._answer(response)
+            return self._unavailable("A counselor assignment for your program")
+        schedule = self._format_consultation_schedule(
+            counselor.get("consultation_schedules")
+        )
+        if not schedule:
+            return self._unavailable("Your routed counselor's appointment availability")
+        return self._answer(
+            "Your routed counselor's current appointment availability is: "
+            f"{schedule}. Actual booking also checks office-wide unavailable "
+            "dates and existing pending or confirmed appointments."
+        )
 
     def _booking_answer(
         self,
@@ -253,7 +256,8 @@ class OperationalGuidanceService:
         return self._answer(
             "Use the Appointment page to submit an appointment request. "
             "Student requests begin as pending and are checked against the "
-            "current office availability and your routed counselor's consultation schedule."
+            "routed counselor's appointment availability, office-wide closures, "
+            "and existing pending or confirmed appointments."
         )
 
     @classmethod

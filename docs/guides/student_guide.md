@@ -32,6 +32,12 @@ Your active chat is used while you converse and for finalization; raw chat
 transcript/history is not permanently stored. Do not enter information you do
 not need the Guidance Office to handle.
 
+After a chatbot reply, you may select the **like** or **dislike** icon and then
+choose a feedback category or optionally leave a short note. Feedback is used
+to review recurring quality issues; it is not monitored for emergencies and
+does not replace asking for help in the chat or contacting emergency
+services/trusted school personnel when there is immediate danger.
+
 ## Appointments
 
 Use **My Appointments** to request an appointment with a date and start time.

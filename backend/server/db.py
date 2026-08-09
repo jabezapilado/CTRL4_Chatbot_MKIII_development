@@ -44,12 +44,16 @@ ALLOWED_ACCOUNT_UPDATE_FIELDS: Final[frozenset[str]] = frozenset({
     "support_statement",
     "consultation_rooms",
     "consultation_schedules",
+    "appointment_slots",
+    "consultation_modes",
     "status",
 })
 ACCOUNT_JSON_FIELDS: Final[frozenset[str]] = frozenset({
     "assigned_programs",
     "consultation_rooms",
     "consultation_schedules",
+    "appointment_slots",
+    "consultation_modes",
 })
 APPOINTMENT_STATUSES: Final[tuple[str, ...]] = (
     "pending",
@@ -530,6 +534,61 @@ def _migrate_conversation_management_schema(cursor: Any) -> None:
         )
 
 
+def _migrate_chatbot_feedback_schema(cursor: Any) -> None:
+    """Add privacy-safe quality metadata without adding transcript storage."""
+    if not _column_exists(cursor, "chatbot_feedback", "response_context"):
+        cursor.execute(
+            """
+            ALTER TABLE chatbot_feedback
+            ADD COLUMN response_context VARCHAR(50) NULL
+            """
+        )
+
+
+def _migrate_staff_appointment_preferences_schema(cursor: Any) -> None:
+    """Add per-counselor booking preferences without replacing existing profiles."""
+    slots_added = not _column_exists(cursor, "accounts", "appointment_slots")
+    modes_added = not _column_exists(cursor, "accounts", "consultation_modes")
+    if slots_added:
+        cursor.execute(
+            """
+            ALTER TABLE accounts
+            ADD COLUMN appointment_slots JSON NULL
+            """
+        )
+    if modes_added:
+        cursor.execute(
+            """
+            ALTER TABLE accounts
+            ADD COLUMN consultation_modes JSON NULL
+            """
+        )
+
+    # Preserve current booking behavior for existing counselors while giving
+    # each account an independent value they can now change themselves.
+    if slots_added:
+        cursor.execute(
+            """
+            UPDATE accounts
+            SET appointment_slots = JSON_ARRAY(
+                    '08:00 AM', '09:00 AM', '10:00 AM',
+                    '01:00 PM', '02:00 PM', '03:00 PM'
+                )
+            WHERE role = 'staff'
+              AND appointment_slots IS NULL
+            """
+        )
+    if modes_added:
+        cursor.execute(
+            """
+            UPDATE accounts
+            SET consultation_modes = JSON_ARRAY('Online', 'Onsite')
+            WHERE role = 'staff'
+              AND consultation_modes IS NULL
+            """
+        )
+
+
 def initialize_database() -> None:
     with _server_connection() as connection:
         with connection.cursor() as cursor:
@@ -561,6 +620,8 @@ def initialize_database() -> None:
                     support_statement TEXT NULL,
                     consultation_rooms JSON NULL,
                     consultation_schedules JSON NULL,
+                    appointment_slots JSON NULL,
+                    consultation_modes JSON NULL,
                     role ENUM(
                         'student',
                         'staff',
@@ -871,6 +932,35 @@ def initialize_database() -> None:
             )
             cursor.execute(
                 """
+                CREATE TABLE IF NOT EXISTS chatbot_feedback (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    account_id INT NULL,
+                    conversation_summary_id INT NULL,
+                    response_token_hash CHAR(64) NOT NULL UNIQUE,
+                    category VARCHAR(50) NOT NULL,
+                    comment VARCHAR(500) NULL,
+                    response_context VARCHAR(50) NULL,
+                    created_at DATETIME NOT NULL,
+                    FOREIGN KEY (account_id)
+                    REFERENCES accounts(id)
+                    ON DELETE SET NULL,
+                    FOREIGN KEY (conversation_summary_id)
+                    REFERENCES conversation_summaries(id)
+                    ON DELETE SET NULL,
+                    INDEX idx_chatbot_feedback_account_created (
+                        account_id,
+                        created_at
+                    ),
+                    INDEX idx_chatbot_feedback_summary (
+                        conversation_summary_id
+                    )
+                )
+                """
+            )
+            _migrate_chatbot_feedback_schema(cursor)
+            _migrate_staff_appointment_preferences_schema(cursor)
+            cursor.execute(
+                """
                 CREATE TABLE IF NOT EXISTS settings (
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     setting_key VARCHAR(100) NOT NULL UNIQUE,
@@ -1111,6 +1201,71 @@ def save_notification(payload: dict[str, Any]) -> int:
     return int(notification_id)
 
 
+def save_chatbot_feedback(payload: dict[str, Any]) -> int:
+    """Persist one student rating without storing either chat message."""
+    initialize_database()
+    with _database_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO chatbot_feedback (
+                    account_id,
+                    conversation_summary_id,
+                    response_token_hash,
+                    category,
+                    comment,
+                    response_context,
+                    created_at
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    payload["account_id"],
+                    payload.get("conversation_summary_id"),
+                    payload["response_token_hash"],
+                    payload["category"],
+                    payload.get("comment"),
+                    payload.get("response_context"),
+                    payload.get("created_at", current_time()),
+                ),
+            )
+            feedback_id = cursor.lastrowid
+        connection.commit()
+    return int(feedback_id)
+
+
+def list_chatbot_feedback_for_programs(programs: object) -> list[dict[str, Any]]:
+    """Return feedback only for active students in authorized programs."""
+    authorized_programs = _normalized_programs(programs)
+    if not authorized_programs:
+        return []
+
+    placeholders = ", ".join(["%s"] * len(authorized_programs))
+    return fetch_rows(
+        f"""
+        SELECT
+            chatbot_feedback.id AS feedback_id,
+            chatbot_feedback.conversation_summary_id,
+            chatbot_feedback.category,
+            chatbot_feedback.comment,
+            chatbot_feedback.response_context,
+            chatbot_feedback.created_at,
+            accounts.full_name AS student_name,
+            accounts.student_number,
+            accounts.program
+        FROM chatbot_feedback
+        INNER JOIN accounts
+            ON accounts.id = chatbot_feedback.account_id
+        WHERE accounts.role = 'student'
+          AND accounts.status = 'active'
+          AND accounts.program IN ({placeholders})
+        ORDER BY chatbot_feedback.created_at DESC, chatbot_feedback.id DESC
+        LIMIT 100
+        """,
+        authorized_programs,
+    )
+
+
 def list_notifications_for_recipient(
     recipient_account_id: int,
 ) -> list[dict[str, Any]]:
@@ -1209,6 +1364,198 @@ def save_conversation_summary(payload: dict[str, Any]) -> int:
         connection.commit()
 
     return int(summary_id)
+
+
+def ensure_active_conversation_summary(account_id: int) -> int:
+    """Return one privacy-safe Inbox placeholder for an active student chat."""
+    initialize_database()
+
+    with _database_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT id
+                FROM conversation_summaries
+                WHERE account_id = %s
+                  AND conversation_type = 'active'
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                (account_id,),
+            )
+            existing = cursor.fetchone()
+            if existing:
+                return int(existing[0])
+
+            cursor.execute(
+                """
+                INSERT INTO conversation_summaries (
+                    account_id,
+                    primary_concern,
+                    conversation_type,
+                    emotion_results,
+                    flagged_status,
+                    appointment_recommendation,
+                    recommendations,
+                    suggested_intervention,
+                    language_used,
+                    total_messages,
+                    summary,
+                    created_at
+                )
+                VALUES (%s, %s, 'active', %s, 0, %s, NULL, NULL, %s, 0, %s, %s)
+                """,
+                (
+                    account_id,
+                    "Conversation in progress",
+                    "Pending",
+                    "Pending",
+                    "Pending",
+                    "Conversation in progress",
+                    current_time(),
+                ),
+            )
+            summary_id = cursor.lastrowid
+        connection.commit()
+
+    return int(summary_id)
+
+
+def finalize_active_conversation_summary(
+    summary_id: int,
+    account_id: int,
+    payload: dict[str, Any],
+) -> bool:
+    """Replace an active placeholder with the final privacy-safe AI summary."""
+    initialize_database()
+
+    with _database_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE conversation_summaries
+                SET primary_concern = %s,
+                    conversation_type = %s,
+                    emotion_results = %s,
+                    flagged_status = %s,
+                    appointment_recommendation = %s,
+                    recommendations = %s,
+                    suggested_intervention = %s,
+                    language_used = %s,
+                    total_messages = %s,
+                    summary = %s
+                WHERE id = %s
+                  AND account_id = %s
+                  AND conversation_type = 'active'
+                """,
+                (
+                    payload["primary_concern"],
+                    payload["conversation_type"],
+                    payload["emotion_results"],
+                    1 if payload.get("flagged_status") else 0,
+                    payload["appointment_recommendation"],
+                    payload.get("recommendations"),
+                    payload.get("suggested_intervention"),
+                    payload["language_used"],
+                    payload["total_messages"],
+                    payload["summary"],
+                    summary_id,
+                    account_id,
+                ),
+            )
+            updated = cursor.rowcount == 1
+        connection.commit()
+
+    return updated
+
+
+def mark_active_conversation_escalated(summary_id: int, account_id: int) -> bool:
+    """Mark an active Inbox placeholder as a pending high-risk conversation."""
+    initialize_database()
+
+    with _database_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE conversation_summaries
+                SET primary_concern = 'Crisis Concern',
+                    emotion_results = 'Crisis',
+                    flagged_status = 1,
+                    appointment_recommendation = 'Immediate Guidance Office review',
+                    recommendations = 'Immediate Guidance Office review is recommended.',
+                    suggested_intervention = 'Immediate Guidance Office review is recommended.'
+                WHERE id = %s
+                  AND account_id = %s
+                  AND conversation_type = 'active'
+                """,
+                (summary_id, account_id),
+            )
+            updated = cursor.rowcount == 1
+        connection.commit()
+
+    return updated
+
+
+def ensure_pending_escalation(
+    account_id: int,
+    summary_id: int,
+    escalation_reason: str,
+) -> bool:
+    """Create one pending escalation for a summary, returning whether it was new."""
+    initialize_database()
+
+    with _database_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO escalations (
+                    account_id,
+                    summary_id,
+                    status,
+                    escalation_reason,
+                    created_at
+                )
+                SELECT %s, %s, 'pending', %s, %s
+                WHERE NOT EXISTS (
+                    SELECT 1
+                    FROM escalations
+                    WHERE summary_id = %s
+                      AND status = 'pending'
+                )
+                """,
+                (
+                    account_id,
+                    summary_id,
+                    escalation_reason,
+                    current_time(),
+                    summary_id,
+                ),
+            )
+            created = cursor.rowcount == 1
+        connection.commit()
+
+    return created
+
+
+def discard_active_conversation_summary(summary_id: int, account_id: int) -> bool:
+    """Discard an unused active placeholder when a pending crisis case is refreshed."""
+    initialize_database()
+
+    with _database_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                DELETE FROM conversation_summaries
+                WHERE id = %s
+                  AND account_id = %s
+                  AND conversation_type = 'active'
+                """,
+                (summary_id, account_id),
+            )
+            deleted = cursor.rowcount == 1
+        connection.commit()
+
+    return deleted
 
 
 def fetch_open_conversation_case(account_id: int) -> dict[str, Any] | None:
@@ -1347,6 +1694,7 @@ def list_conversation_summaries_for_programs(programs: object) -> list[dict[str,
         WHERE accounts.role = 'student'
           AND accounts.status = 'active'
           AND accounts.program IN ({placeholders})
+          AND conversation_summaries.conversation_type <> 'active'
         ORDER BY conversation_summaries.created_at DESC
         """,
         authorized_programs,
@@ -1379,7 +1727,7 @@ def list_escalations_for_programs(programs: object) -> list[dict[str, Any]]:
 
 
 def list_staff_inbox_summaries(programs: object) -> list[dict[str, Any]]:
-    """Return the newest finalized summary per authorized student program."""
+    """Return the newest active or finalized item per authorized student program."""
     authorized_programs = _normalized_programs(programs)
     if not authorized_programs:
         return []
@@ -1394,6 +1742,7 @@ def list_staff_inbox_summaries(programs: object) -> list[dict[str, Any]]:
             accounts.student_number,
             accounts.program,
             conversation_summaries.primary_concern,
+            conversation_summaries.conversation_type,
             conversation_summaries.emotion_results,
             conversation_summaries.flagged_status,
             conversation_summaries.appointment_recommendation,
@@ -1429,14 +1778,51 @@ def list_staff_inbox_summaries(programs: object) -> list[dict[str, Any]]:
                             THEN summaries.id
                         END
                     ),
+                    MAX(
+                        CASE
+                            WHEN reviewed_escalations.status = 'reviewed'
+                             AND reviewed_escalations.reviewed_at IS NOT NULL
+                             AND NOT EXISTS (
+                                 SELECT 1
+                                 FROM conversation_summaries AS later_summaries
+                                 WHERE later_summaries.account_id = summaries.account_id
+                                   AND later_summaries.created_at > reviewed_escalations.reviewed_at
+                             )
+                            THEN summaries.id
+                        END
+                    ),
                     MAX(summaries.id)
                 ) AS selected_summary_id
             FROM conversation_summaries AS summaries
             LEFT JOIN escalations AS pending_escalations
                 ON pending_escalations.summary_id = summaries.id
                AND pending_escalations.status = 'pending'
+            LEFT JOIN escalations AS reviewed_escalations
+                ON reviewed_escalations.summary_id = summaries.id
+               AND reviewed_escalations.status = 'reviewed'
             WHERE summaries.account_id IS NOT NULL
             GROUP BY summaries.account_id
+            HAVING
+                MAX(
+                    CASE
+                        WHEN summaries.conversation_type = 'active' THEN 1
+                        ELSE 0
+                    END
+                ) = 0
+                OR MAX(
+                    CASE
+                        WHEN pending_escalations.status = 'pending'
+                         AND summaries.flagged_status = 1
+                        THEN 1
+                        ELSE 0
+                    END
+                ) = 1
+
+            UNION
+
+            SELECT account_id, id AS selected_summary_id
+            FROM conversation_summaries
+            WHERE conversation_type = 'active'
         ) AS selected_summary
             ON selected_summary.selected_summary_id = conversation_summaries.id
         INNER JOIN accounts
@@ -1457,6 +1843,69 @@ def list_staff_inbox_summaries(programs: object) -> list[dict[str, Any]]:
                 ELSE 2
             END ASC,
             conversation_summaries.created_at DESC,
+            conversation_summaries.id DESC
+        """,
+        authorized_programs,
+    )
+
+
+def list_staff_flagged_case_summaries(programs: object) -> list[dict[str, Any]]:
+    """Return all pending and reviewed flagged cases within staff program scope."""
+    authorized_programs = _normalized_programs(programs)
+    if not authorized_programs:
+        return []
+
+    placeholders = ", ".join(["%s"] * len(authorized_programs))
+    return fetch_rows(
+        f"""
+        SELECT
+            conversation_summaries.id AS summary_id,
+            accounts.id AS student_account_id,
+            accounts.full_name AS student_name,
+            accounts.student_number,
+            accounts.program,
+            conversation_summaries.primary_concern,
+            conversation_summaries.conversation_type,
+            conversation_summaries.emotion_results,
+            conversation_summaries.flagged_status,
+            conversation_summaries.appointment_recommendation,
+            conversation_summaries.recommendations,
+            conversation_summaries.suggested_intervention,
+            conversation_summaries.language_used,
+            conversation_summaries.total_messages,
+            conversation_summaries.summary,
+            conversation_summaries.created_at,
+            escalations.status AS escalation_status,
+            escalations.escalation_reason,
+            escalations.created_at AS escalation_created_at,
+            escalations.reviewed_at,
+            EXISTS(
+                SELECT 1
+                FROM referrals
+                WHERE referrals.conversation_summary_id = conversation_summaries.id
+            ) AS has_referral,
+            EXISTS(
+                SELECT 1
+                FROM interventions
+                WHERE interventions.conversation_summary_id = conversation_summaries.id
+            ) AS has_intervention
+        FROM conversation_summaries
+        INNER JOIN accounts
+            ON accounts.id = conversation_summaries.account_id
+        INNER JOIN escalations
+            ON escalations.id = (
+                SELECT MAX(escalation.id)
+                FROM escalations AS escalation
+                WHERE escalation.summary_id = conversation_summaries.id
+            )
+        WHERE conversation_summaries.flagged_status = 1
+          AND escalations.status IN ('pending', 'reviewed')
+          AND accounts.role = 'student'
+          AND accounts.status = 'active'
+          AND accounts.program IN ({placeholders})
+        ORDER BY
+            CASE WHEN escalations.status = 'pending' THEN 0 ELSE 1 END ASC,
+            COALESCE(escalations.reviewed_at, conversation_summaries.created_at) DESC,
             conversation_summaries.id DESC
         """,
         authorized_programs,
@@ -1512,7 +1961,7 @@ def list_staff_reviewed_case_history(
 
 
 def fetch_staff_inbox_summary(summary_id: int) -> dict[str, Any] | None:
-    """Return one finalized summary with its student and safe case indicators."""
+    """Return one active or finalized item with safe student case indicators."""
     rows = fetch_rows(
         """
         SELECT
@@ -1522,6 +1971,7 @@ def fetch_staff_inbox_summary(summary_id: int) -> dict[str, Any] | None:
             accounts.student_number,
             accounts.program,
             conversation_summaries.primary_concern,
+            conversation_summaries.conversation_type,
             conversation_summaries.emotion_results,
             conversation_summaries.flagged_status,
             conversation_summaries.appointment_recommendation,
@@ -1630,7 +2080,7 @@ def list_conversation_finalizations_for_analytics(
         f"""
         SELECT created_at, total_messages
         FROM conversation_summaries
-        WHERE 1 = 1
+        WHERE conversation_type <> 'active'
           {scope_clause}
           AND (%s IS NULL OR created_at >= %s)
           AND (%s IS NULL OR created_at < %s)
@@ -2670,6 +3120,8 @@ def fetch_account_by_email(email: str) -> dict[str, Any] | None:
                 support_statement,
                 consultation_rooms,
                 consultation_schedules,
+                appointment_slots,
+                consultation_modes,
                 email,
                 password_hash,
                 full_name,
@@ -2700,6 +3152,8 @@ def fetch_account_by_student_number(student_number: str) -> dict[str, Any] | Non
                 support_statement,
                 consultation_rooms,
                 consultation_schedules,
+                appointment_slots,
+                consultation_modes,
                 email,
                 full_name,
                 role,
@@ -2732,6 +3186,8 @@ def fetch_account_by_staff_number(staff_number: str) -> dict[str, Any] | None:
                 support_statement,
                 consultation_rooms,
                 consultation_schedules,
+                appointment_slots,
+                consultation_modes,
                 email,
                 full_name,
                 role,
@@ -2778,6 +3234,8 @@ def fetch_account_by_id(
                 support_statement,
                 consultation_rooms,
                 consultation_schedules,
+                appointment_slots,
+                consultation_modes,
                 email,
                 full_name,
                 role,
@@ -3088,6 +3546,8 @@ def get_staff_by_program(program: str) -> dict[str, Any] | None:
                        support_statement,
                        consultation_rooms,
                        consultation_schedules,
+                       appointment_slots,
+                       consultation_modes,
                        status
                 FROM accounts
                 WHERE role = 'staff'
@@ -3302,7 +3762,7 @@ def get_dashboard_stats(programs: object | None = None) -> dict[str, Any]:
                 f"""
                 SELECT COUNT(*)
                 FROM conversation_summaries
-                WHERE 1 = 1
+                WHERE conversation_type <> 'active'
                   {summary_scope}
                 """,
                 summary_params,

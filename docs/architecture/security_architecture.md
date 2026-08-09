@@ -89,6 +89,13 @@ history, summaries, case data, and escalation reasons—is not logged. The
 browser does not persist raw chat or escalation content in `localStorage` or
 `sessionStorage`; obsolete protected keys are cleared when the chatbot starts.
 
+Chatbot feedback is a separate, CSRF-protected student mutation. The browser
+receives only an opaque, short-lived response token tied to its server-side
+session. Persisted feedback contains the selected category, an optional
+500-character note, a one-time token hash, and a server-derived broad reply
+context (for example, appointments or academics); it does not contain raw
+student messages or generated reply text. Staff retrieval is program-scoped.
+
 The student Terms describe the Guidance Office of the School of Computing at
 Holy Angel University scope, message recording and summarization for guidance
 support, and confidentiality limits for safety or legal concerns. They do not

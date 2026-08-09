@@ -40,7 +40,7 @@
 }
 
 .notifications-toggle:focus-visible,
-.notification-mark-read:focus-visible {
+.notification-item:focus-visible {
   outline: 3px solid rgba(201, 168, 76, 0.65);
   outline-offset: 2px;
 }
@@ -98,9 +98,30 @@
 }
 
 .notification-item {
+  display: block;
+  width: 100%;
   padding: 14px 16px;
   border-bottom: 1px solid var(--gray-100, #f3f4f6);
+  border-top: 0;
+  border-right: 0;
+  border-left: 0;
   background: #fffaf0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+button.notification-item {
+  cursor: pointer;
+}
+
+button.notification-item:hover {
+  background: #fff4dc;
+}
+
+button.notification-item:disabled {
+  cursor: wait;
+  opacity: 0.7;
 }
 
 .notification-item:last-child {
@@ -135,25 +156,6 @@
   margin-top: 10px;
   color: var(--text-muted, #6b7280);
   font-size: 0.72rem;
-}
-
-.notification-mark-read {
-  border: 0;
-  background: transparent;
-  color: var(--orange, #d35400);
-  padding: 0;
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.notification-mark-read:disabled {
-  cursor: wait;
-  opacity: 0.65;
-}
-
-.notification-read-state {
-  font-weight: 600;
 }
 
 .notifications-empty {

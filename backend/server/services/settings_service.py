@@ -637,15 +637,12 @@ class SettingsService:
         return {
             "state": "available" if configuration["bookingEnabled"] else "unavailable",
             "bookingEnabled": configuration["bookingEnabled"],
-            "officeAvailability": configuration["officeAvailability"],
             "unavailableDates": sorted(
                 set(configuration["holidays"])
                 | set(configuration["academicCalendarExclusions"])
                 | set(configuration["unavailableDates"])
             ),
             "appointmentCategories": configuration["appointmentCategories"],
-            "consultationModes": configuration["consultationModes"],
-            "appointmentSlots": configuration["appointmentSlots"],
         }
 
 

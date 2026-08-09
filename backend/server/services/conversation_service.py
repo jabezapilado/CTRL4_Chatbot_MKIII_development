@@ -9,6 +9,11 @@ from typing import Final
 from ..db import (
     current_time,
     fetch_account_by_id,
+    discard_active_conversation_summary,
+    ensure_active_conversation_summary,
+    ensure_pending_escalation,
+    finalize_active_conversation_summary,
+    mark_active_conversation_escalated,
     fetch_open_conversation_case,
     get_staff_by_program,
     get_dashboard_stats,
@@ -16,6 +21,7 @@ from ..db import (
     fetch_flagged_conversation,
     fetch_staff_inbox_summary,
     list_flagged_conversations,
+    list_staff_flagged_case_summaries,
     list_staff_inbox_summaries,
     list_staff_reviewed_case_history as list_staff_reviewed_case_history_rows,
     list_conversation_summaries_for_programs,
@@ -29,6 +35,7 @@ from ..db import (
     list_student_case_statuses,
     list_escalations_for_programs,
     list_chatbot_inquiries_for_analytics,
+    list_chatbot_feedback_for_programs,
     list_inquiries_for_programs,
     mark_escalation_reviewed,
     save_conversation_summary,
@@ -49,6 +56,7 @@ HIGH_RISK_NOTIFICATION_TITLE: Final[str] = "High-risk student conversation detec
 HIGH_RISK_NOTIFICATION_MESSAGE: Final[str] = (
     "High-risk student conversation detected. Immediate Guidance Office review is required."
 )
+ACTIVE_CONVERSATION_TYPE: Final[str] = "active"
 def _parse_analytics_filter_date(value: object, field_name: str) -> date | None:
     if value is None or not str(value).strip():
         return None
@@ -329,6 +337,17 @@ _STAFF_CASE_HISTORY_FIELDS: Final[tuple[str, ...]] = (
     "reviewed_at",
     "summary_preview",
 )
+_STAFF_CHATBOT_FEEDBACK_FIELDS: Final[tuple[str, ...]] = (
+    "feedback_id",
+    "conversation_summary_id",
+    "student_name",
+    "student_number",
+    "program",
+    "category",
+    "comment",
+    "response_context",
+    "created_at",
+)
 
 
 def _project_fields(row: dict, fields: tuple[str, ...]) -> dict:
@@ -364,6 +383,8 @@ def _inbox_review_status(row: dict) -> str:
     escalation_status = str(row.get("escalation_status") or "").strip().lower()
     if escalation_status in {"pending", "reviewed"}:
         return escalation_status
+    if str(row.get("conversation_type") or "").strip().lower() == ACTIVE_CONVERSATION_TYPE:
+        return "active"
     return "routine"
 
 
@@ -384,6 +405,7 @@ def _project_staff_inbox_row(row: dict, *, detail: bool = False) -> dict:
         "student_number": row.get("student_number"),
         "program": row.get("program"),
         "primary_concern": row.get("primary_concern"),
+        "conversation_type": row.get("conversation_type"),
         "emotion_results": row.get("emotion_results"),
         "flagged_status": bool(row.get("flagged_status")),
         "review_status": _inbox_review_status(row),
@@ -414,7 +436,7 @@ def _project_staff_inbox_row(row: dict, *, detail: bool = False) -> dict:
 
 
 def list_staff_inbox_items(staff_account: dict) -> list[dict]:
-    """Return one current finalized, reviewable summary per authorized student."""
+    """Return current active/finalized Inbox items within the staff program scope."""
     programs = _staff_assigned_programs(staff_account)
     if not programs:
         return []
@@ -422,13 +444,30 @@ def list_staff_inbox_items(staff_account: dict) -> list[dict]:
     rows = list_staff_inbox_summaries(sorted(programs))
     # The database query groups by account; preserve a service-owned final guard
     # in case legacy data or a future join ever returns a duplicate summary row.
-    unique: dict[object, dict] = {}
+    unique: dict[tuple[object, str], dict] = {}
     for row in rows:
         student_key = row.get("student_account_id") or row.get("student_number")
         if not student_key:
             continue
-        unique.setdefault(student_key, row)
+        item_kind = (
+            "active"
+            if str(row.get("conversation_type") or "").strip().lower()
+            == ACTIVE_CONVERSATION_TYPE
+            else "current"
+        )
+        unique.setdefault((student_key, item_kind), row)
     return [_project_staff_inbox_row(row) for row in unique.values()]
+
+
+def list_staff_flagged_case_items(staff_account: dict) -> list[dict]:
+    """Return all pending and reviewed flagged cases in the staff program scope."""
+    programs = _staff_assigned_programs(staff_account)
+    if not programs:
+        return []
+    return [
+        _project_staff_inbox_row(row)
+        for row in list_staff_flagged_case_summaries(sorted(programs))
+    ]
 
 
 def get_staff_inbox_item(staff_account: dict, summary_id: int) -> dict | None:
@@ -497,6 +536,60 @@ def list_staff_escalations(staff_account: dict) -> list[dict]:
         _project_fields(row, _ESCALATION_FIELDS)
         for row in list_escalations_for_programs(sorted(programs))
     ]
+
+
+def list_staff_chatbot_feedback(staff_account: dict) -> list[dict]:
+    """Return privacy-safe feedback for students in the counselor's programs."""
+    programs = _staff_assigned_programs(staff_account)
+    return [
+        _project_fields(row, _STAFF_CHATBOT_FEEDBACK_FIELDS)
+        for row in list_chatbot_feedback_for_programs(sorted(programs))
+    ]
+
+
+def summarize_staff_chatbot_feedback(items: list[dict]) -> dict:
+    """Build improvement signals from privacy-projected feedback only."""
+    helpful_categories = {"helpful", "clear_useful"}
+    category_counts: dict[str, int] = {}
+    pattern_counts: dict[tuple[str, str], int] = {}
+
+    for item in items:
+        category = str(item.get("category") or "other")
+        category_counts[category] = category_counts.get(category, 0) + 1
+        if category not in helpful_categories:
+            response_context = str(item.get("response_context") or "uncategorized")
+            key = (category, response_context)
+            pattern_counts[key] = pattern_counts.get(key, 0) + 1
+
+    categories = sorted(
+        (
+            {"category": category, "count": count}
+            for category, count in category_counts.items()
+        ),
+        key=lambda row: (-row["count"], row["category"]),
+    )
+    patterns = sorted(
+        (
+            {
+                "category": category,
+                "response_context": response_context,
+                "count": count,
+            }
+            for (category, response_context), count in pattern_counts.items()
+        ),
+        key=lambda row: (-row["count"], row["category"], row["response_context"]),
+    )
+    return {
+        "total": len(items),
+        "needs_attention": sum(
+            count
+            for category, count in category_counts.items()
+            if category not in helpful_categories
+        ),
+        "safety_concerns": category_counts.get("safety_concern", 0),
+        "categories": categories,
+        "patterns": patterns[:3],
+    }
 
 
 def determine_escalation_reason(
@@ -587,6 +680,23 @@ def record_chat_inquiry(
     )
 
 
+def ensure_staff_visible_active_conversation(account_id: int) -> int:
+    """Create or reuse the Inbox placeholder after the first stored exchange."""
+    return ensure_active_conversation_summary(account_id)
+
+
+def mark_active_conversation_for_immediate_review(
+    summary_id: int,
+    account_id: int,
+    escalation_reason: str,
+) -> None:
+    """Expose an active safety escalation to authorized staff without a transcript."""
+    if not mark_active_conversation_escalated(summary_id, account_id):
+        return
+    if ensure_pending_escalation(account_id, summary_id, escalation_reason):
+        _notify_high_risk_conversation_safely(account_id)
+
+
 def should_escalate_conversation(
     *,
     escalated: bool,
@@ -660,10 +770,13 @@ def finalize_conversation(
     flagged: bool,
     escalation_reason: str | None = None,
     appointment: object = None,
+    active_summary_id: int | None = None,
 ) -> dict:
     evidence = _meaningful_summary_evidence(conversation)
     appointment_context = _appointment_context(appointment)
     if not evidence and not appointment_context:
+        if active_summary_id:
+            discard_active_conversation_summary(active_summary_id, user["id"])
         logger.info("Conversation finalization skipped (no student-authored evidence).")
         return {
             "success": True,
@@ -673,6 +786,57 @@ def finalize_conversation(
             "student_message_count": 0,
             "assistant_message_count": 0,
         }
+
+    if active_summary_id:
+        logger.info("Active conversation finalization started (flagged=%s).", flagged)
+        summary = summary_service.generate_summary(
+            student_name=user["full_name"],
+            conversation=evidence,
+            topic=topic,
+            language=language,
+            emotion=emotion,
+            flagged=flagged,
+            appointment=appointment_context,
+        )
+        summary_payload = {
+            "account_id": user["id"],
+            "primary_concern": summary.primary_concern,
+            "conversation_type": summary.conversation_type,
+            "emotion_results": summary.emotion,
+            "flagged_status": summary.flagged,
+            "appointment_recommendation": summary.appointment_recommendation,
+            "recommendations": summary.recommendations,
+            "suggested_intervention": summary.suggested_intervention,
+            "language_used": summary.language,
+            "total_messages": summary.total_messages,
+            "summary": summary.summary,
+            "created_at": current_time(),
+        }
+        if finalize_active_conversation_summary(
+            active_summary_id,
+            user["id"],
+            summary_payload,
+        ):
+            if summary.flagged and ensure_pending_escalation(
+                user["id"],
+                active_summary_id,
+                escalation_reason
+                or determine_escalation_reason(
+                    escalated=True,
+                    normalized_emotion=summary.emotion,
+                )
+                or "AI safety escalation.",
+            ):
+                _notify_high_risk_conversation_safely(user["id"])
+            logger.info("Active conversation finalization completed.")
+            return {
+                "success": True,
+                "summary_id": active_summary_id,
+                "status": "saved",
+                "student_message_count": sum(item["role"] == "user" for item in evidence),
+                "assistant_message_count": sum(item["role"] == "assistant" for item in evidence),
+                "appointment_recorded": appointment_context is not None,
+            }
 
     open_case = fetch_open_conversation_case(user["id"]) if flagged else None
     if open_case is not None:
@@ -688,6 +852,9 @@ def finalize_conversation(
         )
         if not updated:
             raise RuntimeError("Open flagged case could not be refreshed.")
+
+        if active_summary_id and int(open_case["summary_id"]) != active_summary_id:
+            discard_active_conversation_summary(active_summary_id, user["id"])
 
         logger.info("Open flagged conversation summary refreshed.")
         return {
@@ -710,22 +877,21 @@ def finalize_conversation(
         appointment=appointment_context,
     )
 
-    summary_id = save_conversation_summary(
-        {
-            "account_id": user["id"],
-            "primary_concern": summary.primary_concern,
-            "conversation_type": summary.conversation_type,
-            "emotion_results": summary.emotion,
-            "flagged_status": summary.flagged,
-            "appointment_recommendation": summary.appointment_recommendation,
-            "recommendations": summary.recommendations,
-            "suggested_intervention": summary.suggested_intervention,
-            "language_used": summary.language,
-            "total_messages": summary.total_messages,
-            "summary": summary.summary,
-            "created_at": current_time(),
-        }
-    )
+    summary_payload = {
+        "account_id": user["id"],
+        "primary_concern": summary.primary_concern,
+        "conversation_type": summary.conversation_type,
+        "emotion_results": summary.emotion,
+        "flagged_status": summary.flagged,
+        "appointment_recommendation": summary.appointment_recommendation,
+        "recommendations": summary.recommendations,
+        "suggested_intervention": summary.suggested_intervention,
+        "language_used": summary.language,
+        "total_messages": summary.total_messages,
+        "summary": summary.summary,
+        "created_at": current_time(),
+    }
+    summary_id = save_conversation_summary(summary_payload)
 
     if summary.flagged:
         _save_escalation(

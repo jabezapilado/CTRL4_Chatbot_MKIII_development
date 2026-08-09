@@ -88,6 +88,7 @@ class SafetyService:
         # English
         r"\bkill me now\b",
         r"\bkill myself\b",
+        r"\bkill me(?: now)?\b",
         r"\bsuicide\b",
         r"\bend my life\b",
         r"\b(?:i want to|i wanna|i(?:'m| am) going to|i(?:'m| am) gonna) "
@@ -96,16 +97,27 @@ class SafetyService:
         r"(?:use|grab|get) (?:a |the )?(?:gun|weapon)\b",
         r"\b(?:i want to|i wanna|i(?:'m| am) going to|i(?:'m| am) gonna) "
         r"jump(?:\s+off)?\b",
+        r"\bend it all\b",
         r"\b(?:i want to|i wanna|i wish i could) finish my life\b",
+        r"\b(?:i want to|i wanna|i(?:'m| am) going to|i(?:'m| am) gonna) "
+        r"hang myself\b",
+        r"\b(?:i want to|i wanna|i(?:'m| am) going to|i(?:'m| am) gonna) "
+        r"use (?:a )?(?:gun|weapon).*\bend (?:it all|my life)\b",
+        r"\b(?:i want to|i wanna|i(?:'m| am) going to|i(?:'m| am) gonna) "
+        r"jump (?:off|from) (?:the )?(?:building|bridge|roof|window)\b",
         r"\b(?:i am|i'm) done with my life\b",
         r"\blife (?:is not|isn't) worth living\b",
         r"\blife (?:is not|isn't) worth it\b",
-        r"\bwant to die\b",
-        r"\bself harm\b",
+        r"\b(?:want to|wanna) die\b",
+        r"\bi(?:'ll| will|ll) die(?: later)?\b",
+        r"\bself[- ]harm\b",
         r"\bhurt myself\b",
         r"\bi (?:don't|do not) want to live(?: anymore)?\b",
         r"\bi (?:don't|do not) think i want to live(?: anymore)?\b",
         r"\bi (?:don't|do not) want to exist anymore\b",
+        r"\bi (?:don't|do not) want to be here anymore\b",
+        r"\bi (?:don't|do not) think i can keep myself safe\b",
+        r"\bi might do something to myself\b",
         r"\bi can't do this anymore\b",
         r"\bi can't go on\b",
         r"\bi give up\b",
@@ -120,14 +132,20 @@ class SafetyService:
         r"\bi want everything to end\b",
         r"\bi should end everything\b",
         r"\bi (?:don't|do not) see a reason to keep going\b",
+        r"\b(?:there is|there's) no reason (?:for me )?to "
+        r"(?:stay here|keep living)\b",
         r"\b(?:i am|i'm) being abused\b",
         r"\b(?:someone|they) (?:is|are) hurting me\b",
-        r"\b(?:i want to|going to) hurt (?:someone|them)\b",
-        r"\b(?:i want to|going to) kill (?:someone|them)\b",
         r"\bi(?:'m| am) (?:going to|gonna) kill "
         r"(?:him|her|them|my (?:family|parents|partner|friend))\b",
-        r"\bi killed someone\b",
-        r"\bi (?:can't|cannot) promise (?:that )?i(?:'ll| will) be safe\b",
+        r"\b(?:i want to|i wanna|i(?:'m| am) going to|i(?:'m| am) gonna) "
+        r"hurt (?:someone|somebody|them|him|her|my family|my classmates?|"
+        r"my friends?|people)\b",
+        r"\b(?:i want to|i wanna|i(?:'m| am) going to|i(?:'m| am) gonna) "
+        r"kill (?:someone|somebody|them|him|her|my family|my classmates?|"
+        r"my friends?|people)\b",
+        r"\bi killed (?:someone|somebody|him|her|a person)\b",
+        r"\bi can(?:not|'t) promise (?:that )?i(?:'ll| will) be safe\b",
         r"\bdanger to (?:myself|others)\b",
         r"\bsevere depression\b",
         r"\bpanic attacks?\b",

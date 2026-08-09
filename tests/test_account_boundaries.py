@@ -54,12 +54,16 @@ class AccountBoundaryTests(unittest.TestCase):
             "support_statement": "",
             "consultation_rooms": "[]",
             "consultation_schedules": "[]",
+            "appointment_slots": "[]",
+            "consultation_modes": "[]",
         }
         updated = {
             **existing,
             "office": "SJH-206",
             "consultation_rooms": '["SJH-206"]',
             "consultation_schedules": '[{"room":"SJH-206","days":"Monday","time":"09:00 AM - 05:00 PM"}]',
+            "appointment_slots": '["09:00 AM","10:00 AM"]',
+            "consultation_modes": '["Online","Onsite"]',
         }
         with patch.object(account_service, "fetch_account_by_id", side_effect=[existing, updated]), patch.object(
             account_service,
@@ -74,10 +78,14 @@ class AccountBoundaryTests(unittest.TestCase):
                     "consultation_schedules": [
                         {"room": "SJH-206", "days": "Monday", "time": "09:00 AM - 05:00 PM"}
                     ],
+                    "appointment_slots": ["10:00 AM", "9:00 AM"],
+                    "consultation_modes": ["Online", "Onsite"],
                 },
             )
 
         self.assertEqual(profile["office"], "SJH-206")
+        self.assertEqual(profile["appointment_slots"], ["09:00 AM", "10:00 AM"])
+        self.assertEqual(profile["consultation_modes"], ["Online", "Onsite"])
         self.assertEqual(update.call_args.args[0], 9)
 
     def test_staff_can_update_only_their_own_password_after_verification(self) -> None:

@@ -139,10 +139,20 @@ class RAGReleaseReadinessTests(unittest.TestCase):
 
             self.assertIsNotNone(report)
             assert report is not None
-            self.assertEqual(len(report.discovered_sources), 28)
-            self.assertEqual(len(report.indexed_sources), 28)
+            self.assertSetEqual(
+                set(report.discovered_sources),
+                set(module.DEFAULT_STUDENT_RAG_SOURCES),
+            )
+            self.assertEqual(
+                len(report.discovered_sources),
+                len(module.DEFAULT_STUDENT_RAG_SOURCES),
+            )
+            self.assertEqual(len(report.indexed_sources), len(module.DEFAULT_STUDENT_RAG_SOURCES))
             self.assertEqual(report.skipped_sources, ())
-            self.assertEqual(count, 339)
+            self.assertNotIn("admin_capabilities.json", report.discovered_sources)
+            self.assertNotIn("staff_capabilities.json", report.discovered_sources)
+            self.assertNotIn("flagged_cases.json", report.discovered_sources)
+            self.assertNotIn("knowledge_index.json", report.discovered_sources)
             self.assertNotIn(
                 "hau_guidance_counseling_official.md",
                 report.discovered_sources,

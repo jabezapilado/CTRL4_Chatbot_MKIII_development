@@ -39,15 +39,22 @@
     <div class="dash-shell">
       <aside class="sidebar" id="sidebar" aria-label="Staff navigation">
         <div class="sidebar-brand">
-          <img
-            src="{{ url_for('static', filename='img/hau_soc_logo_revised4.svg') }}"
-            alt="SOC logo"
-            class="sidebar-logo-img"
-          />
-          <div>
-            <div class="sidebar-brand-text">SOC Guidance</div>
-            <div class="sidebar-brand-sub">Staff Portal</div>
-          </div>
+          <button
+            class="sidebar-home"
+            id="dashboard-home"
+            type="button"
+            aria-label="Go to Inbox home"
+          >
+            <img
+              src="{{ url_for('static', filename='img/hau_soc_logo_revised4.svg') }}"
+              alt=""
+              class="sidebar-logo-img"
+            />
+            <span class="sidebar-brand-copy">
+              <span class="sidebar-brand-text">SOC Guidance</span>
+              <span class="sidebar-brand-sub">Staff Portal</span>
+            </span>
+          </button>
           <button
             class="sidebar-close"
             id="sidebar-close"
@@ -62,12 +69,15 @@
           <button class="nav-item active" type="button" data-view="inbox">
             <span>Inbox</span>
           </button>
+          <button class="nav-item" type="button" data-view="feedback">
+            <span>Chatbot Feedback</span>
+          </button>
           <button class="nav-item" type="button" data-view="flagged">
             <span>Flagged Cases</span>
             <span
               class="nav-badge"
               id="flagged-count"
-              aria-label="Flagged case count"
+              aria-label="Pending flagged-case count"
               >—</span
             >
           </button>
@@ -151,9 +161,9 @@
                 <h2>Inbox</h2>
               </div>
               <p class="sub">
-                Current finalized student summary items in your authorized
-                programs. Each student appears once with their latest reviewable
-                summary.
+                Active and finalized student summary items in your authorized
+                programs. Active conversations and pending flagged cases may each
+                appear until they are finalized or reviewed.
               </p>
               <div class="inbox-toolbar">
                 <div class="inbox-toolbar-controls">
@@ -162,6 +172,7 @@
                     <option value="all">All current items</option>
                     <option value="flagged">Flagged</option>
                     <option value="routine">Routine</option>
+                    <option value="active">Active</option>
                     <option value="pending">Pending review</option>
                     <option value="reviewed">Reviewed</option>
                   </select>
@@ -191,15 +202,15 @@
                 Loading current student summary items...
               </p>
               <div class="table-wrap">
-                <table class="inquiry-table inbox-table">
+                <table class="inquiry-table inbox-table" id="inbox-table">
                   <thead>
                     <tr>
-                      <th>Student</th>
-                      <th>Program</th>
-                      <th>Concern</th>
-                      <th>Summary Preview</th>
-                      <th>Status</th>
-                      <th>Updated</th>
+                      <th aria-sort="ascending"><button class="table-sort active" type="button" data-sort-key="student">Student <span class="table-sort-indicator" aria-hidden="true">↑</span></button></th>
+                      <th aria-sort="none"><button class="table-sort" type="button" data-sort-key="program">Program <span class="table-sort-indicator" aria-hidden="true"></span></button></th>
+                      <th aria-sort="none"><button class="table-sort" type="button" data-sort-key="category">Concern <span class="table-sort-indicator" aria-hidden="true"></span></button></th>
+                      <th aria-sort="none"><button class="table-sort" type="button" data-sort-key="summary">Summary Preview <span class="table-sort-indicator" aria-hidden="true"></span></button></th>
+                      <th aria-sort="none"><button class="table-sort" type="button" data-sort-key="status">Status <span class="table-sort-indicator" aria-hidden="true"></span></button></th>
+                      <th aria-sort="none"><button class="table-sort" type="button" data-sort-key="createdAt">Updated <span class="table-sort-indicator" aria-hidden="true"></span></button></th>
                       <th></th>
                     </tr>
                   </thead>
@@ -210,28 +221,168 @@
           </div>
 
           <div class="view" id="view-flagged">
+            <section
+              id="flagged-insights"
+              class="stat-grid flagged-stat-grid"
+              aria-label="Flagged-case status summary"
+            >
+              <div class="stat-card alert">
+                <div class="stat-label">Pending review</div>
+                <div class="stat-value" id="flagged-pending-count">—</div>
+                <div class="stat-sub">Flagged cases awaiting staff action</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-label">Reviewed</div>
+                <div class="stat-value" id="flagged-reviewed-count">—</div>
+                <div class="stat-sub">Flagged cases already reviewed by staff</div>
+              </div>
+            </section>
             <section class="panel flagged-panel">
               <div class="panel-header">
                 <h2>Flagged Cases</h2>
               </div>
               <p class="sub">
-                Staff-visible flagged cases. Aggregate counts and persisted
-                case-status distribution are available in Flagged Case
+                Current and reviewed flagged cases in your authorized programs.
+                Historical aggregate trends remain available in Flagged Case
                 Analytics.
               </p>
+              <div class="inbox-toolbar flagged-toolbar">
+                <div class="inbox-toolbar-controls">
+                  <label for="flagged-filter">Show</label>
+                  <select id="flagged-filter">
+                    <option value="all">All flagged cases</option>
+                    <option value="pending">Pending review</option>
+                    <option value="reviewed">Reviewed</option>
+                  </select>
+                  <button
+                    id="flagged-retry"
+                    class="btn btn-outline btn-sm"
+                    type="button"
+                  >
+                    Retry
+                  </button>
+                </div>
+                <div class="search-box inbox-search-box">
+                  <input
+                    id="flagged-search-input"
+                    type="search"
+                    placeholder="Search student, number, program, or concern"
+                    aria-label="Search flagged cases"
+                  />
+                </div>
+              </div>
+              <p id="flagged-state" class="inbox-state" role="status" aria-live="polite">
+                Loading flagged cases...
+              </p>
               <div class="table-wrap">
-                <table class="inquiry-table flagged-table">
+                <table class="inquiry-table flagged-table" id="flagged-table">
                   <thead>
                     <tr>
-                      <th>Student</th>
-                      <th>Message</th>
-                      <th>Category</th>
-                      <th>Status</th>
-                      <th>Time</th>
+                      <th aria-sort="ascending"><button class="table-sort active" type="button" data-sort-key="student">Student <span class="table-sort-indicator" aria-hidden="true">↑</span></button></th>
+                      <th aria-sort="none"><button class="table-sort" type="button" data-sort-key="summary">Message <span class="table-sort-indicator" aria-hidden="true"></span></button></th>
+                      <th aria-sort="none"><button class="table-sort" type="button" data-sort-key="category">Category <span class="table-sort-indicator" aria-hidden="true"></span></button></th>
+                      <th aria-sort="none"><button class="table-sort" type="button" data-sort-key="status">Status <span class="table-sort-indicator" aria-hidden="true"></span></button></th>
+                      <th aria-sort="none"><button class="table-sort" type="button" data-sort-key="createdAt">Time <span class="table-sort-indicator" aria-hidden="true"></span></button></th>
                       <th></th>
                     </tr>
                   </thead>
                   <tbody id="flagged-tbody"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+
+          <div class="view" id="view-feedback">
+            <section
+              id="feedback-insights"
+              class="stat-grid feedback-stat-grid"
+              aria-label="Chatbot feedback signals"
+            >
+              <div class="stat-card">
+                <div class="stat-label">Total feedback</div>
+                <div class="stat-value" id="feedback-total-count">—</div>
+                <div class="stat-sub">Ratings in your authorized programs</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-label">Needs attention</div>
+                <div class="stat-value" id="feedback-attention-count">—</div>
+                <div class="stat-sub">Ratings that need quality review</div>
+              </div>
+              <div class="stat-card alert">
+                <div class="stat-label">Safety concerns</div>
+                <div class="stat-value" id="feedback-safety-count">—</div>
+                <div class="stat-sub">Feedback ratings tagged as safety-related</div>
+              </div>
+              <div class="stat-card feedback-signal-card">
+                <div class="stat-label">Most reported signal</div>
+                <div class="stat-value" id="feedback-pattern-count">—</div>
+                <div class="stat-sub" id="feedback-pattern-detail">
+                  No needs-attention ratings yet
+                </div>
+              </div>
+            </section>
+            <section class="panel">
+              <div class="panel-header">
+                <h2>Chatbot Feedback</h2>
+              </div>
+              <p class="sub">
+                Student ratings for chatbot replies in your authorized programs.
+                These records contain feedback only; they do not store chat
+                transcripts or AI reply text. Review repeated categories before
+                changing approved guidance content or chatbot rules.
+              </p>
+              <div class="inbox-toolbar feedback-toolbar">
+                <div class="inbox-toolbar-controls">
+                  <label for="feedback-filter">Show</label>
+                  <select id="feedback-filter">
+                    <option value="all">All feedback</option>
+                    <option value="helpful">Helpful feedback</option>
+                    <option value="attention">Needs attention</option>
+                  </select>
+                  <label for="feedback-context-filter">Context</label>
+                  <select id="feedback-context-filter">
+                    <option value="all">All reply contexts</option>
+                    <option value="appointment">Appointment</option>
+                    <option value="academics">Academics</option>
+                    <option value="office_services">Office services</option>
+                    <option value="counseling_support">Counseling support</option>
+                    <option value="general_support">General support</option>
+                    <option value="safety">Safety response</option>
+                    <option value="uncategorized">Uncategorized</option>
+                  </select>
+                  <button
+                    id="feedback-retry"
+                    class="btn btn-outline btn-sm"
+                    type="button"
+                  >
+                    Retry
+                  </button>
+                </div>
+                <div class="search-box inbox-search-box">
+                  <input
+                    id="feedback-search-input"
+                    type="search"
+                    placeholder="Search student, program, rating, or note"
+                    aria-label="Search chatbot feedback"
+                  />
+                </div>
+              </div>
+              <p id="feedback-state" class="inbox-state" role="status" aria-live="polite">
+                Loading student feedback...
+              </p>
+              <div class="table-wrap">
+                <table class="inquiry-table" id="feedback-table">
+                  <thead>
+                    <tr>
+                      <th aria-sort="ascending"><button class="table-sort active" type="button" data-sort-key="student">Student <span class="table-sort-indicator" aria-hidden="true">↑</span></button></th>
+                      <th aria-sort="none"><button class="table-sort" type="button" data-sort-key="program">Program <span class="table-sort-indicator" aria-hidden="true"></span></button></th>
+                      <th aria-sort="none"><button class="table-sort" type="button" data-sort-key="category">Rating <span class="table-sort-indicator" aria-hidden="true"></span></button></th>
+                      <th aria-sort="none"><button class="table-sort" type="button" data-sort-key="responseContext">Reply context <span class="table-sort-indicator" aria-hidden="true"></span></button></th>
+                      <th aria-sort="none"><button class="table-sort" type="button" data-sort-key="comment">Optional note <span class="table-sort-indicator" aria-hidden="true"></span></button></th>
+                      <th aria-sort="none"><button class="table-sort" type="button" data-sort-key="createdAt">Submitted <span class="table-sort-indicator" aria-hidden="true"></span></button></th>
+                    </tr>
+                  </thead>
+                  <tbody id="feedback-tbody"></tbody>
                 </table>
               </div>
             </section>
@@ -1217,322 +1368,418 @@
           </div>
 
           <div class="view" id="view-settings">
-            <div class="settings-grid">
-              <div class="settings-panel">
-                <h3>Office Information</h3>
-                <p class="sub">
-                  These details appear in chatbot responses for office-related
-                  inquiries.
-                </p>
+            <nav
+              class="dashboard-section-nav settings-section-nav"
+              aria-label="Settings sections"
+              data-dashboard-section-nav="settings"
+            >
+              <button
+                class="dashboard-section-tab active"
+                type="button"
+                data-dashboard-section-target="global"
+                aria-pressed="true"
+              >
+                Global Office Settings
+              </button>
+              <button
+                class="dashboard-section-tab"
+                type="button"
+                data-dashboard-section-target="staff"
+                aria-pressed="false"
+              >
+                My Staff Settings
+              </button>
+            </nav>
+            <section
+              class="settings-scope settings-scope-global"
+              aria-labelledby="global-office-settings-heading"
+              data-dashboard-section="global"
+            >
+              <div class="settings-scope-heading">
+                <div class="settings-scope-heading-copy">
+                  <div>
+                    <h2 id="global-office-settings-heading">
+                      Global Office Settings
+                    </h2>
+                    <p>
+                      Changes here apply to both counselors and to the student
+                      chatbot and appointment experience.
+                    </p>
+                  </div>
+                </div>
+                <div class="settings-actions settings-global-actions">
+                  <button
+                    class="btn btn-primary"
+                    id="save-settings-btn"
+                    type="button"
+                    disabled
+                  >
+                    Save Global Office Settings
+                  </button>
+                </div>
+              </div>
+
+              <div class="settings-grid">
+                <details class="settings-panel" data-settings-collapsible open>
+                  <summary>
+                    <span>
+                      <h3>Office Information</h3>
+                      <p class="sub">
+                        These details appear in chatbot responses for office-related
+                        inquiries.
+                      </p>
+                    </span>
+                    <span class="settings-collapsible-indicator" aria-hidden="true"></span>
+                  </summary>
+                  <div class="settings-collapsible-body">
+                  <div class="field-grid-2">
+                    <div class="field-group">
+                      <label for="settings-office-name">Office Name</label>
+                      <input
+                        id="settings-office-name"
+                        autocomplete="organization"
+                      />
+                    </div>
+                    <div class="field-group">
+                      <label for="settings-office-hours">Office Hours</label>
+                      <input id="settings-office-hours" autocomplete="off" />
+                    </div>
+                    <div class="field-group">
+                      <label for="settings-office-email">Office Email</label>
+                      <input
+                        id="settings-office-email"
+                        type="email"
+                        autocomplete="email"
+                      />
+                    </div>
+                    <div class="field-group">
+                      <label for="settings-contact-number">Contact Number</label>
+                      <input id="settings-contact-number" autocomplete="tel" />
+                    </div>
+                    <div class="field-group">
+                      <label for="settings-office-location"
+                        >Office Location</label
+                      >
+                      <input id="settings-office-location" autocomplete="off" />
+                    </div>
+                  </div>
+                  </div>
+                </details>
+              </div>
+
+              <details
+                class="settings-panel appointment-settings-panel"
+                data-settings-collapsible
+              >
+                <summary>
+                  <span>
+                    <h3>Shared Appointment Booking Rules</h3>
+                    <p class="sub">
+                      Configure office-wide booking rules, such as closures and
+                      appointment categories. Each counselor sets their own
+                      availability, start times, and consultation modes under My
+                      Staff Settings.
+                    </p>
+                  </span>
+                  <span class="settings-collapsible-indicator" aria-hidden="true"></span>
+                </summary>
+                <div class="settings-collapsible-body">
+                <div class="toggle-row">
+                  <label for="settings-booking-enabled"
+                    >Appointment booking enabled</label
+                  >
+                  <input id="settings-booking-enabled" type="checkbox" />
+                </div>
+                <div class="settings-list-section">
+                  <div class="settings-list-heading">
+                    <h4>Office-wide Unavailable Dates</h4>
+                    <button
+                      class="btn btn-outline btn-sm"
+                      id="add-unavailable-date-btn"
+                      type="button"
+                    >
+                      Add date
+                    </button>
+                  </div>
+                  <div id="appointment-unavailable-dates"></div>
+                </div>
+                <div class="field-grid-2 settings-choice-grid">
+                  <div class="field-group">
+                    <label for="settings-appointment-categories"
+                      >Appointment Categories</label
+                    >
+                    <textarea
+                      id="settings-appointment-categories"
+                      rows="4"
+                      placeholder="One category per line"
+                    ></textarea>
+                  </div>
+                </div>
+                </div>
+              </details>
+
+              <details
+                class="settings-panel faq-management-panel"
+                data-settings-collapsible
+              >
+                <summary>
+                  <span>
+                    <h3>FAQ Management</h3>
+                    <p class="sub">
+                      Active FAQs answer common Guidance Office questions after
+                      live operational settings are checked.
+                    </p>
+                  </span>
+                  <span class="settings-collapsible-indicator" aria-hidden="true"></span>
+                </summary>
+                <div class="settings-collapsible-body">
+                <p
+                  id="faq-status"
+                  class="settings-status"
+                  role="status"
+                  aria-live="polite"
+                  hidden
+                ></p>
+                <div
+                  id="faq-list"
+                  class="faq-management-list"
+                  aria-live="polite"
+                ></div>
+                <form id="add-faq-form" class="faq-editor" novalidate>
+                  <h4>Add FAQ</h4>
+                  <div class="field-grid-2">
+                    <div class="field-group">
+                      <label for="new-faq-title">Title</label>
+                      <input
+                        id="new-faq-title"
+                        name="title"
+                        autocomplete="off"
+                        required
+                      />
+                    </div>
+                    <div class="field-group">
+                      <label for="new-faq-question">Question</label>
+                      <input
+                        id="new-faq-question"
+                        name="question"
+                        autocomplete="off"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div class="field-group">
+                    <label for="new-faq-answer">Answer</label>
+                    <textarea
+                      id="new-faq-answer"
+                      name="answer"
+                      rows="4"
+                      required
+                    ></textarea>
+                  </div>
+                  <div class="settings-actions">
+                    <button
+                      class="btn btn-primary"
+                      id="add-faq-btn"
+                      type="submit"
+                      disabled
+                    >
+                      Add FAQ
+                    </button>
+                  </div>
+                </form>
+                </div>
+              </details>
+
+              <p
+                id="settings-status"
+                class="settings-status"
+                role="status"
+                aria-live="polite"
+                hidden
+              ></p>
+            </section>
+
+            <div class="settings-staff-stack" data-dashboard-section="staff">
+              <section
+                class="settings-scope settings-scope-personal"
+                aria-labelledby="my-staff-settings-heading"
+              >
+              <div class="settings-scope-heading">
+                <div class="settings-scope-heading-copy">
+                  <div>
+                    <h2 id="my-staff-settings-heading">My Staff Settings</h2>
+                    <p>
+                      Changes here apply only to the currently signed-in counselor
+                      account.
+                    </p>
+                  </div>
+                </div>
+                <div class="settings-actions settings-staff-actions">
+                  <button
+                    class="btn btn-primary"
+                    id="save-counselor-profile"
+                    type="button"
+                    disabled
+                  >
+                    Save My Staff Settings
+                  </button>
+                </div>
+              </div>
+
+              <details
+                class="settings-panel counselor-profile-panel"
+                data-settings-collapsible
+                open
+              >
+                <summary>
+                  <span>
+                    <h3>My Counselor Profile</h3>
+                    <p class="sub">
+                      Manage your own office, support statement, consultation
+                      rooms, availability, start times, and consultation modes.
+                    </p>
+                  </span>
+                  <span class="settings-collapsible-indicator" aria-hidden="true"></span>
+                </summary>
+                <div class="settings-collapsible-body">
+                <p
+                  id="counselor-profile-status"
+                  class="settings-status"
+                  role="status"
+                  aria-live="polite"
+                  hidden
+                ></p>
                 <div class="field-grid-2">
                   <div class="field-group">
-                    <label for="settings-office-name">Office Name</label>
+                    <label for="counselor-profile-office">Office</label>
                     <input
-                      id="settings-office-name"
+                      id="counselor-profile-office"
                       autocomplete="organization"
                     />
                   </div>
                   <div class="field-group">
-                    <label for="settings-office-hours">Office Hours</label>
-                    <input id="settings-office-hours" autocomplete="off" />
-                  </div>
-                  <div class="field-group">
-                    <label for="settings-office-email">Office Email</label>
-                    <input
-                      id="settings-office-email"
-                      type="email"
-                      autocomplete="email"
-                    />
-                  </div>
-                  <div class="field-group">
-                    <label for="settings-contact-number">Contact Number</label>
-                    <input id="settings-contact-number" autocomplete="tel" />
-                  </div>
-                  <div class="field-group">
-                    <label for="settings-office-location"
-                      >Office Location</label
+                    <label for="counselor-profile-rooms"
+                      >Consultation Rooms</label
                     >
-                    <input id="settings-office-location" autocomplete="off" />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <section class="settings-panel appointment-settings-panel">
-              <h3>Appointment Availability</h3>
-              <p class="sub">
-                Configure the general office availability used for student and
-                manual appointment requests. Routed counselor schedules remain
-                managed with staff profiles.
-              </p>
-              <div class="toggle-row">
-                <label for="settings-booking-enabled"
-                  >Appointment booking enabled</label
-                >
-                <input id="settings-booking-enabled" type="checkbox" />
-              </div>
-              <div class="settings-list-section">
-                <div class="settings-list-heading">
-                  <h4>Available Weekdays and Times</h4>
-                  <button
-                    class="btn btn-outline btn-sm"
-                    id="add-availability-window-btn"
-                    type="button"
-                  >
-                    Add availability
-                  </button>
-                </div>
-                <div id="appointment-availability-windows"></div>
-              </div>
-              <div class="settings-list-section">
-                <div class="settings-list-heading">
-                  <h4>Unavailable Dates</h4>
-                  <button
-                    class="btn btn-outline btn-sm"
-                    id="add-unavailable-date-btn"
-                    type="button"
-                  >
-                    Add date
-                  </button>
-                </div>
-                <div id="appointment-unavailable-dates"></div>
-              </div>
-              <div class="field-grid-2 settings-choice-grid">
-                <div class="field-group">
-                  <label for="settings-appointment-slots"
-                    >Selectable Appointment Start Times</label
-                  >
-                  <textarea
-                    id="settings-appointment-slots"
-                    rows="4"
-                    placeholder="One start time per line, for example 09:00 AM"
-                  ></textarea>
-                </div>
-                <div class="field-group">
-                  <label for="settings-appointment-categories"
-                    >Appointment Categories</label
-                  >
-                  <textarea
-                    id="settings-appointment-categories"
-                    rows="4"
-                    placeholder="One category per line"
-                  ></textarea>
-                </div>
-                <div class="field-group">
-                  <label for="settings-consultation-modes"
-                    >Consultation Modes</label
-                  >
-                  <textarea
-                    id="settings-consultation-modes"
-                    rows="4"
-                    placeholder="One mode per line"
-                  ></textarea>
-                </div>
-              </div>
-            </section>
-
-            <section class="settings-panel faq-management-panel">
-              <div class="settings-list-heading">
-                <div>
-                  <h3>FAQ Management</h3>
-                  <p class="sub">
-                    Active FAQs answer common Guidance Office questions after
-                    live operational settings are checked.
-                  </p>
-                </div>
-              </div>
-              <p
-                id="faq-status"
-                class="settings-status"
-                role="status"
-                aria-live="polite"
-                hidden
-              ></p>
-              <div
-                id="faq-list"
-                class="faq-management-list"
-                aria-live="polite"
-              ></div>
-              <form id="add-faq-form" class="faq-editor" novalidate>
-                <h4>Add FAQ</h4>
-                <div class="field-grid-2">
-                  <div class="field-group">
-                    <label for="new-faq-title">Title</label>
                     <input
-                      id="new-faq-title"
-                      name="title"
-                      autocomplete="off"
-                      required
-                    />
-                  </div>
-                  <div class="field-group">
-                    <label for="new-faq-question">Question</label>
-                    <input
-                      id="new-faq-question"
-                      name="question"
-                      autocomplete="off"
-                      required
+                      id="counselor-profile-rooms"
+                      placeholder="Separate rooms with commas"
                     />
                   </div>
                 </div>
                 <div class="field-group">
-                  <label for="new-faq-answer">Answer</label>
-                  <textarea
-                    id="new-faq-answer"
-                    name="answer"
-                    rows="4"
-                    required
-                  ></textarea>
+                  <label for="counselor-profile-support">Support Statement</label>
+                  <textarea id="counselor-profile-support" rows="3"></textarea>
                 </div>
-                <div class="settings-actions">
-                  <button
-                    class="btn btn-primary"
-                    id="add-faq-btn"
-                    type="submit"
-                    disabled
-                  >
-                    Add FAQ
-                  </button>
+                <div class="settings-list-section">
+                  <div class="settings-list-heading">
+                    <div>
+                      <h4>My Appointment Availability</h4>
+                      <p class="sub">
+                        Set the days, times, and rooms when you accept
+                        appointments. This applies only to students routed to
+                        you.
+                      </p>
+                    </div>
+                    <button
+                      class="btn btn-outline btn-sm"
+                      id="add-counselor-schedule"
+                      type="button"
+                    >
+                      Add schedule
+                    </button>
+                  </div>
+                  <div id="counselor-schedule-list"></div>
                 </div>
-              </form>
-            </section>
+                <div class="field-grid-2 settings-choice-grid">
+                  <div class="field-group">
+                    <label for="counselor-profile-appointment-slots"
+                      >My Selectable Appointment Start Times</label
+                    >
+                    <textarea
+                      id="counselor-profile-appointment-slots"
+                      rows="4"
+                      placeholder="One start time per line, for example 09:00 AM"
+                    ></textarea>
+                  </div>
+                  <div class="field-group">
+                    <label for="counselor-profile-consultation-modes"
+                      >My Consultation Modes</label
+                    >
+                    <textarea
+                      id="counselor-profile-consultation-modes"
+                      rows="4"
+                      placeholder="One mode per line, for example Online"
+                    ></textarea>
+                  </div>
+                </div>
+                </div>
+              </details>
+              </section>
 
-            <section class="settings-panel counselor-profile-panel">
-              <div class="settings-list-heading">
-                <div>
-                  <h3>My Counselor Profile</h3>
-                  <p class="sub">
-                    Manage your own office, support statement, consultation
-                    rooms, and consultation schedule.
-                  </p>
-                </div>
-              </div>
-              <p
-                id="counselor-profile-status"
-                class="settings-status"
-                role="status"
-                aria-live="polite"
-                hidden
-              ></p>
-              <div class="field-grid-2">
+              <details
+                class="settings-panel settings-password-panel settings-standalone-panel"
+                id="student-password-panel"
+                data-settings-collapsible
+              >
+                <summary>
+                  <span>
+                    <h3>Account Security</h3>
+                    <p class="sub">
+                      Staff users can change only their own password. Account
+                      creation and management remain administrator-only.
+                    </p>
+                  </span>
+                  <span class="settings-collapsible-indicator" aria-hidden="true"></span>
+                </summary>
+                <div class="settings-collapsible-body">
                 <div class="field-group">
-                  <label for="counselor-profile-office">Office</label>
+                  <label for="current-password">Current Password</label>
                   <input
-                    id="counselor-profile-office"
-                    autocomplete="organization"
+                    type="password"
+                    id="current-password"
+                    autocomplete="current-password"
                   />
                 </div>
                 <div class="field-group">
-                  <label for="counselor-profile-rooms"
-                    >Consultation Rooms</label
-                  >
+                  <label for="new-password">New Password</label>
                   <input
-                    id="counselor-profile-rooms"
-                    placeholder="Separate rooms with commas"
+                    type="password"
+                    id="new-password"
+                    autocomplete="new-password"
+                    minlength="8"
                   />
                 </div>
-              </div>
-              <div class="field-group">
-                <label for="counselor-profile-support">Support Statement</label>
-                <textarea id="counselor-profile-support" rows="3"></textarea>
-              </div>
-              <div class="settings-list-section">
-                <div class="settings-list-heading">
-                  <h4>Consultation Schedule</h4>
-                  <button
-                    class="btn btn-outline btn-sm"
-                    id="add-counselor-schedule"
-                    type="button"
-                  >
-                    Add schedule
-                  </button>
+                <div class="field-group">
+                  <label for="confirm-password">Confirm New Password</label>
+                  <input
+                    type="password"
+                    id="confirm-password"
+                    autocomplete="new-password"
+                  />
                 </div>
-                <div id="counselor-schedule-list"></div>
-              </div>
-              <div class="settings-actions">
+                <p
+                  id="password-status"
+                  class="settings-status error"
+                  role="alert"
+                  aria-live="polite"
+                  hidden
+                ></p>
                 <button
                   class="btn btn-primary"
-                  id="save-counselor-profile"
+                  id="change-password-btn"
                   type="button"
                   disabled
                 >
-                  Save Counselor Profile
+                  Update Password
                 </button>
-              </div>
-            </section>
-
-            <p
-              id="settings-status"
-              class="settings-status"
-              role="status"
-              aria-live="polite"
-              hidden
-            ></p>
-            <div class="settings-actions">
-              <button
-                class="btn btn-primary"
-                id="save-settings-btn"
-                type="button"
-                disabled
-              >
-                Save Settings
-              </button>
-            </div>
-
-            <div
-              class="settings-panel settings-password-panel"
-              id="student-password-panel"
-            >
-              <h3>Account Security</h3>
-              <p class="sub">
-                Staff users can change only their own password. Account creation
-                and management remain administrator-only.
-              </p>
-              <div class="field-group">
-                <label for="current-password">Current Password</label>
-                <input
-                  type="password"
-                  id="current-password"
-                  autocomplete="current-password"
-                />
-              </div>
-              <div class="field-group">
-                <label for="new-password">New Password</label>
-                <input
-                  type="password"
-                  id="new-password"
-                  autocomplete="new-password"
-                  minlength="8"
-                />
-              </div>
-              <div class="field-group">
-                <label for="confirm-password">Confirm New Password</label>
-                <input
-                  type="password"
-                  id="confirm-password"
-                  autocomplete="new-password"
-                />
-              </div>
-              <p
-                id="password-status"
-                class="settings-status error"
-                role="alert"
-                aria-live="polite"
-                hidden
-              ></p>
-              <button
-                class="btn btn-primary"
-                id="change-password-btn"
-                type="button"
-                disabled
-              >
-                Update Password
-              </button>
-              <div class="sub password-helper">
-                For security, administrators cannot change another user's
-                password from this portal. Staff users are responsible for
-                updating their own passwords.
-              </div>
+                <div class="sub password-helper">
+                  For security, administrators cannot change another user's
+                  password from this portal. Staff users are responsible for
+                  updating their own passwords.
+                </div>
+                </div>
+              </details>
             </div>
           </div>
 

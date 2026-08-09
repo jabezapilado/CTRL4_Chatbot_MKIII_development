@@ -32,6 +32,18 @@ applied. Treat generated RAG artifacts as protected operational assets.
 
 The stack uses Flask, server-side sessions, MySQL/MariaDB, HTML/CSS/JavaScript, FAISS-backed RAG, and Gemini or Ollama through the LLM provider abstraction.
 
+### Temporary private demonstration binding
+
+`backend/app.py` defaults to loopback binding. A demonstrator may temporarily
+override only that startup process with exported `CTRL4_HOST` and `CTRL4_PORT`
+values; this does not alter code, `.env`, database data, or the deployment
+topology. For a private Tailscale demonstration, bind `CTRL4_HOST` to the
+value returned by `tailscale ip -4` and share the resulting HTTP URL only with
+authorized devices in the same tailnet. `0.0.0.0` is a broader LAN-binding
+fallback, not the default. Public Tailscale Funnel, port forwarding, and
+multi-instance deployment are outside the supported design. The deployment
+guide is the operational procedure.
+
 ## Core architecture
 
 ```text
@@ -77,7 +89,7 @@ Business validation belongs in services. Database uniqueness, defensive normaliz
 The account module reuses generic account primitives in `db.py`: `create_account`, `fetch_account_by_id`, `list_accounts`, and `update_account_fields`. Role-specific field validation stays in `account_service.py`.
 
 - Student updates accept only approved student profile fields and reject unsupported fields.
-- Staff profile metadata includes assigned programs, office, support statement, consultation rooms, and consultation schedules; this metadata alone is not appointment-engine behavior.
+- Staff profile metadata includes assigned programs, office, support statement, consultation rooms, and consultation schedules. Each counselor's consultation schedule is their own appointment availability and is enforced for students routed to that counselor.
 - Administrator accounts cannot store student/staff/counselor metadata or account numbers. Administrators cannot deactivate themselves.
 - The administrative account listing supports optional `q` with existing role/status filters. It searches names and emails for every account role, plus the appropriate student or staff number where one exists.
 - Duplicate email handling uses both a service pre-check and database uniqueness; persistence collisions map to the existing service-level duplicate-email error.
@@ -92,8 +104,8 @@ The account module reuses generic account primitives in `db.py`: `create_account
 - Appointments persist only a date and start time; there is no authoritative duration/end-time contract. Conflict detection therefore compares normalized start-time equality on the same date—not interval overlap.
 - Only `pending` and `confirmed` appointments block conflict creation.
 - The final persistence recheck is atomic. The database transaction takes a bounded advisory lock derived from the normalized date/time key, rechecks blocking appointments, then inserts or rolls back. It prevents concurrent duplicate active bookings without storing counselor ownership or inventing an interval model.
-- Counselor schedule validation uses only the routed counselor. Valid weekday grammar is `Monday`, `Monday-Friday`, or `Monday to Friday`; valid time grammar is a 12-hour range such as `7:00 AM - 5:00 PM`. Weekday ranges are inclusive; time windows are start-inclusive and end-exclusive. Invalid schedule metadata fails closed.
-- Office availability is the generic settings value `appointmentAvailability`. It must contain exactly `officeAvailability`, `holidays`, `academicCalendarExclusions`, and `unavailableDates`. Office windows use the same grammar; exclusion dates are unique canonical `YYYY-MM-DD` values. Missing, malformed, partial, or invalid configuration fails closed. Descriptive `officeHours` remains informational only.
+- Counselor schedule validation uses only the routed counselor and is the authoritative appointment-availability gate. Valid weekday grammar is `Monday`, `Monday-Friday`, or `Monday to Friday`; valid time grammar is a 12-hour range such as `7:00 AM - 5:00 PM`. Weekday ranges are inclusive; time windows are start-inclusive and end-exclusive. Invalid schedule metadata fails closed.
+- Shared appointment settings supply the office-wide booking switch, closures, and appointment categories. Each counselor's `appointment_slots` and `consultation_modes` are profile-owned and determine the selectable start times and modes for students routed to that counselor. Historic global `appointmentAvailability.officeAvailability`, `appointmentSlots`, and `consultationModes` values remain persisted only for backward compatibility. Exclusion dates are unique canonical `YYYY-MM-DD` values. Descriptive `officeHours` remains informational only.
 
 ### Rescheduling and lifecycle
 
@@ -156,7 +168,7 @@ Language detection
 - `RAGService` is the single retrieval component. It accepts read-only JSON, PDF, DOCX, TXT, and Markdown knowledge records while preserving thresholding, ranking, de-duplication, and source attribution.
 - `PromptBuilder` receives already computed Conversation Intelligence outputs; it does not recompute them.
 - `ResponseSafetyService` deterministically validates final generated text. It replaces the entire response, never partially redacts it, for exactly: medical diagnosis, treatment/prescription instructions, self-harm/violence encouragement or procedures, prompt disclosure, protected-information disclosure, and unsupported official Guidance Office claims. It logs only that a replacement occurred, never blocked generated text. It does not alter escalation behavior.
-- `/chat` and `/chat/finalize` retain their public contracts. Chat inquiry persistence is owned by `conversation_service.py`, not the route.
+- `/chat`, `/chat/feedback`, and `/chat/finalize` retain their public contracts. Chat inquiry persistence is owned by `conversation_service.py`, not the route. Feedback stores no transcript or AI reply text; it may store a server-derived broad reply-context tag for scoped quality signals.
 
 ## Sprint summary
 

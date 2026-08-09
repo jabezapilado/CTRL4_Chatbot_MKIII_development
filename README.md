@@ -3,7 +3,7 @@
 > **Development of an AI-Powered Guidance Chatbot for Inquiry Management Using
 > NLP-Based Negative Emotion Detection**
 
-[![Release](https://img.shields.io/badge/release-v1.0.6-2f6feb)](https://github.com/jabezapilado/CTRL4_Chatbot_MKIII/releases/tag/v1.0.6)
+[![Release](https://img.shields.io/badge/release-v1.0.7-2f6feb)](https://github.com/jabezapilado/CTRL4_Chatbot_MKIII/releases/tag/v1.0.7)
 ![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-3.x-000000?logo=flask&logoColor=white)
 ![Database](https://img.shields.io/badge/database-MySQL%20%7C%20MariaDB-4479A1)
@@ -25,7 +25,7 @@ Frontend → Route → Service → Database
 
 ## Project status
 
-**Current stable release:** [v1.0.6](https://github.com/jabezapilado/CTRL4_Chatbot_MKIII/releases/tag/v1.0.6)
+**Current stable release:** [v1.0.7](https://github.com/jabezapilado/CTRL4_Chatbot_MKIII/releases/tag/v1.0.7)
 
 MK III is the completed, current implementation. Historical roadmaps and MK II
 research records remain available for thesis provenance, but they are not the
@@ -55,6 +55,8 @@ Filipino or Taglish emotion model.
 - Appointment booking, history, cancellation, and replacement rescheduling.
 - Recipient-scoped in-app notifications.
 - Privacy-projected personal case-status view.
+- Per-reply feedback for students, without storing chatbot reply text in the
+  staff feedback view.
 
 ### Guidance-staff workflows
 
@@ -65,6 +67,9 @@ Filipino or Taglish emotion model.
 - Summary-based Inbox, active Flagged Cases, privacy-safe Case Details
   (including separate Detected Emotion and Safety Risk), and Reviewed Case
   History.
+- Immediate Inbox visibility for active conversations, with one record updated
+  at finalization; pending and reviewed flagged-case views; and privacy-safe
+  chatbot feedback review.
 - Read-only appointment, chatbot, counselor-workload, and flagged-case
   analytics, plus aggregate-only CSV reports.
 
@@ -75,9 +80,10 @@ Filipino or Taglish emotion model.
 
 ## What’s new in MK III
 
-MK III extends the earlier modular chatbot baseline with appointment operations,
-dynamic counselor routing, persistent notifications, case management,
-privacy-projected student case status, aggregate analytics, CSV reporting,
+MK III v1.0.7 extends the earlier modular chatbot baseline with appointment
+operations, dynamic counselor routing, persistent notifications, case
+management, active-conversation Inbox visibility, privacy-projected student
+case status, per-reply feedback, aggregate analytics, CSV reporting,
 server-side sessions, release-readiness testing, and deployment documentation.
 
 ## Architecture
@@ -154,9 +160,30 @@ By default, the development server listens at
 curl --fail --silent --show-error http://127.0.0.1:5001/health
 ```
 
-For a temporary Tailscale or local-network demonstration only, start with
-`CTRL4_HOST=0.0.0.0`. This is opt-in; it is not the default binding. Use
-`CTRL4_PORT` to override port `5001` when needed.
+### Temporary Tailscale demonstration
+
+For a private, temporary demonstration, the application can be made reachable
+without changing code or `backend/.env`. The exported `CTRL4_*` values affect
+only the shell that starts Flask and are discarded when that shell exits.
+
+On the demo host, with Tailscale connected, prefer binding to that host's
+Tailscale IPv4 address:
+
+```bash
+cd backend
+export CTRL4_HOST="$(tailscale ip -4)"
+export CTRL4_PORT=5001
+../.venv/bin/python app.py
+```
+
+Run `tailscale ip -4` to obtain the address, then a permitted device in the
+same tailnet can open `http://TAILSCALE_IP:5001`. If a specific-interface bind
+is unavailable for the local-network setup, `export CTRL4_HOST=0.0.0.0` is the
+broader temporary alternative; it can also make the service reachable on the
+host's LAN interfaces. Do not use Tailscale Funnel or otherwise expose this
+student-support system to the public internet. Stop Flask with `Ctrl+C`; use
+`unset CTRL4_HOST CTRL4_PORT` before starting it normally again in the same
+terminal.
 
 ## MK III operational notes
 

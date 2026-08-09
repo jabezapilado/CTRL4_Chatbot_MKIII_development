@@ -10,6 +10,12 @@ let staffInboxItems = [];
 let inboxLoadState = "loading";
 let flaggedConversations = [];
 let flaggedConversationsLoaded = false;
+let inboxSort = { key: "student", direction: "asc" };
+let chatbotFeedback = [];
+let chatbotFeedbackLoadState = "loading";
+let chatbotFeedbackInsights = null;
+let feedbackSort = { key: "student", direction: "asc" };
+let flaggedSort = { key: "student", direction: "asc" };
 let appointmentsLoaded = false;
 let appointmentAnalytics = null;
 let chatbotAnalytics = null;
@@ -59,19 +65,19 @@ function mapInboxItem(row) {
 }
 
 function mapFlaggedConversation(row) {
-  const createdAt = row.created_at ? new Date(row.created_at) : null;
+  return mapInboxItem(row);
+}
+
+function mapChatbotFeedback(row) {
   return {
-    id: row.id,
-    category: row.primary_concern || "General inquiry",
-    emotion: row.emotion_results || "neutral",
-    summary: row.summary || "No summary available.",
-    recommendation: row.recommendations || "No recommendation available.",
-    escalationReason: row.escalation_reason || "AI safety escalation.",
-    status: row.escalation_status || "pending",
-    totalMessages: Number.isFinite(Number(row.total_messages))
-      ? Number(row.total_messages)
-      : null,
-    createdAt,
+    id: row.feedback_id,
+    studentName: row.student_name || "Authorized student",
+    studentNumber: row.student_number || "—",
+    program: row.program || "—",
+    category: row.category || "not_helpful",
+    responseContext: row.response_context || "uncategorized",
+    comment: row.comment || "—",
+    createdAt: row.created_at ? new Date(row.created_at) : null,
   };
 }
 
@@ -1245,7 +1251,6 @@ function renderManualAppointmentOptions(container) {
   const mode = container.querySelector("#manual-appointment-mode");
   const category = container.querySelector("#manual-appointment-category");
   const status = container.querySelector("#manual-appointment-options-status");
-  const windows = appointmentBookingOptions.officeAvailability || [];
 
   addChoiceOptions(
     mode,
@@ -2056,54 +2061,6 @@ function createAvailabilityField(labelText, control) {
   return field;
 }
 
-function createAvailabilityWindow(window = {}) {
-  const row = document.createElement("div");
-  const weekday = document.createElement("select");
-  const startTime = document.createElement("input");
-  const endTime = document.createElement("input");
-  const remove = document.createElement("button");
-  const error = document.createElement("p");
-  const { startTime: savedStartTime, endTime: savedEndTime } =
-    availabilityWindowTimeValues(window.time);
-
-  row.className = "appointment-availability-window";
-  weekday.className = "form-control";
-  weekday.dataset.availabilityWeekday = "true";
-  weekday.setAttribute("aria-label", "Available weekday");
-  AVAILABILITY_DAY_OPTIONS.forEach((day) => {
-    const option = document.createElement("option");
-    option.value = day;
-    option.textContent = day;
-    weekday.appendChild(option);
-  });
-  weekday.value = window.days || "Monday";
-  startTime.type = "time";
-  startTime.className = "form-control";
-  startTime.dataset.availabilityStartTime = "true";
-  startTime.value = savedStartTime;
-  startTime.setAttribute("aria-label", "Availability start time");
-  endTime.type = "time";
-  endTime.className = "form-control";
-  endTime.dataset.availabilityEndTime = "true";
-  endTime.value = savedEndTime;
-  endTime.setAttribute("aria-label", "Availability end time");
-  remove.type = "button";
-  remove.className = "btn btn-outline btn-sm";
-  remove.dataset.removeAvailabilityWindow = "true";
-  remove.textContent = "Remove";
-  error.className = "availability-row-error";
-  error.hidden = true;
-  error.setAttribute("aria-live", "polite");
-  row.append(
-    createAvailabilityField("Weekday", weekday),
-    createAvailabilityField("Start time", startTime),
-    createAvailabilityField("End time", endTime),
-    remove,
-    error,
-  );
-  return row;
-}
-
 function createUnavailableDate(value = "") {
   const row = document.createElement("div");
   const input = document.createElement("input");
@@ -2184,10 +2141,26 @@ function renderCounselorProfile(profile) {
   const office = document.getElementById("counselor-profile-office");
   const support = document.getElementById("counselor-profile-support");
   const schedules = document.getElementById("counselor-schedule-list");
-  if (!rooms || !office || !support || !schedules) return;
+  const appointmentSlots = document.getElementById(
+    "counselor-profile-appointment-slots",
+  );
+  const consultationModes = document.getElementById(
+    "counselor-profile-consultation-modes",
+  );
+  if (
+    !rooms ||
+    !office ||
+    !support ||
+    !schedules ||
+    !appointmentSlots ||
+    !consultationModes
+  )
+    return;
   rooms.value = (profile.consultation_rooms || []).join(", ");
   office.value = profile.office || "";
   support.value = profile.support_statement || "";
+  appointmentSlots.value = (profile.appointment_slots || []).join("\n");
+  consultationModes.value = (profile.consultation_modes || []).join("\n");
   schedules.replaceChildren();
   (profile.consultation_schedules || []).forEach((schedule) => {
     schedules.appendChild(createCounselorScheduleRow(schedule));
@@ -2234,6 +2207,12 @@ function getCounselorProfileState() {
     office: document.getElementById("counselor-profile-office")?.value || "",
     rooms: document.getElementById("counselor-profile-rooms")?.value || "",
     support: document.getElementById("counselor-profile-support")?.value || "",
+    appointmentSlots:
+      document.getElementById("counselor-profile-appointment-slots")?.value ||
+      "",
+    consultationModes:
+      document.getElementById("counselor-profile-consultation-modes")?.value ||
+      "",
     schedules,
   });
 }
@@ -2306,6 +2285,12 @@ function bindCounselorProfile() {
                 "",
               consultation_rooms: counselorRooms(),
               consultation_schedules: consultationSchedules,
+              appointment_slots: settingsChoices(
+                "counselor-profile-appointment-slots",
+              ),
+              consultation_modes: settingsChoices(
+                "counselor-profile-consultation-modes",
+              ),
             }),
           },
         );
@@ -2321,18 +2306,13 @@ function bindCounselorProfile() {
     });
 }
 
-function renderAvailabilityConfiguration(availability) {
-  const windows = document.getElementById("appointment-availability-windows");
+function renderGlobalBookingConfiguration(availability) {
   const unavailableDates = document.getElementById(
     "appointment-unavailable-dates",
   );
-  if (!windows || !unavailableDates) return;
+  if (!unavailableDates) return;
 
-  windows.replaceChildren();
   unavailableDates.replaceChildren();
-  (availability?.officeAvailability || []).forEach((window) => {
-    windows.appendChild(createAvailabilityWindow(window));
-  });
   const excludedDates = new Set([
     ...(availability?.holidays || []),
     ...(availability?.academicCalendarExclusions || []),
@@ -2366,11 +2346,7 @@ function getSettingsFormState() {
       "#settings-contact-number",
       "#settings-office-location",
       "#settings-booking-enabled",
-      "#settings-appointment-slots",
       "#settings-appointment-categories",
-      "#settings-consultation-modes",
-      "#appointment-availability-windows select",
-      "#appointment-availability-windows input",
       "#appointment-unavailable-dates input",
     ].join(", "),
   );
@@ -2392,10 +2368,6 @@ function settingsHaveChanges() {
 function updateSettingsSaveButtons() {
   const hasChanges = settingsHaveChanges();
   setSaveButtonState(document.getElementById("save-settings-btn"), hasChanges);
-  setSaveButtonState(
-    headerActions?.querySelector('[data-dashboard-action="save-settings"]'),
-    hasChanges,
-  );
 }
 
 function setPasswordStatus(message, type = "error") {
@@ -2477,58 +2449,7 @@ function bindPasswordChange() {
   updatePasswordButton();
 }
 
-function setAvailabilityRowError(row, message) {
-  const error = row.querySelector(".availability-row-error");
-  if (!error) return;
-  error.textContent = message || "";
-  error.hidden = !message;
-}
-
-function collectAvailabilityWindows() {
-  const rows = Array.from(
-    document.querySelectorAll(".appointment-availability-window"),
-  );
-  const windows = [];
-  let hasInvalidRow = false;
-
-  rows.forEach((row) => {
-    const weekday =
-      row.querySelector("[data-availability-weekday]")?.value || "";
-    const startTime =
-      row.querySelector("[data-availability-start-time]")?.value || "";
-    const endTime =
-      row.querySelector("[data-availability-end-time]")?.value || "";
-    const canonicalStartTime = inputTimeToCanonical(startTime);
-    const canonicalEndTime = inputTimeToCanonical(endTime);
-
-    setAvailabilityRowError(row, "");
-    if (!weekday || !startTime || !endTime) {
-      setAvailabilityRowError(
-        row,
-        "Choose a weekday, start time, and end time for this availability row.",
-      );
-      hasInvalidRow = true;
-      return;
-    }
-    if (!canonicalStartTime || !canonicalEndTime || startTime >= endTime) {
-      setAvailabilityRowError(row, "End time must be later than start time.");
-      hasInvalidRow = true;
-      return;
-    }
-    windows.push({
-      days: weekday,
-      time: `${canonicalStartTime} - ${canonicalEndTime}`,
-    });
-  });
-
-  if (hasInvalidRow) {
-    throw new Error("Correct the highlighted availability rows before saving.");
-  }
-  return windows;
-}
-
 function getSettingsSnapshot() {
-  const availabilityWindows = collectAvailabilityWindows();
   const unavailableDates = Array.from(
     document.querySelectorAll(".appointment-unavailable-date input"),
     (input) => input.value,
@@ -2543,16 +2464,30 @@ function getSettingsSnapshot() {
     officeLocation:
       document.getElementById("settings-office-location")?.value || "",
     appointmentAvailability: {
+      // Kept only for compatible historic records. Counselor consultation
+      // schedules determine actual appointment availability.
+      officeAvailability: Array.isArray(
+        persistedSettings?.appointmentAvailability?.officeAvailability,
+      )
+        ? persistedSettings.appointmentAvailability.officeAvailability
+        : [],
+      appointmentSlots: Array.isArray(
+        persistedSettings?.appointmentAvailability?.appointmentSlots,
+      )
+        ? persistedSettings.appointmentAvailability.appointmentSlots
+        : [],
+      consultationModes: Array.isArray(
+        persistedSettings?.appointmentAvailability?.consultationModes,
+      )
+        ? persistedSettings.appointmentAvailability.consultationModes
+        : [],
       bookingEnabled: Boolean(
         document.getElementById("settings-booking-enabled")?.checked,
       ),
-      officeAvailability: availabilityWindows,
       holidays: [],
       academicCalendarExclusions: [],
       unavailableDates,
-      appointmentSlots: settingsChoices("settings-appointment-slots"),
       appointmentCategories: settingsChoices("settings-appointment-categories"),
-      consultationModes: settingsChoices("settings-consultation-modes"),
     },
   };
 }
@@ -2566,15 +2501,9 @@ function renderPersistedSettings(settings) {
     "settings-office-email": settings?.officeEmail || "",
     "settings-contact-number": settings?.contactNumber || "",
     "settings-office-location": settings?.officeLocation || "",
-    "settings-appointment-slots": (availability?.appointmentSlots || []).join(
-      "\n",
-    ),
     "settings-appointment-categories": (
       availability?.appointmentCategories || []
     ).join("\n"),
-    "settings-consultation-modes": (availability?.consultationModes || []).join(
-      "\n",
-    ),
   };
   Object.entries(fields).forEach(([id, value]) => {
     const input = document.getElementById(id);
@@ -2583,7 +2512,7 @@ function renderPersistedSettings(settings) {
   const bookingEnabled = document.getElementById("settings-booking-enabled");
   if (bookingEnabled)
     bookingEnabled.checked = Boolean(availability?.bookingEnabled);
-  renderAvailabilityConfiguration(availability);
+  renderGlobalBookingConfiguration(availability);
   const configurationState = settings?.appointmentConfigurationState;
   setSettingsStatus(
     configurationState === "configured"
@@ -2787,19 +2716,11 @@ function bindSettingsInteractions() {
   if (!root) return;
 
   root.addEventListener("click", (event) => {
-    if (event.target.closest("#add-availability-window-btn")) {
-      document
-        .getElementById("appointment-availability-windows")
-        ?.appendChild(createAvailabilityWindow());
-    }
     if (event.target.closest("#add-unavailable-date-btn")) {
       document
         .getElementById("appointment-unavailable-dates")
         ?.appendChild(createUnavailableDate());
     }
-    event.target
-      .closest("[data-remove-availability-window]")
-      ?.parentElement?.remove();
     event.target
       .closest("[data-remove-unavailable-date]")
       ?.parentElement?.remove();
@@ -2816,8 +2737,70 @@ function bindInboxControls() {
   document
     .getElementById("inbox-filter")
     ?.addEventListener("change", renderInquiryTable);
+  bindTableSortControls("inbox-table", inboxSort, renderInquiryTable);
   document.getElementById("inbox-retry")?.addEventListener("click", () => {
     void loadBackendData();
+  });
+}
+
+function bindFeedbackControls() {
+  document
+    .getElementById("feedback-filter")
+    ?.addEventListener("change", renderChatbotFeedback);
+  document
+    .getElementById("feedback-context-filter")
+    ?.addEventListener("change", renderChatbotFeedback);
+  document
+    .getElementById("feedback-search-input")
+    ?.addEventListener("input", renderChatbotFeedback);
+  bindTableSortControls("feedback-table", feedbackSort, renderChatbotFeedback);
+  document.getElementById("feedback-retry")?.addEventListener("click", () => {
+    void loadBackendData();
+  });
+}
+
+function bindFlaggedControls() {
+  document
+    .getElementById("flagged-filter")
+    ?.addEventListener("change", renderFlaggedConversations);
+  document
+    .getElementById("flagged-search-input")
+    ?.addEventListener("input", renderFlaggedConversations);
+  bindTableSortControls("flagged-table", flaggedSort, renderFlaggedConversations);
+  document.getElementById("flagged-retry")?.addEventListener("click", () => {
+    void loadBackendData();
+  });
+}
+
+function bindTableSortControls(tableId, sortState, render) {
+  const table = document.getElementById(tableId);
+  if (!table) return;
+  table.querySelectorAll("[data-sort-key]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const key = button.dataset.sortKey;
+      if (!key) return;
+      if (sortState.key === key) {
+        sortState.direction = sortState.direction === "asc" ? "desc" : "asc";
+      } else {
+        sortState.key = key;
+        sortState.direction = "asc";
+      }
+      render();
+    });
+  });
+  syncTableSortHeaders(tableId, sortState);
+}
+
+function syncTableSortHeaders(tableId, sortState) {
+  const table = document.getElementById(tableId);
+  if (!table) return;
+  table.querySelectorAll("[data-sort-key]").forEach((button) => {
+    const isActive = button.dataset.sortKey === sortState.key;
+    const direction = isActive ? sortState.direction : "none";
+    button.classList.toggle("active", isActive);
+    button.closest("th")?.setAttribute("aria-sort", direction === "none" ? "none" : direction === "asc" ? "ascending" : "descending");
+    const indicator = button.querySelector(".table-sort-indicator");
+    if (indicator) indicator.textContent = isActive ? (direction === "asc" ? "↑" : "↓") : "";
   });
 }
 
@@ -2936,19 +2919,26 @@ const sidebarToggle = document.getElementById("sidebar-toggle");
 const sidebarClose = document.getElementById("sidebar-close");
 const sidebarOverlay = document.getElementById("sidebar-overlay");
 const dashboardLogout = document.getElementById("dashboard-logout");
+const dashboardHome = document.getElementById("dashboard-home");
 const currentLocation = window.location.pathname || "";
 const compactNavigation = window.matchMedia("(max-width: 900px)");
 
 const viewMeta = {
   inbox: {
     title: "Case Inbox",
-    sub: "Completed AI conversations awaiting counselor review.",
+    sub: "Active and finalized student conversations awaiting counselor review.",
     actions: "",
   },
 
   flagged: {
     title: "Flagged Cases",
     sub: "Students with detected negative emotion requiring review",
+    actions: "",
+  },
+
+  feedback: {
+    title: "Chatbot Feedback",
+    sub: "Review student ratings in your authorized programs to guide approved chatbot improvements.",
     actions: "",
   },
 
@@ -2978,9 +2968,8 @@ const viewMeta = {
   },
   settings: {
     title: "Guidance Office Settings",
-    sub: "Manage live office information and appointment booking availability.",
-    actions:
-      '<button class="btn btn-primary" data-dashboard-action="save-settings">Save Changes</button>',
+    sub: "Manage shared office settings and your individual counseling preferences.",
+    actions: "",
   },
   "case-details": {
     title: "Case Details",
@@ -3001,6 +2990,7 @@ let prevView = "inbox";
 const dashboardSections = {
   appointments: "overview",
   reports: "overview",
+  settings: "global",
 };
 const dashboardViewIds = new Set(
   Array.from(navItems, (item) => item.dataset.view),
@@ -3012,13 +3002,16 @@ function updateDashboardLocation(
 ) {
   const hash = sectionId ? `#${viewId}:${sectionId}` : `#${viewId}`;
   if (window.location.hash !== hash) {
-    window.history.replaceState(null, "", hash);
+    window.history.pushState({ viewId, sectionId: sectionId || null }, "", hash);
   }
 }
 
 function restoreDashboardLocation() {
   const [viewId, sectionId] = window.location.hash.slice(1).split(":");
-  if (!dashboardViewIds.has(viewId)) return;
+  if (!dashboardViewIds.has(viewId)) {
+    switchView("inbox", false);
+    return;
+  }
 
   const view = document.getElementById(`view-${viewId}`);
   const hasSection =
@@ -3066,9 +3059,6 @@ function updateHeader(viewId) {
   headerActions
     .querySelector('[data-dashboard-action="back"]')
     ?.addEventListener("click", goBack);
-  headerActions
-    .querySelector('[data-dashboard-action="save-settings"]')
-    ?.addEventListener("click", saveSettings);
   if (viewId === "settings") updateSettingsSaveButtons();
 
   const backToSettingsBtn = document.getElementById("back-to-settings-btn");
@@ -3080,6 +3070,7 @@ function updateHeader(viewId) {
 }
 
 function switchView(viewId, updateLocation = true) {
+  const isSameView = currentView === viewId;
   prevView = currentView;
   currentView = viewId;
 
@@ -3095,7 +3086,7 @@ function switchView(viewId, updateLocation = true) {
   if (dashboardSections[viewId]) {
     showDashboardSection(viewId, dashboardSections[viewId], false);
   }
-  if (updateLocation) updateDashboardLocation(viewId);
+  if (updateLocation && !isSameView) updateDashboardLocation(viewId);
   window.scrollTo(0, 0);
 }
 
@@ -3199,6 +3190,15 @@ compactNavigation.addEventListener("change", (event) => {
 });
 
 dashboardLogout?.addEventListener("click", logout);
+dashboardHome?.addEventListener("click", () => {
+  switchView("inbox");
+  if (window.location.hash !== "#inbox") {
+    updateDashboardLocation("inbox");
+  }
+  if (compactNavigation.matches) {
+    setSidebarOpen(false);
+  }
+});
 
 function appendTableEmptyState(tbody, columnCount, message) {
   const row = document.createElement("tr");
@@ -3232,7 +3232,7 @@ function inboxItemsForCurrentFilter() {
     .toLowerCase();
   const filter = document.getElementById("inbox-filter")?.value || "all";
 
-  return staffInboxItems.filter((item) => {
+  const items = staffInboxItems.filter((item) => {
     const matchesFilter =
       filter === "all" ||
       (filter === "flagged" && item.flagged) ||
@@ -3252,6 +3252,19 @@ function inboxItemsForCurrentFilter() {
         .includes(query),
     );
   });
+  return sortDashboardRecords(items, inboxSort, inboxSortValue);
+}
+
+function inboxSortValue(item, key) {
+  const values = {
+    student: `${item.studentNumber} ${item.studentName}`,
+    program: item.program,
+    category: item.category,
+    summary: item.summary,
+    status: item.status,
+    createdAt: item.createdAt?.getTime() ?? Number.MAX_SAFE_INTEGER,
+  };
+  return values[key] ?? "";
 }
 
 function createInboxStatusBadge(item) {
@@ -3261,6 +3274,9 @@ function createInboxStatusBadge(item) {
   if (status === "pending") {
     badge.classList.add("negative");
     badge.textContent = "Pending review";
+  } else if (status === "active") {
+    badge.classList.add("pending");
+    badge.textContent = "Active";
   } else if (status === "reviewed") {
     badge.classList.add("resolved");
     badge.textContent = "Reviewed";
@@ -3279,6 +3295,7 @@ function renderInquiryTable() {
   if (!tbody) return;
 
   tbody.replaceChildren();
+  syncTableSortHeaders("inbox-table", inboxSort);
   if (inboxLoadState === "loading") {
     appendTableEmptyState(tbody, 7, "Loading current student summary items...");
     return;
@@ -3299,7 +3316,7 @@ function renderInquiryTable() {
       7,
       staffInboxItems.length
         ? "No current student summary items match this filter."
-        : "No finalized student summary items are available yet.",
+        : "No active or finalized student summary items are available yet.",
     );
     return;
   }
@@ -3353,6 +3370,191 @@ function renderInquiryTable() {
 function renderAllTables() {
   renderInquiryTable();
   renderFlaggedConversations();
+  renderChatbotFeedback();
+}
+
+function setFeedbackState(message, state = "") {
+  const element = document.getElementById("feedback-state");
+  if (!element) return;
+  element.textContent = message;
+  element.classList.toggle("error", state === "error");
+}
+
+function feedbackCategoryLabel(category) {
+  const labels = {
+    helpful: "Helpful",
+    clear_useful: "Clear and useful",
+    not_helpful: "Not helpful",
+    incorrect_information: "Incorrect information",
+    did_not_understand: "Did not understand me",
+    safety_concern: "Reply felt unsafe",
+    other: "Other",
+  };
+  return labels[category] || "Feedback received";
+}
+
+function feedbackContextLabel(context) {
+  const labels = {
+    appointment: "Appointment",
+    academics: "Academics",
+    office_services: "Office services",
+    counseling_support: "Counseling support",
+    general_support: "General support",
+    safety: "Safety response",
+    uncategorized: "Uncategorized",
+  };
+  return labels[context] || "Uncategorized";
+}
+
+const dashboardTableCollator = new Intl.Collator(undefined, {
+  numeric: true,
+  sensitivity: "base",
+});
+
+function sortDashboardRecords(records, sortState, valueFor) {
+  const direction = sortState.direction === "desc" ? -1 : 1;
+  return [...records].sort((left, right) => {
+    const leftValue = valueFor(left, sortState.key);
+    const rightValue = valueFor(right, sortState.key);
+    if (typeof leftValue === "number" && typeof rightValue === "number") {
+      return (leftValue - rightValue) * direction;
+    }
+    return (
+      dashboardTableCollator.compare(String(leftValue), String(rightValue)) * direction
+    );
+  });
+}
+
+function feedbackSortValue(feedback, key) {
+  const values = {
+    student: `${feedback.studentNumber} ${feedback.studentName}`,
+    program: feedback.program,
+    category: feedbackCategoryLabel(feedback.category),
+    responseContext: feedbackContextLabel(feedback.responseContext),
+    comment: feedback.comment,
+    createdAt: feedback.createdAt?.getTime() ?? Number.MAX_SAFE_INTEGER,
+  };
+  return values[key] ?? "";
+}
+
+function renderFeedbackInsights() {
+  const total = document.getElementById("feedback-total-count");
+  const attention = document.getElementById("feedback-attention-count");
+  const safety = document.getElementById("feedback-safety-count");
+  const patternCount = document.getElementById("feedback-pattern-count");
+  const patternDetail = document.getElementById("feedback-pattern-detail");
+  if (!total || !attention || !safety || !patternCount || !patternDetail) return;
+
+  if (!chatbotFeedbackInsights || chatbotFeedbackLoadState !== "ready") {
+    total.textContent = "—";
+    attention.textContent = "—";
+    safety.textContent = "—";
+    patternCount.textContent = "—";
+    patternDetail.textContent = "Loading feedback signals";
+    return;
+  }
+
+  total.textContent = String(chatbotFeedbackInsights.total || 0);
+  attention.textContent = String(chatbotFeedbackInsights.needs_attention || 0);
+  safety.textContent = String(chatbotFeedbackInsights.safety_concerns || 0);
+
+  const pattern = chatbotFeedbackInsights.patterns?.[0];
+  patternCount.textContent = String(pattern?.count || 0);
+  patternDetail.textContent = pattern
+    ? `${feedbackCategoryLabel(pattern.category)} · ${feedbackContextLabel(pattern.response_context)} replies`
+    : "No needs-attention ratings yet";
+}
+
+function feedbackItemsForCurrentFilter() {
+  const query = String(
+    document.getElementById("feedback-search-input")?.value || "",
+  )
+    .trim()
+    .toLowerCase();
+  const filter = document.getElementById("feedback-filter")?.value || "all";
+  const context =
+    document.getElementById("feedback-context-filter")?.value || "all";
+  const helpfulCategories = ["helpful", "clear_useful"];
+  let items = chatbotFeedback.filter((feedback) => {
+    const matchesCategory =
+      filter === "all" ||
+      (filter === "helpful" && helpfulCategories.includes(feedback.category)) ||
+      (filter === "attention" && !helpfulCategories.includes(feedback.category));
+    const matchesContext =
+      context === "all" || feedback.responseContext === context;
+    const searchable = [
+      feedback.studentName,
+      feedback.studentNumber,
+      feedback.program,
+      feedbackCategoryLabel(feedback.category),
+      feedbackContextLabel(feedback.responseContext),
+      feedback.comment,
+    ]
+      .join(" ")
+      .toLowerCase();
+    return matchesCategory && matchesContext && (!query || searchable.includes(query));
+  });
+  items = sortDashboardRecords(items, feedbackSort, feedbackSortValue);
+  return items;
+}
+
+function renderChatbotFeedback() {
+  const tbody = document.getElementById("feedback-tbody");
+  if (!tbody) return;
+  tbody.replaceChildren();
+  renderFeedbackInsights();
+  syncTableSortHeaders("feedback-table", feedbackSort);
+
+  if (chatbotFeedbackLoadState === "loading") {
+    appendTableEmptyState(tbody, 6, "Loading student feedback...");
+    return;
+  }
+  if (chatbotFeedbackLoadState === "error") {
+    appendTableEmptyState(tbody, 6, "Student feedback is unavailable right now.");
+    return;
+  }
+  const items = feedbackItemsForCurrentFilter();
+  if (!items.length) {
+    appendTableEmptyState(
+      tbody,
+      6,
+      chatbotFeedback.length
+        ? "No feedback items match this filter."
+        : "No student feedback has been submitted in your authorized programs yet.",
+    );
+    setFeedbackState(
+      chatbotFeedback.length
+        ? "No feedback items match this filter."
+        : "No student feedback has been submitted yet.",
+    );
+    return;
+  }
+
+  items.forEach((feedback) => {
+    const row = document.createElement("tr");
+    const student = document.createElement("td");
+    const studentName = document.createElement("strong");
+    const studentNumber = document.createElement("span");
+    studentName.className = "inbox-student-name";
+    studentName.textContent = feedback.studentName;
+    studentNumber.className = "inbox-student-number";
+    studentNumber.textContent = feedback.studentNumber;
+    student.append(studentName, studentNumber);
+    row.appendChild(student);
+    appendTableCell(row, feedback.program, "Program");
+    appendTableCell(row, feedbackCategoryLabel(feedback.category), "Rating");
+    appendTableCell(row, feedbackContextLabel(feedback.responseContext), "Reply context");
+    appendTableCell(row, feedback.comment, "Optional note");
+    appendTableCell(
+      row,
+      feedback.createdAt ? feedback.createdAt.toLocaleString() : "Unavailable",
+      "Submitted",
+    );
+    tbody.appendChild(row);
+  });
+  setFeedbackState(
+    `${items.length} student feedback ${items.length === 1 ? "item" : "items"} shown.`,
+  );
 }
 
 function appendTableCell(row, value, label = "") {
@@ -3364,22 +3566,102 @@ function appendTableCell(row, value, label = "") {
   row.appendChild(cell);
 }
 
+function flaggedSortValue(conversation, key) {
+  const values = {
+    student: `${conversation.studentNumber} ${conversation.studentName}`,
+    summary: conversation.summary,
+    category: conversation.category,
+    status: conversation.status,
+    createdAt: conversation.createdAt?.getTime() ?? Number.MAX_SAFE_INTEGER,
+  };
+  return values[key] ?? "";
+}
+
+function flaggedItemsForCurrentFilter() {
+  const query = String(
+    document.getElementById("flagged-search-input")?.value || "",
+  )
+    .trim()
+    .toLowerCase();
+  const filter = document.getElementById("flagged-filter")?.value || "all";
+  const items = flaggedConversations.filter((conversation) => {
+    const matchesFilter =
+      filter === "all" ||
+      conversation.status === filter;
+    const searchable = [
+      conversation.studentName,
+      conversation.studentNumber,
+      conversation.program,
+      conversation.category,
+      conversation.summary,
+    ]
+      .join(" ")
+      .toLowerCase();
+    return matchesFilter && (!query || searchable.includes(query));
+  });
+  return sortDashboardRecords(items, flaggedSort, flaggedSortValue);
+}
+
+function renderFlaggedInsights() {
+  const cases = flaggedConversationsLoaded ? flaggedConversations : null;
+  const pending = cases
+    ? cases.filter((conversation) => conversation.status === "pending")
+    : null;
+  const reviewed = cases
+    ? cases.filter((conversation) => conversation.status === "reviewed")
+    : null;
+  const values = [
+    ["flagged-pending-count", pending?.length ?? "—"],
+    ["flagged-reviewed-count", reviewed?.length ?? "—"],
+  ];
+  values.forEach(([elementId, value]) => {
+    const element = document.getElementById(elementId);
+    if (element) element.textContent = value;
+  });
+}
+
+function setFlaggedState(message) {
+  const state = document.getElementById("flagged-state");
+  if (state) state.textContent = message;
+}
+
 function renderFlaggedConversations() {
   const tbody = document.getElementById("flagged-tbody");
   if (!tbody) return;
 
+  renderFlaggedInsights();
   tbody.replaceChildren();
+  syncTableSortHeaders("flagged-table", flaggedSort);
 
-  if (!flaggedConversations.length) {
+  if (!flaggedConversationsLoaded) {
     appendTableEmptyState(
       tbody,
       6,
-      "No flagged conversations require review right now.",
+      "Flagged cases are unavailable. Retry to load authorized cases.",
+    );
+    setFlaggedState("Flagged cases are unavailable. Retry to load authorized cases.");
+    return;
+  }
+
+  const conversations = flaggedItemsForCurrentFilter();
+
+  if (!conversations.length) {
+    appendTableEmptyState(
+      tbody,
+      6,
+      flaggedConversations.length
+        ? "No flagged conversations match this filter."
+        : "No flagged cases are available in your authorized programs.",
+    );
+    setFlaggedState(
+      flaggedConversations.length
+        ? "No flagged conversations match this filter."
+        : "No flagged cases are available in your authorized programs.",
     );
     return;
   }
 
-  flaggedConversations.forEach((conversation) => {
+  conversations.forEach((conversation) => {
     const row = document.createElement("tr");
     const student = document.createElement("td");
     const studentName = document.createElement("strong");
@@ -3399,10 +3681,10 @@ function renderFlaggedConversations() {
     row.appendChild(summary);
 
     appendTableCell(row, conversation.category);
-    appendTableCell(
-      row,
-      conversation.status === "reviewed" ? "Reviewed" : "Pending review",
-    );
+    const status = document.createElement("td");
+    status.dataset.label = "Status";
+    status.appendChild(createInboxStatusBadge(conversation));
+    row.appendChild(status);
     appendTableCell(
       row,
       conversation.createdAt
@@ -3422,6 +3704,9 @@ function renderFlaggedConversations() {
     row.appendChild(actionCell);
     tbody.appendChild(row);
   });
+  setFlaggedState(
+    `${conversations.length} flagged ${conversations.length === 1 ? "case" : "cases"} shown.`,
+  );
 }
 
 function renderReports() {
@@ -3915,9 +4200,15 @@ function bindReportsControls() {
 }
 
 function updateFlaggedCount() {
-  const count = flaggedConversationsLoaded ? flaggedConversations.length : "—";
+  const count = flaggedConversationsLoaded
+    ? flaggedConversations.filter((conversation) => conversation.status === "pending")
+        .length
+    : "—";
   const flaggedCount = document.getElementById("flagged-count");
-  if (flaggedCount) flaggedCount.textContent = count;
+  if (flaggedCount) {
+    flaggedCount.textContent = count;
+    flaggedCount.setAttribute("aria-label", "Pending flagged-case count");
+  }
 }
 
 function formatCaseNoteTimestamp(timestamp) {
@@ -4323,8 +4614,10 @@ async function renderReviewedCaseHistory(summaryId) {
     if (!items.length) return;
 
     items.forEach((item) => {
+      const isCurrentCase = String(item.summary_id) === String(summaryId);
       const row = document.createElement("div");
       row.className = "case-history-row";
+      row.classList.toggle("case-history-row--current", isCurrentCase);
       const content = document.createElement("div");
       content.className = "case-history-content";
       const title = document.createElement("strong");
@@ -4344,10 +4637,16 @@ async function renderReviewedCaseHistory(summaryId) {
       const open = document.createElement("button");
       open.type = "button";
       open.className = "action-link";
-      open.textContent = "Open";
-      open.addEventListener("click", () => {
-        void openInboxItem({ id: item.summary_id });
-      });
+      open.disabled = isCurrentCase;
+      open.classList.toggle("is-current", isCurrentCase);
+      open.textContent = isCurrentCase ? "Current" : "Open";
+      if (isCurrentCase) {
+        open.setAttribute("aria-label", "Current case is open");
+      } else {
+        open.addEventListener("click", () => {
+          void openInboxItem({ id: item.summary_id });
+        });
+      }
       actions.append(status, open);
       row.append(content, actions);
       list.appendChild(row);
@@ -4432,11 +4731,15 @@ async function openRoutineInboxDetails(conversation, detail) {
     "No escalation record";
   document.getElementById("case-escalation-reason").textContent =
     "Routine summary item";
-  document.getElementById("case-status-label").textContent = "Routine";
-  badge.className = "badge neutral";
-  badge.textContent = "Routine";
-  staffActionsNote.textContent =
-    "No immediate intervention is required. Continue with the requested appointment and monitor the student's progress.";
+  const activeConversation = detail.review_status === "active";
+  document.getElementById("case-status-label").textContent = activeConversation
+    ? "Active"
+    : "Routine";
+  badge.className = `badge ${activeConversation ? "pending" : "neutral"}`;
+  badge.textContent = activeConversation ? "Active" : "Routine";
+  staffActionsNote.textContent = activeConversation
+    ? "This conversation is still active. The AI summary will be available after the conversation is finalized."
+    : "No immediate intervention is required. Continue with the requested appointment and monitor the student's progress.";
 
   reviewButton.hidden = true;
   pendingButton.hidden = true;
@@ -5169,21 +5472,45 @@ async function loadBackendData() {
       cache: "no-store",
     });
     staffInboxItems = (inbox.data?.items || []).map(mapInboxItem);
-    flaggedConversations = staffInboxItems.filter(
-      (item) => item.flagged && item.status === "pending",
-    );
-    flaggedConversationsLoaded = true;
     inboxLoadState = "ready";
   } catch (error) {
     console.error(error);
     staffInboxItems = [];
-    flaggedConversations = [];
-    flaggedConversationsLoaded = false;
     inboxLoadState = "error";
     setInboxState(
       "Inbox items are unavailable. Retry to load persisted summaries.",
       "error",
     );
+  }
+
+  try {
+    const flagged = await fetchJson(`${API_BASE}/api/flagged-conversations`, {
+      cache: "no-store",
+    });
+    flaggedConversations = (flagged.data?.items || []).map(
+      mapFlaggedConversation,
+    );
+    flaggedConversationsLoaded = true;
+  } catch (error) {
+    console.error(error);
+    flaggedConversations = [];
+    flaggedConversationsLoaded = false;
+  }
+
+  chatbotFeedbackLoadState = "loading";
+  try {
+    const feedback = await fetchJson(`${API_BASE}/api/staff/chatbot-feedback`, {
+      cache: "no-store",
+    });
+    chatbotFeedback = (feedback.data?.items || []).map(mapChatbotFeedback);
+    chatbotFeedbackInsights = feedback.data?.insights || null;
+    chatbotFeedbackLoadState = "ready";
+  } catch (error) {
+    console.error(error);
+    chatbotFeedback = [];
+    chatbotFeedbackInsights = null;
+    chatbotFeedbackLoadState = "error";
+    setFeedbackState("Student feedback is unavailable right now.", "error");
   }
 
   try {
@@ -5314,6 +5641,8 @@ bindSettingsInteractions();
 bindPasswordChange();
 bindCounselorProfile();
 bindInboxControls();
+bindFeedbackControls();
+bindFlaggedControls();
 bindFaqManagement();
 bindAppointmentSearch();
 bindAppointmentCalendar();

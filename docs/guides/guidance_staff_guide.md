@@ -48,6 +48,14 @@ conversations. Use a flagged case's existing panels to:
 - create interventions and record progress or outcomes; and
 - view or update the current confidentiality state.
 
+Use **Chatbot Feedback** to review student ratings and optional notes from your
+authorized programs. It is a quality-review queue, not an emergency channel,
+and intentionally excludes raw chat transcripts and AI reply text. Treat a
+repeated category and reply-context signal as evidence to review approved
+Guidance Office content, prompts, safety rules, or synthetic regression tests;
+do not make the chatbot learn directly from individual student records. The
+reply context is a broad server-generated tag, not chat content.
+
 These records are sensitive Guidance Office data. Do not copy them into
 unapproved channels. Do not infer a personal reviewer or counselor ownership
 where the current record does not persist one.

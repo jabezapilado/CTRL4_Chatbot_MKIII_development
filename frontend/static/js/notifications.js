@@ -51,10 +51,22 @@
     }
 
     notifications.forEach((notification) => {
-      const item = document.createElement("article");
+      const notificationIsRead = isRead(notification);
+      const item = document.createElement(
+        notificationIsRead ? "article" : "button",
+      );
       item.className = "notification-item";
-      if (isRead(notification)) {
+      if (notificationIsRead) {
         item.classList.add("is-read");
+      } else {
+        item.type = "button";
+        item.setAttribute(
+          "aria-label",
+          `Mark notification as read: ${String(notification.title || "Notification")}`,
+        );
+        item.addEventListener("click", () => {
+          void markNotificationRead(notification.id, item);
+        });
       }
 
       const heading = document.createElement("h3");
@@ -71,22 +83,6 @@
       const createdAt = document.createElement("time");
       createdAt.textContent = formatCreatedAt(notification.created_at);
       footer.appendChild(createdAt);
-
-      if (!isRead(notification)) {
-        const markRead = document.createElement("button");
-        markRead.type = "button";
-        markRead.className = "notification-mark-read";
-        markRead.textContent = "Mark as read";
-        markRead.addEventListener("click", () => {
-          markNotificationRead(notification.id, markRead);
-        });
-        footer.appendChild(markRead);
-      } else {
-        const readState = document.createElement("span");
-        readState.className = "notification-read-state";
-        readState.textContent = "Read";
-        footer.appendChild(readState);
-      }
 
       item.appendChild(footer);
       list.appendChild(item);

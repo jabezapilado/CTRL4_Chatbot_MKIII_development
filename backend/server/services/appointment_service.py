@@ -40,9 +40,6 @@ CONSULTATION_SCHEDULE_FIELDS: Final[frozenset[str]] = frozenset(
 CONSULTATION_SCHEDULE_ERROR_MESSAGE: Final[str] = (
     "The selected date and time are outside the counselor's consultation schedule."
 )
-OFFICE_AVAILABILITY_FIELDS: Final[frozenset[str]] = frozenset(
-    {"days", "time"}
-)
 APPOINTMENT_AVAILABILITY_ERROR_MESSAGE: Final[str] = (
     "The Guidance Office is unavailable for the selected date and time."
 )
@@ -601,10 +598,6 @@ def _has_valid_appointment_availability(
     if requested_date is None or requested_time is None:
         return False
 
-    office_availability = availability.get("officeAvailability")
-    if not isinstance(office_availability, list) or not office_availability:
-        return False
-
     closed_dates: set[str] = set()
     for field in (
         "holidays",
@@ -619,27 +612,9 @@ def _has_valid_appointment_availability(
     if requested_date.strftime("%Y-%m-%d") in closed_dates:
         return False
 
-    has_matching_window = False
-    for window in office_availability:
-        if (
-            not isinstance(window, dict)
-            or set(window) != OFFICE_AVAILABILITY_FIELDS
-        ):
-            return False
-
-        available_days = _parse_schedule_days(window.get("days"))
-        time_range = _parse_schedule_time_range(window.get("time"))
-        if available_days is None or time_range is None:
-            return False
-
-        start_time, end_time = time_range
-        if (
-            requested_date.weekday() in available_days
-            and start_time <= requested_time < end_time
-        ):
-            has_matching_window = True
-
-    return has_matching_window
+    # Per-counselor consultation schedules are the authoritative availability
+    # gate. The shared configuration supplies only booking policy and closures.
+    return True
 
 
 def _validate_appointment_availability(
@@ -712,16 +687,65 @@ def _require_staff_program_access(staff_account: dict, student: dict) -> None:
         raise PermissionError("Student is not in your assigned programs.")
 
 
+def _counselor_appointment_slots(
+    counselor: dict,
+    configuration: dict | None,
+) -> list[str] | None:
+    stored_slots = counselor.get("appointment_slots")
+    if stored_slots is None:
+        # Existing records are seeded during database initialization. Keep a
+        # narrow compatibility fallback for legacy imported records only.
+        raw_slots = (configuration or {}).get("appointmentSlots")
+    else:
+        raw_slots = _decode_consultation_metadata_list(stored_slots)
+    if not isinstance(raw_slots, list) or not raw_slots:
+        return None
+
+    slots: list[str] = []
+    for raw_slot in raw_slots:
+        if not isinstance(raw_slot, str):
+            return None
+        normalized = _normalize_preferred_time_slot(raw_slot)
+        if not normalized or normalized in slots:
+            return None
+        slots.append(normalized)
+    return sorted(slots, key=_parse_clock)
+
+
+def _counselor_consultation_modes(
+    counselor: dict,
+    configuration: dict | None,
+) -> list[str] | None:
+    stored_modes = counselor.get("consultation_modes")
+    if stored_modes is None:
+        # See the legacy imported-record compatibility note above.
+        raw_modes = (configuration or {}).get("consultationModes")
+    else:
+        raw_modes = _decode_consultation_metadata_list(stored_modes)
+    if not isinstance(raw_modes, list) or not raw_modes:
+        return None
+
+    modes: list[str] = []
+    seen: set[str] = set()
+    for raw_mode in raw_modes:
+        if not isinstance(raw_mode, str):
+            return None
+        mode = " ".join(raw_mode.split())
+        if not mode or mode.casefold() in seen:
+            return None
+        seen.add(mode.casefold())
+        modes.append(mode)
+    return modes
+
+
 def _validate_configured_slot(
+    counselor: dict,
     configuration: dict | None,
     preferred_time_slot: object,
 ) -> None:
-    if configuration is None:
-        return
-    slots = configuration.get("appointmentSlots")
-    if slots is None:
-        # Existing pre-slot configurations are normalized with default slots on
-        # persisted reads; retain compatibility for direct legacy callers.
+    slots = _counselor_appointment_slots(counselor, configuration)
+    if slots is None and counselor.get("appointment_slots") is None:
+        # Legacy direct callers may not include a persisted slot configuration.
         return
     normalized = _normalize_preferred_time_slot(preferred_time_slot)
     if not isinstance(slots, list) or normalized not in slots:
@@ -744,9 +768,6 @@ def get_booking_options_service(
     options["availableSlots"] = []
     if not options.get("bookingEnabled") or options.get("state") != "available":
         return options
-    if preferred_date is None or not str(preferred_date).strip():
-        options["slotState"] = "date_required"
-        return options
 
     role = str(requester.get("role") or "").lower()
     if role == "student":
@@ -754,6 +775,9 @@ def get_booking_options_service(
     elif role == "staff":
         identifier = str(student_number or "").strip()
         if not identifier:
+            if preferred_date is None or not str(preferred_date).strip():
+                options["slotState"] = "student_required"
+                return options
             raise ValueError("Select a student before loading appointment slots.")
         student = get_student_by_student_number(identifier)
         if student:
@@ -776,8 +800,15 @@ def get_booking_options_service(
         options["slotState"] = "counselor_schedule_unconfigured"
         return options
 
-    slots = configuration.get("appointmentSlots")
-    if not isinstance(slots, list):
+    slots = _counselor_appointment_slots(counselor, configuration)
+    modes = _counselor_consultation_modes(counselor, configuration)
+    if not slots or not modes:
+        options["slotState"] = "counselor_preferences_unconfigured"
+        return options
+    options["appointmentSlots"] = slots
+    options["consultationModes"] = modes
+    if preferred_date is None or not str(preferred_date).strip():
+        options["slotState"] = "date_required"
         return options
     available_slots = [
         slot
@@ -799,7 +830,7 @@ def _validate_booking_constraints(
     appointment_mode: object = None,
 ) -> None:
     configuration = settings_service.get_appointment_configuration()
-    _validate_configured_slot(configuration, preferred_time_slot)
+    _validate_configured_slot(counselor, configuration, preferred_time_slot)
     _validate_consultation_schedule(
         counselor,
         preferred_date,
@@ -814,7 +845,7 @@ def _validate_booking_constraints(
         return
 
     categories = configuration.get("appointmentCategories")
-    modes = configuration.get("consultationModes")
+    modes = _counselor_consultation_modes(counselor, configuration)
     if categories is not None and appointment_category not in categories:
         raise ValueError(
             (
@@ -822,7 +853,7 @@ def _validate_booking_constraints(
                 ["appointment_category"],
             )
         )
-    if modes is not None and appointment_mode not in modes:
+    if not modes or appointment_mode not in modes:
         raise ValueError(
             (
                 "The selected consultation mode is unavailable.",

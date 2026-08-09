@@ -66,6 +66,11 @@ class ConversationServiceTests(unittest.TestCase):
         self.assertIn("pending_escalations.status = 'pending'", source)
         self.assertIn("selected_summary_id", source)
 
+    def test_inbox_query_keeps_a_reviewed_case_until_a_later_summary_exists(self):
+        source = (ROOT / "backend/server/db.py").read_text(encoding="utf-8")
+        self.assertIn("reviewed_escalations.status = 'reviewed'", source)
+        self.assertIn("later_summaries.created_at > reviewed_escalations.reviewed_at", source)
+
     def test_inbox_fails_closed_for_unassigned_staff_programs(self):
         with patch.object(
             conversation_service,
@@ -79,6 +84,93 @@ class ConversationServiceTests(unittest.TestCase):
 
         self.assertEqual(items, [])
         list_inbox.assert_not_called()
+
+    def test_flagged_case_list_keeps_reviewed_cases_scoped_to_staff_programs(self):
+        pending = self._inbox_row(
+            41,
+            "2026-00011",
+            flagged_status=True,
+            escalation_status="pending",
+        )
+        reviewed = self._inbox_row(
+            39,
+            "2026-00011",
+            flagged_status=True,
+            escalation_status="reviewed",
+        )
+        with patch.object(
+            conversation_service,
+            "fetch_account_by_id",
+            return_value=self._staff_account(["BSCS"]),
+        ), patch.object(
+            conversation_service,
+            "list_staff_flagged_case_summaries",
+            return_value=[pending, reviewed],
+        ) as list_cases:
+            items = conversation_service.list_staff_flagged_case_items({"id": 3})
+
+        list_cases.assert_called_once_with(["bscs"])
+        self.assertEqual([item["summary_id"] for item in items], [41, 39])
+        self.assertEqual(
+            [item["review_status"] for item in items], ["pending", "reviewed"]
+        )
+        self.assertTrue(all(item["flagged_status"] for item in items))
+
+    def test_flagged_case_query_is_program_scoped_and_retains_reviewed_cases(self):
+        source = (ROOT / "backend/server/db.py").read_text(encoding="utf-8")
+        self.assertIn("def list_staff_flagged_case_summaries", source)
+        self.assertIn("escalations.status IN ('pending', 'reviewed')", source)
+        self.assertIn("accounts.program IN ({placeholders})", source)
+
+    def test_chatbot_feedback_is_program_scoped_and_excludes_raw_chat_fields(self):
+        feedback_row = {
+            "feedback_id": 41,
+            "conversation_summary_id": 28,
+            "student_name": "Student 2026-00005",
+            "student_number": "2026-00005",
+            "program": "BSCS",
+            "category": "not_helpful",
+            "comment": "Too generic.",
+            "response_context": "academics",
+            "created_at": "2026-08-10T10:00:00",
+            "response_text": "Private assistant text",
+            "student_message": "Private student text",
+        }
+        with patch.object(
+            conversation_service,
+            "fetch_account_by_id",
+            return_value=self._staff_account(["BSCS"]),
+        ), patch.object(
+            conversation_service,
+            "list_chatbot_feedback_for_programs",
+            return_value=[feedback_row],
+        ) as list_feedback:
+            items = conversation_service.list_staff_chatbot_feedback({"id": 3})
+
+        list_feedback.assert_called_once_with(["bscs"])
+        self.assertEqual(items[0]["feedback_id"], 41)
+        self.assertEqual(items[0]["comment"], "Too generic.")
+        self.assertEqual(items[0]["response_context"], "academics")
+        self.assertNotIn("response_text", items[0])
+        self.assertNotIn("student_message", items[0])
+
+    def test_chatbot_feedback_insights_group_non_helpful_ratings_by_safe_context(self):
+        insights = conversation_service.summarize_staff_chatbot_feedback(
+            [
+                {"category": "helpful", "response_context": "academics"},
+                {"category": "not_helpful", "response_context": "academics"},
+                {"category": "not_helpful", "response_context": "academics"},
+                {"category": "safety_concern", "response_context": "safety"},
+            ]
+        )
+
+        self.assertEqual(insights["total"], 4)
+        self.assertEqual(insights["needs_attention"], 3)
+        self.assertEqual(insights["safety_concerns"], 1)
+        self.assertEqual(
+            insights["patterns"][0],
+            {"category": "not_helpful", "response_context": "academics", "count": 2},
+        )
 
     def test_inbox_detail_denies_out_of_scope_and_projects_summary_only(self):
         row = self._inbox_row(18, "2026-00003", program="BSIT", summary="")
@@ -130,6 +222,83 @@ class ConversationServiceTests(unittest.TestCase):
 
         self.assertEqual(item["review_status"], "pending")
         self.assertTrue(item["flagged_status"])
+
+    def test_active_placeholder_is_visible_without_an_ai_summary(self):
+        active = self._inbox_row(
+            28,
+            "2026-00005",
+            conversation_type="active",
+            primary_concern="Conversation in progress",
+            emotion_results="Pending",
+            summary="Conversation in progress",
+            total_messages=0,
+        )
+        with patch.object(
+            conversation_service,
+            "fetch_account_by_id",
+            return_value=self._staff_account(["BSCS"]),
+        ), patch.object(
+            conversation_service,
+            "list_staff_inbox_summaries",
+            return_value=[active],
+        ):
+            item = conversation_service.list_staff_inbox_items({"id": 3})[0]
+
+        self.assertEqual(item["summary_id"], 28)
+        self.assertEqual(item["review_status"], "active")
+        self.assertEqual(item["summary_preview"], "Conversation in progress")
+        self.assertFalse(item["flagged_status"])
+
+    def test_active_placeholder_is_not_hidden_by_an_older_pending_flagged_case(self):
+        pending = self._inbox_row(
+            27,
+            "2026-00005",
+            flagged_status=True,
+            escalation_status="pending",
+        )
+        active = self._inbox_row(
+            28,
+            "2026-00005",
+            conversation_type="active",
+            primary_concern="Conversation in progress",
+            summary="Conversation in progress",
+        )
+        with patch.object(
+            conversation_service,
+            "fetch_account_by_id",
+            return_value=self._staff_account(["BSCS"]),
+        ), patch.object(
+            conversation_service,
+            "list_staff_inbox_summaries",
+            return_value=[pending, active],
+        ):
+            items = conversation_service.list_staff_inbox_items({"id": 3})
+
+        self.assertEqual([item["summary_id"] for item in items], [27, 28])
+        self.assertEqual(items[0]["review_status"], "pending")
+        self.assertEqual(items[1]["review_status"], "active")
+
+    def test_active_placeholder_with_a_pending_escalation_is_pending_review(self):
+        active_crisis = self._inbox_row(
+            28,
+            "2026-00005",
+            conversation_type="active",
+            flagged_status=True,
+            escalation_status="pending",
+        )
+        with patch.object(
+            conversation_service,
+            "fetch_account_by_id",
+            return_value=self._staff_account(["BSCS"]),
+        ), patch.object(
+            conversation_service,
+            "list_staff_inbox_summaries",
+            return_value=[active_crisis],
+        ):
+            item = conversation_service.list_staff_inbox_items({"id": 3})[0]
+
+        self.assertTrue(item["flagged_status"])
+        self.assertEqual(item["review_status"], "pending")
 
     def test_reviewed_case_history_preserves_multiple_cases_when_routine_is_current(self):
         routine_current = self._inbox_row(
@@ -362,7 +531,7 @@ class ConversationServiceTests(unittest.TestCase):
         self.assertEqual(client_for("student").get("/api/staff/inbox").status_code, 403)
         self.assertEqual(client_for("admin").get("/api/staff/inbox").status_code, 403)
 
-    def test_flagged_route_uses_only_flagged_scoped_inbox_items(self):
+    def test_flagged_route_returns_pending_and_reviewed_program_scoped_cases(self):
         from backend.server.routes.conversation_routes import conversation_bp
         from backend.server.routes import conversation_routes
 
@@ -377,11 +546,6 @@ class ConversationServiceTests(unittest.TestCase):
                 "role": "staff",
             }
 
-        routine = {
-            "summary_id": 31,
-            "flagged_status": False,
-            "review_status": "routine",
-        }
         reviewed = {
             "summary_id": 32,
             "flagged_status": True,
@@ -394,13 +558,14 @@ class ConversationServiceTests(unittest.TestCase):
         }
         with patch.object(
             conversation_routes,
-            "list_staff_inbox_items",
-            return_value=[routine, reviewed, pending],
+            "list_staff_flagged_case_items",
+            return_value=[pending, reviewed],
         ):
             response = client.get("/api/flagged-conversations")
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.get_json()["data"]["items"], [pending])
+        self.assertEqual(response.get_json()["data"]["items"], [pending, reviewed])
+        self.assertEqual(response.headers.get("Cache-Control"), "no-store")
 
     def test_staff_detail_excludes_transcript_and_linkage_fields(self):
         row = {

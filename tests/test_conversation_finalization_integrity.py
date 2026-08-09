@@ -84,6 +84,25 @@ class ConversationFinalizationIntegrityTests(unittest.TestCase):
         generate.assert_not_called()
         save.assert_not_called()
 
+    def test_empty_finalization_discards_its_active_placeholder(self) -> None:
+        with patch.object(
+            conversation_service,
+            "discard_active_conversation_summary",
+            return_value=True,
+        ) as discard:
+            result = conversation_service.finalize_conversation(
+                user={"id": 1, "full_name": "Student"},
+                conversation=[],
+                topic="general",
+                language="unknown",
+                emotion="neutral",
+                flagged=False,
+                active_summary_id=81,
+            )
+
+        self.assertEqual(result["status"], "skipped")
+        discard.assert_called_once_with(81, 1)
+
     def test_finalize_route_ignores_appointment_only_browser_payload(self) -> None:
         client = self._client()
         with patch(
@@ -385,7 +404,12 @@ class ConversationFinalizationIntegrityTests(unittest.TestCase):
             "backend.server.routes.chatbot_routes.record_chat_inquiry",
         ), patch(
             "backend.server.routes.chatbot_routes.transient_chat_service.record_exchange",
-        ):
+        ), patch(
+            "backend.server.routes.chatbot_routes.ensure_staff_visible_active_conversation",
+            return_value=81,
+        ), patch(
+            "backend.server.routes.chatbot_routes.mark_active_conversation_for_immediate_review",
+        ) as mark_active:
             response = client.post(
                 "/chat",
                 json={"message": "I wanna finish my life.", "conversation": []},
@@ -396,7 +420,154 @@ class ConversationFinalizationIntegrityTests(unittest.TestCase):
         self.assertEqual(response.get_json()["data"]["topic"], "Crisis Concern")
         with client.session_transaction() as session:
             self.assertTrue(session["conversation_escalated"])
+            self.assertEqual(session["active_conversation_summary_id"], 81)
             self.assertEqual(session["conversation_escalation_reason"], "AI safety escalation.")
+        mark_active.assert_called_once_with(81, 1, "AI safety escalation.")
+
+    def test_first_chat_message_creates_one_staff_visible_active_placeholder(self) -> None:
+        client = self._client()
+        normal_result = SimpleNamespace(
+            success=True,
+            response="Let's look at one manageable next step.",
+            emotion="Neutral",
+            sentiment="Neutral",
+            language="english",
+            topic="Academics",
+            state="Exploring Concern",
+            escalated=False,
+            confidence=0.9,
+            intent="unknown",
+            normalized_emotion="neutral",
+            normalized_topic="academics",
+            metadata={},
+        )
+        with patch(
+            "backend.server.routes.chatbot_routes.ai_service.respond",
+            return_value=normal_result,
+        ), patch(
+            "backend.server.routes.chatbot_routes.record_chat_inquiry",
+        ), patch(
+            "backend.server.routes.chatbot_routes.transient_chat_service.record_exchange",
+        ), patch(
+            "backend.server.routes.chatbot_routes.ensure_staff_visible_active_conversation",
+            return_value=81,
+        ) as ensure_active:
+            first = client.post("/chat", json={"message": "I am stressed.", "conversation": []})
+            second = client.post("/chat", json={"message": "Still stressed.", "conversation": []})
+
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 200)
+        self.assertTrue(first.get_json()["data"]["feedback_token"])
+        self.assertTrue(second.get_json()["data"]["feedback_token"])
+        self.assertNotEqual(
+            first.get_json()["data"]["feedback_token"],
+            second.get_json()["data"]["feedback_token"],
+        )
+        ensure_active.assert_called_once_with(1)
+        with client.session_transaction() as session:
+            self.assertEqual(session["active_conversation_summary_id"], 81)
+            self.assertEqual(len(session["chatbot_feedback_response_tokens"]), 2)
+
+    def test_finalization_updates_active_placeholder_without_creating_a_duplicate(self) -> None:
+        summary = SimpleNamespace(
+            primary_concern="Academics",
+            conversation_type="general",
+            emotion="Neutral",
+            flagged=False,
+            appointment_recommendation=False,
+            recommendations="Continue with one manageable academic next step.",
+            suggested_intervention="Monitor routine academic stress.",
+            language="english",
+            total_messages=2,
+            summary="The student discussed routine academic stress.",
+        )
+        with patch.object(
+            conversation_service,
+            "fetch_open_conversation_case",
+            return_value=None,
+        ), patch.object(
+            conversation_service.summary_service,
+            "generate_summary",
+            return_value=summary,
+        ), patch.object(
+            conversation_service,
+            "finalize_active_conversation_summary",
+            return_value=True,
+        ) as finalize_active, patch.object(
+            conversation_service,
+            "save_conversation_summary",
+        ) as save_summary:
+            result = conversation_service.finalize_conversation(
+                user={"id": 1, "full_name": "Student"},
+                conversation=[
+                    {"from": "user", "text": "I am stressed about school."},
+                    {"from": "bot", "text": "Let's make a plan."},
+                ],
+                topic="Academics",
+                language="english",
+                emotion="Neutral",
+                flagged=False,
+                active_summary_id=81,
+            )
+
+        self.assertEqual(result["summary_id"], 81)
+        finalize_active.assert_called_once()
+        save_summary.assert_not_called()
+
+    def test_flagged_finalization_updates_its_active_placeholder_and_escalates(self) -> None:
+        summary = SimpleNamespace(
+            primary_concern="Crisis Concern",
+            conversation_type="general",
+            emotion="Crisis",
+            flagged=True,
+            appointment_recommendation=False,
+            recommendations="Immediate Guidance Office review is recommended.",
+            suggested_intervention="Immediate Guidance Office review is recommended.",
+            language="english",
+            total_messages=2,
+            summary="The student expressed a high-risk safety concern.",
+        )
+        with patch.object(
+            conversation_service,
+            "fetch_open_conversation_case",
+            return_value=None,
+        ), patch.object(
+            conversation_service.summary_service,
+            "generate_summary",
+            return_value=summary,
+        ), patch.object(
+            conversation_service,
+            "finalize_active_conversation_summary",
+            return_value=True,
+        ) as finalize_active, patch.object(
+            conversation_service,
+            "save_conversation_summary",
+        ) as save_summary, patch.object(
+            conversation_service,
+            "ensure_pending_escalation",
+            return_value=False,
+        ) as ensure_escalation, patch.object(
+            conversation_service,
+            "get_student_by_id",
+            return_value=None,
+        ):
+            result = conversation_service.finalize_conversation(
+                user={"id": 1, "full_name": "Student"},
+                conversation=[
+                    {"from": "user", "text": "I want to hang myself."},
+                    {"from": "bot", "text": "Please contact the Guidance Office."},
+                ],
+                topic="Crisis Concern",
+                language="english",
+                emotion="Crisis",
+                flagged=True,
+                active_summary_id=82,
+            )
+
+        self.assertEqual(result["summary_id"], 82)
+        finalize_active.assert_called_once()
+        save_summary.assert_not_called()
+        ensure_escalation.assert_called_once()
 
     def test_later_neutral_message_cannot_clear_high_risk_session_state(self) -> None:
         client = self._client()
@@ -419,6 +590,11 @@ class ConversationFinalizationIntegrityTests(unittest.TestCase):
             "backend.server.routes.chatbot_routes.record_chat_inquiry",
         ), patch(
             "backend.server.routes.chatbot_routes.transient_chat_service.record_exchange",
+        ), patch(
+            "backend.server.routes.chatbot_routes.ensure_staff_visible_active_conversation",
+            return_value=81,
+        ), patch(
+            "backend.server.routes.chatbot_routes.mark_active_conversation_for_immediate_review",
         ):
             first = client.post("/chat", json={"message": "I want to finish my life.", "conversation": []})
             second = client.post("/chat", json={"message": "okay", "conversation": []})
@@ -428,6 +604,29 @@ class ConversationFinalizationIntegrityTests(unittest.TestCase):
         self.assertTrue(second.get_json()["data"]["session_escalated"])
         with client.session_transaction() as session:
             self.assertTrue(session["conversation_escalated"])
+
+    def test_active_crisis_placeholder_is_marked_pending_and_notified_once(self) -> None:
+        with patch.object(
+            conversation_service,
+            "mark_active_conversation_escalated",
+            return_value=True,
+        ) as mark_active, patch.object(
+            conversation_service,
+            "ensure_pending_escalation",
+            return_value=True,
+        ) as ensure_escalation, patch.object(
+            conversation_service,
+            "_notify_high_risk_conversation_safely",
+        ) as notify:
+            conversation_service.mark_active_conversation_for_immediate_review(
+                81,
+                1,
+                "AI safety escalation.",
+            )
+
+        mark_active.assert_called_once_with(81, 1)
+        ensure_escalation.assert_called_once_with(1, 81, "AI safety escalation.")
+        notify.assert_called_once_with(1)
 
     def test_notification_failure_does_not_roll_back_flagged_case_persistence(self) -> None:
         summary = SimpleNamespace(

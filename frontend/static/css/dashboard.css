@@ -38,6 +38,35 @@
   margin-bottom: 14px;
 }
 
+.sidebar-home {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sidebar-home:hover {
+  color: var(--gold-light);
+}
+
+.sidebar-home:focus-visible {
+  outline: 3px solid var(--gold-light);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+
+.sidebar-brand-copy {
+  display: block;
+  min-width: 0;
+}
+
 .sidebar-logo-img {
   width: 38px;
   height: 38px;
@@ -47,11 +76,13 @@
 }
 
 .sidebar-brand-text {
+  display: block;
   font-size: 13.5px;
   font-weight: 700;
   line-height: 1.15;
 }
 .sidebar-brand-sub {
+  display: block;
   font-size: 10px;
   color: var(--gold-light);
   text-transform: uppercase;
@@ -296,6 +327,39 @@
   color: var(--gray-800);
   font: inherit;
   font-size: 12px;
+}
+
+.table-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  font: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.table-sort:hover,
+.table-sort.active {
+  color: var(--orange);
+}
+
+.table-sort:focus-visible {
+  outline: 2px solid rgba(211, 84, 0, 0.45);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+.table-sort-indicator {
+  min-width: 0.7em;
+  color: var(--orange);
+  font-size: 0.9em;
+  line-height: 1;
 }
 
 .inbox-state {
@@ -803,6 +867,58 @@
   line-height: 1.45;
 }
 
+#view-feedback > .panel > .sub {
+  margin: 0;
+  padding: 9px 20px 7px;
+  color: var(--gray-700);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+#view-feedback .inquiry-table td:nth-child(5) {
+  max-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.feedback-stat-grid,
+.flagged-stat-grid {
+  grid-template-columns: repeat(4, minmax(190px, 1fr));
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.flagged-stat-grid {
+  grid-template-columns: repeat(2, minmax(190px, 1fr));
+}
+
+.feedback-stat-grid .stat-card,
+.flagged-stat-grid .stat-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100px;
+  padding: 14px 18px;
+}
+
+.feedback-stat-grid .stat-value,
+.flagged-stat-grid .stat-value {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+  margin-top: 4px;
+  font-size: 28px;
+}
+
+.feedback-stat-grid .stat-sub,
+.flagged-stat-grid .stat-sub {
+  margin-top: 4px;
+  font-size: 10.5px;
+}
+
+.feedback-stat-grid .feedback-signal-card .stat-value {
+  font-size: 24px;
+}
+
 .flagged-table {
   table-layout: fixed;
 }
@@ -878,12 +994,6 @@ table.inquiry-table.flagged-table {
   line-clamp: 2;
 }
 
-.flagged-table td:nth-child(4) {
-  color: var(--danger-text);
-  font-size: 12px;
-  font-weight: 700;
-}
-
 .flagged-table .table-empty-state {
   padding: 18px 20px;
 }
@@ -923,7 +1033,9 @@ table.inquiry-table.flagged-table {
 }
 
 @media (max-width: 1180px) {
-  .inbox-stat-grid {
+  .inbox-stat-grid,
+  .feedback-stat-grid,
+  .flagged-stat-grid {
     grid-template-columns: repeat(2, minmax(220px, 1fr));
   }
 
@@ -1654,25 +1766,193 @@ table.inquiry-table .table-empty-state {
   width: 100%;
 }
 
-#view-settings .settings-grid {
+#view-settings .settings-section-nav {
+  margin-bottom: 20px;
+}
+
+#view-settings .settings-staff-stack {
+  display: grid;
   gap: 14px;
-  margin-bottom: 14px;
+}
+
+#view-settings [data-dashboard-section][hidden] {
+  display: none;
+}
+
+#view-settings .settings-scope {
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  background: var(--white);
+  box-shadow: var(--shadow-sm);
+}
+
+#view-settings .settings-scope-global,
+#view-settings .settings-scope-personal {
+  display: grid;
+  gap: 14px;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+#view-settings .settings-scope > * + * {
+  border-top: 1px solid var(--gray-200);
+}
+
+#view-settings .settings-scope-global > * + *,
+#view-settings .settings-scope-personal > * + * {
+  border-top: 0;
+}
+
+#view-settings .settings-scope-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0;
+  padding: 14px 20px;
+}
+
+#view-settings .settings-scope-heading-copy {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+#view-settings .settings-scope-heading .settings-actions {
+  flex: 0 0 auto;
+  margin: 0 0 0 auto;
+}
+
+#view-settings .settings-scope-heading h2 {
+  margin: 0;
+  color: var(--gray-900);
+  font-size: 17px;
+  line-height: 1.25;
+}
+
+#view-settings .settings-scope-heading p {
+  max-width: 760px;
+  margin: 3px 0 0;
+  color: var(--gray-500);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+#view-settings .settings-scope-heading,
+#view-settings .settings-scope > .settings-grid,
+#view-settings .settings-scope > .settings-panel,
+#view-settings .settings-scope > .settings-global-actions {
+  overflow: hidden;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  background: var(--white);
+  box-shadow: var(--shadow-sm);
+}
+
+#view-settings .settings-scope > .settings-grid,
+#view-settings .settings-scope > .settings-panel,
+#view-settings .settings-scope > .settings-status,
+#view-settings .settings-scope > .settings-actions {
+  margin-top: 0;
+}
+
+#view-settings .settings-grid {
+  display: block;
+  gap: 0;
+  margin: 0;
 }
 
 #view-settings .settings-panel {
+  padding: 20px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+#view-settings .settings-standalone-panel {
+  overflow: hidden;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  background: var(--white);
+  box-shadow: var(--shadow-sm);
+}
+
+#view-settings [data-settings-collapsible] {
+  padding: 0;
+}
+
+#view-settings [data-settings-collapsible] > summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
   padding: 18px 20px;
+  color: var(--gray-900);
+  cursor: pointer;
+  list-style: none;
+}
+
+#view-settings [data-settings-collapsible] > summary::-webkit-details-marker {
+  display: none;
+}
+
+#view-settings [data-settings-collapsible] > summary:hover {
+  background: var(--gray-50);
+}
+
+#view-settings [data-settings-collapsible] > summary:focus-visible {
+  outline: 3px solid rgba(211, 84, 0, 0.24);
+  outline-offset: -3px;
+}
+
+#view-settings [data-settings-collapsible] > summary .sub {
+  margin-bottom: 0;
+}
+
+#view-settings .settings-collapsible-indicator {
+  display: grid;
+  flex: 0 0 26px;
+  width: 26px;
+  height: 26px;
+  margin-top: 2px;
+  border: 1px solid rgba(211, 84, 0, 0.42);
+  border-radius: 50%;
+  color: var(--orange-dark);
+  place-items: center;
+}
+
+#view-settings .settings-collapsible-indicator::before {
+  content: "+";
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+#view-settings [data-settings-collapsible][open]
+  .settings-collapsible-indicator::before {
+  content: "−";
+}
+
+#view-settings .settings-collapsible-body {
+  padding: 0 20px 20px;
 }
 
 #view-settings .settings-panel + .settings-panel,
 #view-settings .settings-panel + .settings-status,
 #view-settings .settings-actions + .settings-panel {
-  margin-top: 14px;
+  margin-top: 0;
 }
 
 #view-settings .appointment-settings-panel,
 #view-settings .faq-management-panel,
 #view-settings .counselor-profile-panel {
-  margin-bottom: 14px;
+  margin-bottom: 0;
 }
 
 #view-settings .settings-panel h3 {
@@ -1777,19 +2057,34 @@ table.inquiry-table .table-empty-state {
   font-size: 12px;
 }
 
+#view-settings .settings-list-heading .btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 #view-settings .settings-actions {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
 }
 
-#view-settings > .settings-actions {
-  margin-top: 0;
+#view-settings .settings-global-actions {
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+}
+
+#view-settings .settings-scope > .settings-global-actions {
+  background: var(--gray-50);
 }
 
 #view-settings .settings-status {
   margin: 0 0 12px;
   padding: 9px 12px;
+}
+
+#view-settings .settings-scope > .settings-status {
+  margin: 14px 20px 0;
 }
 
 #view-settings .toggle-row {
@@ -1868,6 +2163,13 @@ table.inquiry-table .table-empty-state {
 
 #view-settings .faq-active-toggle {
   flex-shrink: 0;
+}
+
+#view-settings .faq-active-toggle input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--orange);
+  cursor: pointer;
 }
 
 #view-settings .faq-editor-card .field-group,
@@ -2310,6 +2612,13 @@ table.inquiry-table .table-empty-state {
   border-top: 0;
 }
 
+#view-case-details .case-history-row--current {
+  background: var(--gray-100);
+  border-radius: var(--radius-sm);
+  padding-right: 10px;
+  padding-left: 10px;
+}
+
 #view-case-details .case-history-content {
   min-width: 0;
 }
@@ -2339,6 +2648,19 @@ table.inquiry-table .table-empty-state {
   align-items: center;
   flex: 0 0 auto;
   gap: 10px;
+}
+
+#view-case-details .case-history-actions .action-link.is-current,
+#view-case-details .case-history-actions .action-link:disabled {
+  color: var(--gray-400);
+  cursor: default;
+  transform: none;
+}
+
+#view-case-details .case-history-actions .action-link.is-current:hover,
+#view-case-details .case-history-actions .action-link:disabled:hover {
+  color: var(--gray-400);
+  transform: none;
 }
 
 .case-info-panel h3 {
@@ -3199,7 +3521,7 @@ table.inquiry-table .table-empty-state {
     padding-right: 12px;
     padding-left: 14px;
   }
-  .sidebar-brand > div {
+  .sidebar-home {
     flex: 1;
     min-width: 0;
   }
@@ -3286,7 +3608,9 @@ table.inquiry-table .table-empty-state {
     min-height: 36px;
     padding: 7px 11px;
   }
-  .inbox-stat-grid {
+  .inbox-stat-grid,
+  .feedback-stat-grid,
+  .flagged-stat-grid {
     grid-template-columns: minmax(0, 1fr);
   }
   #view-reports .form-grid {
@@ -3312,6 +3636,19 @@ table.inquiry-table .table-empty-state {
   }
   #view-settings .field-grid-2 {
     grid-template-columns: minmax(0, 1fr);
+  }
+  #view-settings .settings-scope-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+    margin-right: 0;
+    margin-left: 0;
+  }
+  #view-settings .settings-scope-heading-copy {
+    width: 100%;
+  }
+  #view-settings .settings-scope-heading .settings-actions {
+    margin-left: 0;
   }
   #view-settings .settings-list-heading,
   #view-settings .faq-editor-card-header {
@@ -3377,6 +3714,16 @@ table.inquiry-table .table-empty-state {
     min-width: 0;
     max-width: none;
     min-height: 44px;
+  }
+  #view-feedback .feedback-toolbar .inbox-toolbar-controls label[for="feedback-context-filter"] {
+    grid-column: 1;
+  }
+  #view-feedback .feedback-toolbar #feedback-context-filter {
+    grid-column: 2 / -1;
+  }
+  #view-feedback .feedback-toolbar #feedback-retry {
+    grid-column: 3;
+    grid-row: 1;
   }
   #inbox-retry {
     min-width: 64px;
@@ -3571,6 +3918,7 @@ table.inquiry-table .table-empty-state {
   }
 
   #view-inbox > .panel > .sub,
+  #view-feedback > .panel > .sub,
   .inbox-state {
     padding-right: 14px;
     padding-left: 14px;
@@ -3596,7 +3944,9 @@ table.inquiry-table .table-empty-state {
   .appointment-availability-window .btn {
     width: 100%;
   }
-  .appointment-stat-grid {
+  .appointment-stat-grid,
+  .feedback-stat-grid,
+  .flagged-stat-grid {
     grid-template-columns: minmax(0, 1fr);
   }
   #view-reports #reports-overview-kpis,
@@ -3628,6 +3978,19 @@ table.inquiry-table .table-empty-state {
   }
   #view-settings .settings-panel {
     padding: 16px 14px;
+  }
+  #view-settings .settings-standalone-panel {
+    padding: 0;
+  }
+  #view-settings [data-settings-collapsible] {
+    padding: 0;
+  }
+  #view-settings [data-settings-collapsible] > summary {
+    gap: 12px;
+    padding: 15px 14px;
+  }
+  #view-settings .settings-collapsible-body {
+    padding: 0 14px 16px;
   }
   #view-settings .settings-actions .btn,
   #view-settings .faq-editor-card-actions .btn,

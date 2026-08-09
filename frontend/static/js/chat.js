@@ -119,7 +119,7 @@ function appendUserMessage(text) {
   scrollToBottom();
 }
 
-function appendBotMessage(htmlContent, emotionLabel) {
+function appendBotMessage(htmlContent, emotionLabel, feedbackToken = "") {
   const row = document.createElement("div");
   row.className = "msg-row bot";
 
@@ -140,8 +140,189 @@ function appendBotMessage(htmlContent, emotionLabel) {
       <div class="bubble">${formattedContent}${badge ? "<br>" + badge : ""}</div>
       <span class="bubble-time">${getTime()}</span>
     </div>`;
+  if (feedbackToken) {
+    const feedback = createFeedbackControl(feedbackToken);
+    row.querySelector(".bubble-wrap")?.appendChild(feedback);
+  }
   chatArea.appendChild(row);
   scrollToBottom();
+}
+
+function createFeedbackControl(feedbackToken) {
+  const wrap = document.createElement("div");
+  wrap.className = "chatbot-feedback-actions";
+
+  const buttons = [
+    { kind: "helpful", label: "Mark this reply as helpful" },
+    { kind: "not_helpful", label: "Share feedback about this reply" },
+  ];
+  buttons.forEach(({ kind, label }) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "chatbot-feedback-icon";
+    button.appendChild(createThumbIcon(kind));
+    button.setAttribute("aria-label", label);
+    button.title = label;
+    button.addEventListener("click", () => {
+      openFeedbackDialog(feedbackToken, kind, () => {
+        wrap.querySelectorAll(".chatbot-feedback-icon").forEach((icon) => {
+          icon.disabled = true;
+          icon.classList.toggle("selected", icon === button);
+        });
+        button.setAttribute("aria-label", "Feedback received");
+        button.title = "Feedback received";
+      });
+    });
+    wrap.appendChild(button);
+  });
+  return wrap;
+}
+
+function createThumbIcon(direction) {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "1.9");
+  svg.setAttribute("stroke-linecap", "round");
+  svg.setAttribute("stroke-linejoin", "round");
+  if (direction === "not_helpful") svg.classList.add("thumb-down");
+
+  const handle = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  handle.classList.add("thumb-divider");
+  handle.setAttribute("d", "M7 10v12");
+  const handPath =
+    "M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z";
+  const fill = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  fill.classList.add("thumb-fill");
+  fill.setAttribute("d", handPath);
+  const outline = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  outline.classList.add("thumb-outline");
+  outline.setAttribute("d", handPath);
+  svg.append(fill, outline, handle);
+  return svg;
+}
+
+function openFeedbackDialog(feedbackToken, direction, onSubmitted) {
+  document.getElementById("chatbot-feedback-dialog")?.remove();
+
+  const categories =
+    direction === "helpful"
+      ? [
+          ["helpful", "Helpful"],
+          ["clear_useful", "Clear and useful"],
+          ["other", "Other"],
+        ]
+      : [
+          ["not_helpful", "Not helpful"],
+          ["incorrect_information", "Incorrect or incomplete"],
+          ["did_not_understand", "Did not understand me"],
+          ["safety_concern", "This reply felt unsafe"],
+          ["other", "Other"],
+        ];
+  const overlay = document.createElement("div");
+  overlay.id = "chatbot-feedback-dialog";
+  overlay.className = "chatbot-feedback-modal";
+  overlay.setAttribute("role", "presentation");
+  const dialog = document.createElement("section");
+  dialog.className = "chatbot-feedback-dialog";
+  dialog.setAttribute("role", "dialog");
+  dialog.setAttribute("aria-modal", "true");
+  dialog.setAttribute("aria-labelledby", "chatbot-feedback-title");
+
+  const titleRow = document.createElement("div");
+  titleRow.className = "chatbot-feedback-dialog-header";
+  const title = document.createElement("h2");
+  title.id = "chatbot-feedback-title";
+  title.textContent = "Share feedback";
+  const close = document.createElement("button");
+  close.type = "button";
+  close.className = "chatbot-feedback-close";
+  close.textContent = "×";
+  close.setAttribute("aria-label", "Close feedback dialog");
+  titleRow.append(title, close);
+
+  const categoryList = document.createElement("div");
+  categoryList.className = "chatbot-feedback-categories";
+  const note = document.createElement("textarea");
+  note.maxLength = 500;
+  note.rows = 4;
+  note.placeholder = "Share details (optional)";
+  note.setAttribute("aria-label", "Optional feedback details");
+  const safetyNote = document.createElement("p");
+  safetyNote.className = "chatbot-feedback-safety-note";
+  safetyNote.textContent = "This feedback form is not monitored for emergencies. Do not include urgent or private details.";
+  const status = document.createElement("p");
+  status.className = "chatbot-feedback-status";
+  status.setAttribute("role", "status");
+  const submit = document.createElement("button");
+  submit.type = "button";
+  submit.className = "chatbot-feedback-submit";
+  submit.textContent = "Submit";
+  submit.disabled = true;
+
+  let selectedCategory = "";
+  categories.forEach(([value, label]) => {
+    const category = document.createElement("button");
+    category.type = "button";
+    category.className = "chatbot-feedback-category";
+    category.textContent = `+ ${label}`;
+    category.addEventListener("click", () => {
+      selectedCategory = value;
+      categoryList
+        .querySelectorAll(".chatbot-feedback-category")
+        .forEach((button) => button.classList.toggle("selected", button === category));
+      submit.disabled = false;
+      status.textContent = "";
+    });
+    categoryList.appendChild(category);
+  });
+
+  const closeDialog = () => {
+    overlay.remove();
+    document.removeEventListener("keydown", onEscape);
+  };
+  close.addEventListener("click", closeDialog);
+  overlay.addEventListener("click", (event) => {
+    if (event.target === overlay) closeDialog();
+  });
+  const onEscape = (event) => {
+    if (event.key === "Escape") {
+      closeDialog();
+    }
+  };
+  document.addEventListener("keydown", onEscape);
+  submit.addEventListener("click", async () => {
+    if (!selectedCategory) return;
+    submit.disabled = true;
+    status.textContent = "Submitting feedback...";
+    try {
+      const response = await fetch(`${API_BASE}/chat/feedback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          response_token: feedbackToken,
+          category: selectedCategory,
+          comment: note.value.trim(),
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Unable to save feedback.");
+      }
+      closeDialog();
+      onSubmitted();
+    } catch (error) {
+      status.textContent = error.message || "Unable to save feedback.";
+      submit.disabled = false;
+    }
+  });
+
+  dialog.append(titleRow, categoryList, note, safetyNote, status, submit);
+  overlay.appendChild(dialog);
+  document.body.appendChild(overlay);
+  categoryList.querySelector("button")?.focus();
 }
 
 function appendEscalationNotice() {
@@ -213,6 +394,7 @@ function sendMessage() {
       appendBotMessage(
         result.response || "Sorry, I could not generate a response.",
         result.emotion || "",
+        result.feedback_token || "",
       );
 
       currentTopic = result.topic || currentTopic;

@@ -65,6 +65,11 @@ _ACADEMIC_CONTEXT_PATTERN: Final[re.Pattern[str]] = re.compile(
     r"exam(?:s)?|deadline(?:s)?|project(?:s)?|assignment(?:s)?|grade(?:s)?)\b",
     re.IGNORECASE,
 )
+_BASIC_SUPPORT_REQUEST_PATTERN: Final[re.Pattern[str]] = re.compile(
+    r"^\s*(?:can|could) you help me(?: with (?:my )?(?:concern|problem))?\??\s*$|"
+    r"^\s*i (?:need|want) help\s*$",
+    re.IGNORECASE,
+)
 
 
 
@@ -257,6 +262,20 @@ class AIService:
         return any(
             keyword in message 
             for keyword in GUIDANCE_KEYWORDS
+        )
+
+    @staticmethod
+    def _basic_support_request_response(message: str, user: dict | None) -> str | None:
+        """Answer a broad request for support without inventing office facts."""
+        if not isinstance(user, dict) or user.get("role") != "student":
+            return None
+        if not _BASIC_SUPPORT_REQUEST_PATTERN.match(message):
+            return None
+        return (
+            "Yes—I'm here to listen. You can share what has been happening or "
+            "what feels hardest right now, and we can take it one step at a time. "
+            "If you would rather speak with a counselor, I can also help you "
+            "find the next step."
         )
 
     def detect_conversation_state(
@@ -698,6 +717,24 @@ class AIService:
                     metadata=metadata.to_dict(),
                 )
 
+            basic_support_response = self._basic_support_request_response(message, user)
+            if basic_support_response is not None:
+                return ChatResponse(
+                    success=True,
+                    response=basic_support_response,
+                    emotion=emotion.emotion,
+                    sentiment=emotion.sentiment,
+                    language=language.language,
+                    topic=conversation_topic.value,
+                    state=conversation_state.value,
+                    escalated=False,
+                    confidence=emotion.confidence,
+                    intent=intent,
+                    normalized_emotion=emotion.normalized_emotion,
+                    normalized_topic=normalized_topic,
+                    metadata=metadata.to_dict(),
+                )
+
             # -----------------------------------------
             # Knowledge Retrieval
             # -----------------------------------------
@@ -783,10 +820,17 @@ class AIService:
                         "I want to avoid repeating the same response. "
                         "Please tell me which part would be most helpful to explore."
                     )
+                elif reason == "Generic deflection detected.":
+                    llm_text = (
+                        "I'm here to support you. Could you share a little more "
+                        "about what has been happening or what feels most difficult "
+                        "right now?"
+                    )
                 else:
                     llm_text = (
-                        "I don't want to make assumptions about what you're going through. "
-                        "Could you share a little more so I can respond more appropriately?"
+                        "I'm here to support you. Could you share a little more "
+                        "about what has been happening or what feels most difficult "
+                        "right now?"
                     )
 
             response_safety = self.response_safety.validate(
