@@ -86,9 +86,16 @@ class SafetyService:
     CRISIS_PATTERNS: Final[tuple[str, ...]] = (
 
         # English
+        r"\bkill me now\b",
         r"\bkill myself\b",
         r"\bsuicide\b",
         r"\bend my life\b",
+        r"\b(?:i want to|i wanna|i(?:'m| am) going to|i(?:'m| am) gonna) "
+        r"(?:hang|harm|hurt) myself\b",
+        r"\b(?:i want to|i wanna|i(?:'m| am) going to|i(?:'m| am) gonna) "
+        r"(?:use|grab|get) (?:a |the )?(?:gun|weapon)\b",
+        r"\b(?:i want to|i wanna|i(?:'m| am) going to|i(?:'m| am) gonna) "
+        r"jump(?:\s+off)?\b",
         r"\b(?:i want to|i wanna|i wish i could) finish my life\b",
         r"\b(?:i am|i'm) done with my life\b",
         r"\blife (?:is not|isn't) worth living\b",
@@ -117,6 +124,10 @@ class SafetyService:
         r"\b(?:someone|they) (?:is|are) hurting me\b",
         r"\b(?:i want to|going to) hurt (?:someone|them)\b",
         r"\b(?:i want to|going to) kill (?:someone|them)\b",
+        r"\bi(?:'m| am) (?:going to|gonna) kill "
+        r"(?:him|her|them|my (?:family|parents|partner|friend))\b",
+        r"\bi killed someone\b",
+        r"\bi (?:can't|cannot) promise (?:that )?i(?:'ll| will) be safe\b",
         r"\bdanger to (?:myself|others)\b",
         r"\bsevere depression\b",
         r"\bpanic attacks?\b",
@@ -216,7 +227,14 @@ class SafetyService:
         language: str = "english",
     ) -> SafetyResult:
 
-        text = message.lower().strip()
+        # Normalize typographic apostrophes before matching deterministic
+        # English contractions such as "can't" and "I'm".
+        text = message.lower().strip().translate(str.maketrans({
+            "’": "'",
+            "‘": "'",
+            "`": "'",
+            "´": "'",
+        }))
 
         if not text:
             return SafetyResult(

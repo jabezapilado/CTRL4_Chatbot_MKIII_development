@@ -582,6 +582,34 @@ class ConversationHistoryRegressionTests(unittest.TestCase):
 
 
 class EscalationRegressionTests(unittest.TestCase):
+    def test_explicit_high_risk_phrases_bypass_the_llm_and_duplicate_fallback(self) -> None:
+        crisis_messages = (
+            "Kill me now",
+            "I can’t promise that I’ll be safe",
+            "I want to hang myself",
+            "I want to use a gun and end it all",
+            "I want to jump off the building",
+            "I’m gonna kill him",
+            "I’m gonna kill my family",
+            "I killed someone and I’m losing my mind",
+        )
+
+        for message in crisis_messages:
+            with self.subTest(message=message):
+                llm = _CapturingLlm([
+                    "I want to avoid repeating the same response. "
+                    "Please tell me which part would be most helpful to explore."
+                ])
+                result = _service(llm, safety=SafetyService()).respond(message)
+
+                self.assertTrue(result.escalated)
+                self.assertEqual(result.emotion, "Crisis")
+                self.assertEqual(result.topic, "Crisis Concern")
+                self.assertEqual(result.normalized_emotion, "crisis")
+                self.assertIn("immediate danger", result.response.casefold())
+                self.assertNotIn("avoid repeating", result.response.casefold())
+                self.assertEqual(llm.prompts, [])
+
     def test_indirect_suicidal_ideation_escalates_with_crisis_metadata(self) -> None:
         service = _service(_CapturingLlm(["Provider output must not be used."]), safety=SafetyService())
         for text in (

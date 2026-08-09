@@ -10,6 +10,9 @@ The format follows the principles of **Keep a Changelog**.
 
 ### Added
 
+- Added deterministic crisis-response coverage for explicit self-harm, weapon,
+  jumping, imminent-unsafety, and harm-to-others wording so these messages
+  receive the safety response before any LLM or duplicate-response fallback.
 - Added final release documentation alignment across README, architecture
   references, deployment guides, and user documentation.
 - Added final environment configuration reference through the updated
