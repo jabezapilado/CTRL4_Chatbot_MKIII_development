@@ -136,6 +136,8 @@ class SafetyService:
         r"(?:stay here|keep living)\b",
         r"\b(?:i am|i'm) being abused\b",
         r"\b(?:someone|they) (?:is|are) hurting me\b",
+        r"\b(?:i want to|going to) hurt (?:someone|them)\b",
+        r"\b(?:i want to|going to) kill (?:someone|them)\b",
         r"\bi(?:'m| am) (?:going to|gonna) kill "
         r"(?:him|her|them|my (?:family|parents|partner|friend))\b",
         r"\b(?:i want to|i wanna|i(?:'m| am) going to|i(?:'m| am) gonna) "
