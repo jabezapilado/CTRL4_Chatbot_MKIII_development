@@ -50,6 +50,17 @@ deliberately. They are not part of ordinary documentation or cleanup work.
 - [Administrator Guide](guides/administrator_guide.md) — account-management-only
   authority and its explicit boundaries.
 
+### Professional review templates
+
+- [Guidance Office response-playbook review](guides/guidance_office_response_playbook_review_template.md)
+  — approved student-facing support wording and urgent-contact confirmation.
+- [AI professional evaluation](guides/ai_professional_evaluation_template.md)
+  — safety routing, response quality, retrieval, model limits, and AI
+  evaluation review.
+- [Web professional evaluation](guides/web_professional_evaluation_template.md)
+  — student/staff UX, responsive design, accessibility, frontend security, and
+  role-boundary review.
+
 ## Research and provenance references
 
 - [Emotion Label Lineage Report](research/emotion_label_lineage_report.md) —

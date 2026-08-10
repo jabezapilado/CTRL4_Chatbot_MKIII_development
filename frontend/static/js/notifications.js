@@ -33,6 +33,47 @@
     });
   }
 
+  function notificationDestination(notification) {
+    const type = String(notification.type || "").trim().toLowerCase();
+    const isStaffDashboard = Boolean(
+      document.querySelector("[data-notifications-mount]"),
+    );
+
+    if (type === "high_risk_conversation") {
+      return "/dashboard#flagged";
+    }
+
+    if (isStaffDashboard && type.startsWith("appointment_")) {
+      return "/dashboard#appointments:requests";
+    }
+
+    if (!isStaffDashboard && type.startsWith("appointment_")) {
+      return "/appointment";
+    }
+
+    return "";
+  }
+
+  async function openNotification(notification, button) {
+    button.disabled = true;
+
+    if (!isRead(notification)) {
+      const markedRead = await markNotificationRead(notification.id);
+      if (!markedRead) {
+        button.disabled = false;
+        return;
+      }
+    }
+
+    const destination = notificationDestination(notification);
+    if (destination) {
+      window.location.assign(destination);
+      return;
+    }
+
+    button.disabled = false;
+  }
+
   function renderNotifications() {
     const unreadCount = notifications.filter(
       (notification) => !isRead(notification),
@@ -52,22 +93,19 @@
 
     notifications.forEach((notification) => {
       const notificationIsRead = isRead(notification);
-      const item = document.createElement(
-        notificationIsRead ? "article" : "button",
-      );
+      const item = document.createElement("button");
+      item.type = "button";
       item.className = "notification-item";
       if (notificationIsRead) {
         item.classList.add("is-read");
-      } else {
-        item.type = "button";
-        item.setAttribute(
-          "aria-label",
-          `Mark notification as read: ${String(notification.title || "Notification")}`,
-        );
-        item.addEventListener("click", () => {
-          void markNotificationRead(notification.id, item);
-        });
       }
+      item.setAttribute(
+        "aria-label",
+        `Open notification: ${String(notification.title || "Notification")}`,
+      );
+      item.addEventListener("click", () => {
+        void openNotification(notification, item);
+      });
 
       const heading = document.createElement("h3");
       heading.textContent = String(notification.title || "Notification");
@@ -120,9 +158,7 @@
     }
   }
 
-  async function markNotificationRead(notificationId, button) {
-    button.disabled = true;
-
+  async function markNotificationRead(notificationId) {
     try {
       const response = await fetch(
         `${API_BASE}/api/notifications/${encodeURIComponent(notificationId)}/read`,
@@ -143,9 +179,10 @@
         notification.is_read = 1;
       }
       renderNotifications();
+      return true;
     } catch (error) {
-      button.disabled = false;
       console.error("Unable to mark notification as read:", error);
+      return false;
     }
   }
 

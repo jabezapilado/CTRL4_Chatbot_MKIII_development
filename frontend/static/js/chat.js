@@ -8,6 +8,12 @@ let currentTopic = "";
 let currentLanguage = "";
 let currentEmotion = "";
 let currentFlagged = false;
+let isAwaitingReply = false;
+
+// A brief typing state makes ordinary exchanges feel conversational without
+// holding back time-sensitive safety responses.
+const MIN_NORMAL_REPLY_TYPING_MS = 3000;
+const MAX_NORMAL_REPLY_TYPING_MS = 5000;
 
 let inactivityTimer = null;
 const INACTIVITY_TIMEOUT = 5 * 60 * 1000;
@@ -25,7 +31,36 @@ sessionStorage.removeItem("current_escalation");
 const chatArea = document.getElementById("chat-area");
 
 const input = document.getElementById("msg-input");
+const sendButton = document.getElementById("send-message");
+const quickReplyButtons = Array.from(
+  document.querySelectorAll("[data-quick-message]"),
+);
 const API_BASE = window.location.origin;
+
+function setChatTurnPending(isPending) {
+  isAwaitingReply = isPending;
+  input.disabled = isPending;
+  sendButton.disabled = isPending;
+  quickReplyButtons.forEach((button) => {
+    button.disabled = isPending;
+  });
+  chatArea.setAttribute("aria-busy", String(isPending));
+}
+
+function normalReplyTypingDelay() {
+  return (
+    MIN_NORMAL_REPLY_TYPING_MS +
+    Math.floor(
+      Math.random() * (MAX_NORMAL_REPLY_TYPING_MS - MIN_NORMAL_REPLY_TYPING_MS + 1),
+    )
+  );
+}
+
+function waitForMinimumTypingTime(startedAt, minimumDelay) {
+  const remaining = minimumDelay - (Date.now() - startedAt);
+  if (remaining <= 0) return Promise.resolve();
+  return new Promise((resolve) => window.setTimeout(resolve, remaining));
+}
 
 function serializeChat() {
   const rows = Array.from(chatArea.querySelectorAll(".msg-row"));
@@ -361,9 +396,13 @@ function removeTypingIndicator() {
 // SEND MESSAGE
 // ─────────────────────────────
 
-function sendMessage() {
+async function sendMessage() {
+  if (isAwaitingReply || input.disabled) return;
+
   const text = input.value.trim();
   if (!text) return;
+
+  setChatTurnPending(true);
 
   // Clear input
   input.value = "";
@@ -377,44 +416,57 @@ function sendMessage() {
   // Show typing indicator
   showTypingIndicator();
 
-  fetch(`${API_BASE}/chat`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      message: text,
-      conversation: serializeChat(),
-    }),
-  })
-    .then((res) => res.json())
-    .then((data) => {
-      removeTypingIndicator();
+  const typingStartedAt = Date.now();
+  const minimumTypingDelay = normalReplyTypingDelay();
 
-      const result = data.data || {};
-
-      appendBotMessage(
-        result.response || "Sorry, I could not generate a response.",
-        result.emotion || "",
-        result.feedback_token || "",
-      );
-
-      currentTopic = result.topic || currentTopic;
-      currentLanguage = result.language || currentLanguage;
-      currentEmotion = result.emotion || currentEmotion;
-      currentFlagged = Boolean(result.escalated);
-
-      recordActivity();
-
-      if (result.escalated) {
-        setTimeout(appendEscalationNotice, 400);
-      }
-    })
-    .catch(() => {
-      removeTypingIndicator();
-      appendBotMessage(
-        "Sorry, I am having trouble connecting right now. Please try again.",
-        "",
-      );
+  try {
+    const response = await fetch(`${API_BASE}/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: text,
+        conversation: serializeChat(),
+      }),
     });
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+      throw new Error(data.message || "Unable to generate a response.");
+    }
+
+    const result = data.data || {};
+
+    // Safety replies must never wait for the simulated typing duration.
+    if (!result.escalated) {
+      await waitForMinimumTypingTime(typingStartedAt, minimumTypingDelay);
+    }
+    removeTypingIndicator();
+
+    appendBotMessage(
+      result.response || "Sorry, I could not generate a response.",
+      result.emotion || "",
+      result.feedback_token || "",
+    );
+
+    currentTopic = result.topic || currentTopic;
+    currentLanguage = result.language || currentLanguage;
+    currentEmotion = result.emotion || currentEmotion;
+    currentFlagged = Boolean(result.escalated);
+
+    recordActivity();
+
+    if (result.escalated) {
+      setTimeout(appendEscalationNotice, 400);
+    }
+  } catch (_) {
+    removeTypingIndicator();
+    appendBotMessage(
+      "Sorry, I am having trouble connecting right now. Please try again.",
+      "",
+    );
+  } finally {
+    setChatTurnPending(false);
+    input.focus();
+  }
 }
 
 function showAppointmentPrompt() {
@@ -446,6 +498,7 @@ function showAppointmentPrompt() {
 }
 
 function sendQuick(text) {
+  if (isAwaitingReply || input.disabled) return;
   if (/book an appointment/i.test(text)) {
     showAppointmentPrompt();
     return;
@@ -557,12 +610,12 @@ function restoreVisibleChat(items) {
 }
 
 async function initializeChat() {
-  input.disabled = true;
+  setChatTurnPending(true);
 
   const activeChat = loadActiveChat();
   if (activeChat.length > 0) {
     restoreVisibleChat(activeChat);
-    input.disabled = false;
+    setChatTurnPending(false);
     input.focus();
     resetInactivityTimer();
     return;
@@ -577,7 +630,7 @@ async function initializeChat() {
 
     // Send greeting
     appendBotMessage(WELCOME_MESSAGE);
-    input.disabled = false;
+    setChatTurnPending(false);
     input.focus();
     resetInactivityTimer();
   }, typingDelay);

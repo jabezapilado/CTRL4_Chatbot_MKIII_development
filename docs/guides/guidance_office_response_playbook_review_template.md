@@ -47,11 +47,15 @@ converted into evidence-backed knowledge-base records.
 This example is only a format guide; Guidance Office should replace it with its
 own approved wording.
 
+---
+
 ## 1. Opening a support conversation
 
 **When a student opens a general conversation or says they need help:**
 
 > [Guidance Office: provide 2–4 approved sentences or bullet points.]
+
+<br>
 
 **Guide:** Begin with reassurance and an invitation to share. Do not diagnose,
 minimize the concern, or promise an outcome.
@@ -60,12 +64,16 @@ minimize the concern, or promise an outcome.
 
 > [Examples approved by Guidance Office.]
 
+---
+
 ## 2. Academic pressure, burnout, focus, and grades
 
 **Preferred approach:**
 
 > [How staff acknowledge the concern and the practical next step they normally
 > encourage.]
+
+<br>
 
 **Guide:** State one manageable action the student can take. Explain when it is
 appropriate to seek additional Guidance Office support.
@@ -74,11 +82,15 @@ appropriate to seek additional Guidance Office support.
 
 > [Approved indicators and wording.]
 
+---
+
 ## 3. Personal, family, relationship, or peer concerns
 
 **Preferred approach:**
 
 > [Approved supportive framing and boundaries.]
+
+<br>
 
 **Guide:** Be respectful and non-judgmental. Do not tell the student what
 decision to make about a relationship, family member, or peer.
@@ -87,11 +99,15 @@ decision to make about a relationship, family member, or peer.
 
 > [Approved question(s).]
 
+---
+
 ## 4. Counseling requests and appointments
 
 **How to explain the next step without promising availability:**
 
 > [Approved wording.]
+
+<br>
 
 **Guide:** Direct students to the Appointment page or official office channels.
 Do not state dates, times, counselor assignments, or response times here;
@@ -102,11 +118,15 @@ those are kept current by the application settings.
 > [Examples: same-day availability, a counselor's response time, confidentiality
 > limits that have not been approved.]
 
+---
+
 ## 5. Safety concerns
 
 **Non-emergency distress that should be encouraged to seek counselor support:**
 
 > [Approved wording and boundaries.]
+
+<br>
 
 **Guide:** Describe only support and referral wording for non-emergencies. The
 system already takes over for explicit safety, self-harm, and harm-to-others
@@ -116,12 +136,16 @@ messages.
 alternative crisis script here. Those are maintained separately by the safety
 service and approved emergency-contact records.
 
+---
+
 ## 6. Language and tone
 
 **Preferred tone:**
 
 > [For example: formal English, Filipino, Taglish, honorifics, or phrases to
 > avoid.]
+
+<br>
 
 **Guide:** Specify whether "po," "Ma'am," "Sir," or other local conventions
 are appropriate, and give one example of the desired tone if helpful.
@@ -130,12 +154,16 @@ are appropriate, and give one example of the desired tone if helpful.
 
 > [List.]
 
+---
+
 ## 7. Approval record
 
 - Reviewer name and role: [ ]
 - Review date: [ ]
 - Approved for chatbot knowledge base: [Yes / No]
 - Required revisions: [ ]
+
+---
 
 ## 8. Urgent-alert and after-hours contact confirmation
 
@@ -151,6 +179,8 @@ receives the high-priority case for review.
 
 > [List the days/hours when alerts are actively monitored. If no 24/7 coverage
 > exists, state that clearly.]
+
+<br>
 
 ### Public counselor Facebook channels
 
@@ -168,6 +198,8 @@ the following before it is used in a future crisis response:
 **Important:** A public page is not treated as an emergency or 24/7 service
 unless the Guidance Office explicitly marks it that way. Emergency resources
 remain separate from counselor contact channels.
+
+---
 
 ## After approval
 

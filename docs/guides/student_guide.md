@@ -58,8 +58,9 @@ old one only after the replacement succeeds.
 
 ## Notifications and case status
 
-The notifications page shows only your own in-app notifications. Mark each one
-read when you are finished; notifications are not sent by email or SMS.
+The notifications panel shows only your own in-app notifications. Opening an
+appointment notification marks it as read and takes you to **My Appointments**.
+Notifications are not sent by email or SMS.
 
 The **Case Status** page shows only the approved generic progress/status of
 your own eligible case. It does not display counselor notes, summaries,

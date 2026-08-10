@@ -670,9 +670,19 @@
 .send-btn:active {
   transform: scale(0.93);
 }
+.send-btn:disabled {
+  background: var(--gray-200);
+  box-shadow: none;
+  cursor: not-allowed;
+}
 .send-btn svg {
   width: 18px;
   height: 18px;
+}
+
+.qr-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .logout-inline {
