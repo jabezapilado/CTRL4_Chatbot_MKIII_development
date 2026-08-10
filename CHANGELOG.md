@@ -8,6 +8,41 @@ The format follows the principles of **Keep a Changelog**.
 
 ## [Unreleased]
 
+### Added
+
+- Added turn-based student chat controls: the message field, Send button, and
+  quick replies are unavailable while a response is pending.
+- Added a 3–5 second minimum typing state for ordinary chatbot replies. Safety
+  escalation replies bypass the artificial delay and remain immediate.
+- Added notification navigation: opening an unread item marks it read and
+  routes staff high-risk alerts to Flagged Cases, staff appointment alerts to
+  Appointment Requests, and student appointment alerts to My Appointments.
+- Added separate AI-professional and web-professional qualitative evaluation
+  templates, linked from the documentation index.
+- Added the Vercel Flask entrypoint configuration for an experimental build
+  attempt using `backend.app:app`.
+
+### Changed
+
+- Updated the student notification guide to describe opening a notification as
+  the read action and its appointment destination.
+- Improved the Guidance Office response-playbook review template spacing for
+  easier review and completion.
+
+### Verified
+
+- Passed focused frontend, chatbot-quality, conversation-finalization,
+  notification, CSRF/CORS, integration, and documentation contracts after the
+  chat and notification changes.
+
+### Notes
+
+- The Vercel configuration is an experiment, not a supported production
+  deployment. The current filesystem session, active-chat, model-artifact, and
+  RAG runtime design still requires a persistent-host or serverless redesign.
+- Generated RAG index artifacts, PDFs, local reference scans, backups, and
+  environment files remain outside this source-control update.
+
 ---
 
 ## [1.0.7] - MK III Safety, Staff Workflow, and Release Update — August 2026
