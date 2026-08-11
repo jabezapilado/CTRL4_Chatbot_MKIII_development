@@ -173,6 +173,7 @@
   scroll-behavior: smooth;
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
 }
 
 .quick-replies {

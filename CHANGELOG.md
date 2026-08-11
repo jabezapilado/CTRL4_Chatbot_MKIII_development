@@ -42,8 +42,9 @@ The format follows the principles of **Keep a Changelog**.
   zoom, and the shell compensates for iOS viewport-pan offsets while opening or
   closing the keyboard. The header remains anchored while composing. Tapping
   the non-interactive conversation area now dismisses the mobile software
-  keyboard. These presentation-only changes do not alter chat, safety, or
-  session behavior.
+  keyboard without blocking a scroll gesture, and the composer provides
+  browser-safe plain-text autocomplete hints. These presentation-only changes
+  do not alter chat, safety, or session behavior.
 - Fixed the in-app notification popover in the student chat and staff header.
   It now renders above headers that clip decorative overflow, remains anchored
   to the bell, and preserves its existing recipient-scoped loading, read, and

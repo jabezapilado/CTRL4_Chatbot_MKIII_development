@@ -83,8 +83,9 @@ function bindChatVisibleViewport() {
 }
 
 function dismissMobileKeyboardFromChat(event) {
-  // Keep interactive controls interactive. A normal tap in the conversation
-  // pane is a familiar way to dismiss the software keyboard on mobile.
+  // Keep interactive controls interactive. Use a completed click rather than
+  // pointerdown: iOS begins a chat-history scroll with pointerdown, so blurring
+  // there would close the keyboard before the student can read older messages.
   if (
     !window.matchMedia("(hover: none), (pointer: coarse)").matches ||
     document.activeElement !== input ||
@@ -99,7 +100,7 @@ function dismissMobileKeyboardFromChat(event) {
 function bindMobileKeyboardDismissal() {
   document
     .querySelector(".chatbot-page .page")
-    ?.addEventListener("pointerdown", dismissMobileKeyboardFromChat);
+    ?.addEventListener("click", dismissMobileKeyboardFromChat);
 }
 
 function setChatTurnPending(isPending) {
