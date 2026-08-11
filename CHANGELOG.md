@@ -37,12 +37,13 @@ The format follows the principles of **Keep a Changelog**.
 ### Changed
 
 - Stabilized the student chat on mobile and tablet browsers: keyboard viewport
-  updates are coalesced per animation frame, the chat viewport avoids accidental
-  page/double-tap zoom, and the chat shell compensates for iOS viewport-pan
-  offsets while opening or closing the keyboard. The header remains anchored
-  while composing. Tapping the non-interactive conversation area now dismisses
-  the mobile software keyboard. These presentation-only changes do not alter
-  chat, safety, or session behavior.
+  updates apply immediately so the shell does not visibly lag behind iOS
+  Safari's keyboard pan. The chat viewport avoids accidental page/double-tap
+  zoom, and the shell compensates for iOS viewport-pan offsets while opening or
+  closing the keyboard. The header remains anchored while composing. Tapping
+  the non-interactive conversation area now dismisses the mobile software
+  keyboard. These presentation-only changes do not alter chat, safety, or
+  session behavior.
 - Fixed the in-app notification popover in the student chat and staff header.
   It now renders above headers that clip decorative overflow, remains anchored
   to the bell, and preserves its existing recipient-scoped loading, read, and

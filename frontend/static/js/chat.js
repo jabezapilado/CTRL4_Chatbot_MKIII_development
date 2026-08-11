@@ -47,37 +47,32 @@ const API_BASE = window.location.origin;
 // iOS Safari both resizes and pans the visual viewport when its software
 // keyboard opens. Keep the chat shell matched to that visible area and offset
 // it by Safari's pan so the header remains anchored while the chat pane is the
-// sole scroller. Safari emits several resize and scroll events during one
-// keyboard animation, so coalesce them to one visual update per paint frame.
-let viewportSyncFrame = null;
+// sole scroller. Apply each viewport event immediately: delaying it by an
+// animation frame leaves a visible moment where Safari has panned the page but
+// the shell has not yet caught up.
 let lastViewportMetrics = {};
 
 function syncChatVisibleViewport() {
   const viewport = window.visualViewport;
   if (!viewport) return;
-  if (viewportSyncFrame !== null) return;
 
-  viewportSyncFrame = window.requestAnimationFrame(() => {
-    viewportSyncFrame = null;
+  const metrics = {
+    height: `${Math.round(viewport.height)}px`,
+    offsetTop: `${Math.round(viewport.offsetTop)}px`,
+    offsetLeft: `${Math.round(viewport.offsetLeft)}px`,
+  };
+  const root = document.documentElement;
 
-    const metrics = {
-      height: `${Math.round(viewport.height)}px`,
-      offsetTop: `${Math.round(viewport.offsetTop)}px`,
-      offsetLeft: `${Math.round(viewport.offsetLeft)}px`,
-    };
-    const root = document.documentElement;
-
-    if (metrics.height !== lastViewportMetrics.height) {
-      root.style.setProperty("--chat-visible-height", metrics.height);
-    }
-    if (metrics.offsetTop !== lastViewportMetrics.offsetTop) {
-      root.style.setProperty("--chat-visible-offset-top", metrics.offsetTop);
-    }
-    if (metrics.offsetLeft !== lastViewportMetrics.offsetLeft) {
-      root.style.setProperty("--chat-visible-offset-left", metrics.offsetLeft);
-    }
-    lastViewportMetrics = metrics;
-  });
+  if (metrics.height !== lastViewportMetrics.height) {
+    root.style.setProperty("--chat-visible-height", metrics.height);
+  }
+  if (metrics.offsetTop !== lastViewportMetrics.offsetTop) {
+    root.style.setProperty("--chat-visible-offset-top", metrics.offsetTop);
+  }
+  if (metrics.offsetLeft !== lastViewportMetrics.offsetLeft) {
+    root.style.setProperty("--chat-visible-offset-left", metrics.offsetLeft);
+  }
+  lastViewportMetrics = metrics;
 }
 
 function bindChatVisibleViewport() {
