@@ -716,6 +716,7 @@
 @media (max-width: 560px) {
   .page {
     height: 100vh;
+    height: 100dvh;
     border-radius: 0;
   }
 
@@ -841,6 +842,12 @@
   .qr-btn {
     font-size: 11px;
     padding: 5px 10px;
+  }
+}
+
+@media (max-width: 360px) {
+  .header-text {
+    display: none;
   }
 }
 
