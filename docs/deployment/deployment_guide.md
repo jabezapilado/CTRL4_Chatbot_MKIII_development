@@ -305,6 +305,35 @@ cd backend
 The reverse proxy should forward HTTPS traffic to this local listener. Do not
 expose the Gunicorn listener directly to the public network.
 
+## GitHub Actions production deployment
+
+The repository includes `.github/workflows/deploy-production.yml`. It deploys
+each push to `main` only after a secure SSH connection to the single production
+host is configured. The workflow pulls source updates, installs any changed
+dependencies, verifies the controlled emotion-model artifact, restarts the
+single-worker `ctrl4` service, and checks local `/health`.
+
+It deliberately does **not** copy or recreate `backend/.env`, the MySQL
+database, the controlled model artifact, or generated RAG files. Those are
+protected server-side operational assets.
+
+Create a dedicated GitHub Actions SSH key; do not reuse the server-to-GitHub
+read-only repository deploy key. Add its public key to the production
+application user's `~/.ssh/authorized_keys`, and add these GitHub repository
+secrets:
+
+| Secret | Value |
+| --- | --- |
+| `CTRL4_DEPLOY_HOST` | Production VPS hostname or IP address |
+| `CTRL4_DEPLOY_USER` | Production application user (for example, `ctrl4`) |
+| `CTRL4_DEPLOY_SSH_KEY` | Dedicated GitHub Actions private SSH key |
+| `CTRL4_DEPLOY_KNOWN_HOSTS` | The exact production host entry from `ssh-keyscan -H HOST` verified by the operator |
+
+Grant the application user passwordless permission only to restart and inspect
+the `ctrl4` service; do not grant unrestricted sudo. Before relying on
+automatic deployment, push a documentation-only change and confirm the Actions
+run ends with the healthy `/health` response.
+
 ## Deferred MK III work
 
 The saved `mkiii_startup_hardening_unvalidated.patch` is not part of the

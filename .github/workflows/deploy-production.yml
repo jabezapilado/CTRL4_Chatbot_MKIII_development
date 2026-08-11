@@ -1,0 +1,66 @@
+name: Deploy CTRL4 production
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ctrl4-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Configure SSH
+        env:
+          CTRL4_DEPLOY_KEY: ${{ secrets.CTRL4_DEPLOY_SSH_KEY }}
+          CTRL4_DEPLOY_KNOWN_HOSTS: ${{ secrets.CTRL4_DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$CTRL4_DEPLOY_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$CTRL4_DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Pull, verify, restart, and check health
+        env:
+          CTRL4_DEPLOY_HOST: ${{ secrets.CTRL4_DEPLOY_HOST }}
+          CTRL4_DEPLOY_USER: ${{ secrets.CTRL4_DEPLOY_USER }}
+        run: |
+          ssh -i ~/.ssh/id_ed25519 \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            "${CTRL4_DEPLOY_USER}@${CTRL4_DEPLOY_HOST}" 'bash -se' <<'REMOTE'
+          set -euo pipefail
+
+          cd /srv/ctrl4/app
+
+          # Runtime configuration, the controlled model artifact, and generated
+          # RAG data are local operational assets and are intentionally not
+          # changed by a source deployment.
+          GIT_SSH_COMMAND='ssh -i /home/ctrl4/.ssh/ctrl4_deploy -o IdentitiesOnly=yes' \
+            git pull --ff-only origin main
+
+          .venv/bin/pip install --disable-pip-version-check -r requirements.txt
+          .venv/bin/python backend/scripts/verify_emotion_model.py
+
+          sudo /usr/bin/systemctl restart ctrl4
+
+          for attempt in $(seq 1 36); do
+            if curl --fail --silent --show-error http://127.0.0.1:5001/health; then
+              exit 0
+            fi
+            sleep 5
+          done
+
+          echo 'CTRL4 did not become healthy after deployment.' >&2
+          sudo /usr/bin/systemctl status ctrl4 --no-pager >&2 || true
+          exit 1
+          REMOTE
