@@ -590,12 +590,17 @@ def _migrate_staff_appointment_preferences_schema(cursor: Any) -> None:
 
 
 def initialize_database() -> None:
-    with _server_connection() as connection:
-        with connection.cursor() as cursor:
-            cursor.execute(
-                f"CREATE DATABASE IF NOT EXISTS `{config.DB_NAME}` CHARACTER SET {config.DB_CHARSET} COLLATE {config.DB_CHARSET}_unicode_ci"
-            )
-        connection.commit()
+    # Creating a database requires server-wide CREATE privileges. Production
+    # deployments provision the database explicitly, then run with a
+    # database-scoped application account. Development retains the convenient
+    # create-if-missing behavior.
+    if config.DATABASE_INITIALIZE_ON_START:
+        with _server_connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    f"CREATE DATABASE IF NOT EXISTS `{config.DB_NAME}` CHARACTER SET {config.DB_CHARSET} COLLATE {config.DB_CHARSET}_unicode_ci"
+                )
+            connection.commit()
 
     with _database_connection() as connection:
         with connection.cursor() as cursor:

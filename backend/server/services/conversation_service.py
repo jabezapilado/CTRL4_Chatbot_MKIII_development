@@ -768,6 +768,7 @@ def finalize_conversation(
     language: str,
     emotion: str,
     flagged: bool,
+    review_only: bool = False,
     escalation_reason: str | None = None,
     appointment: object = None,
     active_summary_id: int | None = None,
@@ -796,6 +797,7 @@ def finalize_conversation(
             language=language,
             emotion=emotion,
             flagged=flagged,
+            review_only=review_only,
             appointment=appointment_context,
         )
         summary_payload = {
@@ -826,7 +828,7 @@ def finalize_conversation(
                     normalized_emotion=summary.emotion,
                 )
                 or "AI safety escalation.",
-            ):
+            ) and not review_only:
                 _notify_high_risk_conversation_safely(user["id"])
             logger.info("Active conversation finalization completed.")
             return {
@@ -874,6 +876,7 @@ def finalize_conversation(
         language=language,
         emotion=emotion,
         flagged=flagged,
+        review_only=review_only,
         appointment=appointment_context,
     )
 
@@ -904,7 +907,8 @@ def finalize_conversation(
             )
             or "AI safety escalation.",
         )
-        _notify_high_risk_conversation_safely(user["id"])
+        if not review_only:
+            _notify_high_risk_conversation_safely(user["id"])
 
     logger.info("Conversation finalization completed.")
 

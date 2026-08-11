@@ -869,6 +869,30 @@ class EscalationRegressionTests(unittest.TestCase):
             with self.subTest(text=text):
                 self.assertTrue(safety.check(text).should_escalate)
 
+    def test_counselor_approved_warning_signs_flag_for_review_without_crisis_reply(self) -> None:
+        safety = SafetyService()
+        for text in (
+            "I feel empty.",
+            "I feel depressed.",
+            "I have been abused by my father.",
+        ):
+            with self.subTest(text=text):
+                result = safety.check(text)
+                self.assertTrue(result.safe)
+                self.assertFalse(result.should_escalate)
+                self.assertTrue(result.should_flag_for_review)
+                self.assertEqual(result.reason, "staff_review")
+
+    def test_review_warning_sign_keeps_normal_supportive_ai_response(self) -> None:
+        result = _service(
+            _CapturingLlm(["I'm sorry this feels heavy. You do not have to face it alone."]),
+            safety=SafetyService(),
+        ).respond("I feel empty.")
+
+        self.assertFalse(result.escalated)
+        self.assertTrue(result.needs_staff_review)
+        self.assertNotIn("immediate danger", result.response.casefold())
+
     def test_ambiguous_filipino_fatigue_requires_additional_high_risk_evidence(self) -> None:
         safety = SafetyService()
         for text in ("Pagod na pagod na ako.", "Ayoko na.", "Suko na ako."):
@@ -907,7 +931,9 @@ class EscalationRegressionTests(unittest.TestCase):
             "I already have an appointment. Can I change the time?",
         ):
             with self.subTest(text=text):
-                self.assertFalse(safety.check(text).should_escalate)
+                result = safety.check(text)
+                self.assertFalse(result.should_escalate)
+                self.assertFalse(result.should_flag_for_review)
 
 
 class ChatbotEvaluationDatasetTests(unittest.TestCase):

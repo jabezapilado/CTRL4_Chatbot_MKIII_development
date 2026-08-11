@@ -35,6 +35,11 @@ class SafetyResult:
 
     should_escalate: bool
 
+    # A review flag is intentionally distinct from an immediate crisis
+    # escalation. It lets the Guidance Office monitor counselor-approved
+    # warning signs while the student still receives a normal supportive reply.
+    should_flag_for_review: bool = False
+
     response: str | None = None
 
     reason: str | None = None
@@ -200,6 +205,19 @@ class SafetyService:
         r"\banong sakit ko\b",
     )
 
+    REVIEW_FLAG_PATTERNS: Final[tuple[str, ...]] = (
+        # These are first-person, counselor-approved signs that need Guidance
+        # Office monitoring but do not, on their own, establish immediate
+        # danger. Keep explicit intent, plans, or current harm in
+        # CRISIS_PATTERNS so they continue to receive the immediate response.
+        r"\bi feel(?:ing)? (?:so |really |very )?empty\b",
+        r"\bi feel(?:ing)? (?:so |really |very )?depressed\b",
+        r"\bi(?:'m| am) (?:so |really |very )?depressed\b",
+        r"\bi (?:have been|was) abused\b",
+        r"\bmy (?:father|mother|parent|guardian|partner|relative) "
+        r"(?:abused|abuses|hurt|hurts|is abusing|is hurting) me\b",
+    )
+
     GREETINGS: Final[frozenset[str]] = frozenset({
         "hi",
         "hello",
@@ -286,6 +304,15 @@ class SafetyService:
                 ),
             )
 
+        if self._needs_staff_review(text):
+
+            return SafetyResult(
+                safe=True,
+                should_escalate=False,
+                should_flag_for_review=True,
+                reason="staff_review",
+            )
+
         if self._is_greeting(text):
 
             return SafetyResult(
@@ -344,6 +371,16 @@ class SafetyService:
         return any(
             re.search(pattern, text)
             for pattern in self.DIAGNOSIS_PATTERNS
+        )
+
+    def _needs_staff_review(
+        self,
+        text: str,
+    ) -> bool:
+
+        return any(
+            re.search(pattern, text)
+            for pattern in self.REVIEW_FLAG_PATTERNS
         )
 
     def _is_greeting(

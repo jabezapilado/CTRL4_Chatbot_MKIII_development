@@ -11,6 +11,11 @@ FLAGGED_RECOMMENDATION: Final[str] = (
     "safety, follow the approved Guidance Office protocol, and document the action taken."
 )
 
+REVIEW_FLAGGED_RECOMMENDATION: Final[str] = (
+    "Guidance Office review is recommended to assess the student's reported "
+    "wellbeing concern and determine appropriate follow-up."
+)
+
 NORMAL_RECOMMENDATION: Final[str] = (
     "No escalation was required based on the recorded session."
 )
@@ -110,6 +115,7 @@ class SummaryService:
         language: str,
         emotion: str,
         flagged: bool,
+        review_only: bool = False,
         appointment: dict[str, str] | None = None,
     ) -> ConversationSummary:
         """
@@ -158,6 +164,7 @@ class SummaryService:
 
         recommendation = self._build_recommendation(
             flagged=flagged,
+            review_only=review_only,
         )
 
         return ConversationSummary(
@@ -269,13 +276,18 @@ class SummaryService:
         self,
         *,
         flagged: bool,
+        review_only: bool = False,
     ) -> str:
         """
         Generate the counselor recommendation.
         """
 
         if flagged:
-            return FLAGGED_RECOMMENDATION
+            return (
+                REVIEW_FLAGGED_RECOMMENDATION
+                if review_only
+                else FLAGGED_RECOMMENDATION
+            )
 
         return NORMAL_RECOMMENDATION
     

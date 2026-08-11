@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 _ESCALATION_SESSION_KEY = "conversation_escalated"
 _ESCALATION_REASON_SESSION_KEY = "conversation_escalation_reason"
+_REVIEW_FLAG_SESSION_KEY = "conversation_needs_staff_review"
 _FINALIZATION_APPOINTMENT_KEY = "finalization_appointment"
 _ACTIVE_SUMMARY_SESSION_KEY = "active_conversation_summary_id"
 _FEEDBACK_RESPONSE_TOKENS_SESSION_KEY = "chatbot_feedback_response_tokens"
@@ -243,11 +244,17 @@ def chat():
             escalated=result.escalated,
             normalized_emotion=result.normalized_emotion,
         )
+        needs_staff_review = bool(getattr(result, "needs_staff_review", False))
         feedback_token = _register_feedback_response_token(
             int(session[_ACTIVE_SUMMARY_SESSION_KEY]),
             _feedback_context_for_result(result, should_escalate),
         )
         session_escalated = bool(session.get(_ESCALATION_SESSION_KEY))
+        if needs_staff_review:
+            # Review-only signs stay on the normal supportive path. The flag is
+            # carried into finalization, where the existing staff case workflow
+            # records it without treating it as an immediate crisis response.
+            session[_REVIEW_FLAG_SESSION_KEY] = True
         if should_escalate:
             escalation_reason = (
                 determine_escalation_reason(
@@ -275,6 +282,7 @@ def chat():
                     "language": result.language,
                     "topic": result.topic,
                     "escalated": should_escalate,
+                    "needs_staff_review": needs_staff_review,
                     "session_escalated": session_escalated or should_escalate,
                     "confidence": round(result.confidence, 4),
                     "feedback_token": feedback_token,
@@ -413,13 +421,19 @@ def finalize_chat():
             topic=str(payload.get("topic", "general")),
             language=str(payload.get("language", "unknown")),
             emotion=str(payload.get("emotion", "neutral")),
-            flagged=bool(session.get(_ESCALATION_SESSION_KEY)),
+            flagged=bool(
+                session.get(_ESCALATION_SESSION_KEY)
+                or session.get(_REVIEW_FLAG_SESSION_KEY)
+            ),
+            review_only=bool(session.get(_REVIEW_FLAG_SESSION_KEY))
+            and not bool(session.get(_ESCALATION_SESSION_KEY)),
             escalation_reason=session.get(_ESCALATION_REASON_SESSION_KEY),
             appointment=session.get(_FINALIZATION_APPOINTMENT_KEY),
             active_summary_id=session.get(_ACTIVE_SUMMARY_SESSION_KEY),
         )
         session.pop(_ESCALATION_SESSION_KEY, None)
         session.pop(_ESCALATION_REASON_SESSION_KEY, None)
+        session.pop(_REVIEW_FLAG_SESSION_KEY, None)
         session.pop(_FINALIZATION_APPOINTMENT_KEY, None)
         session.pop(_ACTIVE_SUMMARY_SESSION_KEY, None)
         session.pop(_FEEDBACK_RESPONSE_TOKENS_SESSION_KEY, None)

@@ -20,6 +20,8 @@ CREATE TABLE IF NOT EXISTS accounts (
     support_statement TEXT NULL,
     consultation_rooms JSON NULL,
     consultation_schedules JSON NULL,
+    appointment_slots JSON NULL,
+    consultation_modes JSON NULL,
     role ENUM(
         'student',
         'staff',
@@ -299,6 +301,32 @@ CREATE TABLE IF NOT EXISTS notifications (
     INDEX idx_notifications_recipient_created (
         recipient_account_id,
         created_at
+    )
+);
+
+-- Privacy-safe student feedback. Chat transcripts and raw AI reply text are
+-- intentionally not stored in this table.
+CREATE TABLE IF NOT EXISTS chatbot_feedback (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    account_id INT NULL,
+    conversation_summary_id INT NULL,
+    response_token_hash CHAR(64) NOT NULL UNIQUE,
+    category VARCHAR(50) NOT NULL,
+    comment VARCHAR(500) NULL,
+    response_context VARCHAR(50) NULL,
+    created_at DATETIME NOT NULL,
+    FOREIGN KEY (account_id)
+    REFERENCES accounts(id)
+    ON DELETE SET NULL,
+    FOREIGN KEY (conversation_summary_id)
+    REFERENCES conversation_summaries(id)
+    ON DELETE SET NULL,
+    INDEX idx_chatbot_feedback_account_created (
+        account_id,
+        created_at
+    ),
+    INDEX idx_chatbot_feedback_summary (
+        conversation_summary_id
     )
 );
 

@@ -21,6 +21,9 @@ The format follows the principles of **Keep a Changelog**.
   templates, linked from the documentation index.
 - Added the Vercel Flask entrypoint configuration for an experimental build
   attempt using `backend.app:app`.
+- Added counselor-approved staff-review flags for first-person reports of
+  feeling empty, feeling depressed, and past abuse disclosures. These retain
+  a supportive response while creating a pending Guidance Office review case.
 
 ### Changed
 
@@ -32,6 +35,10 @@ The format follows the principles of **Keep a Changelog**.
   configuration release in source control. Legacy model releases and training
   checkpoints are now local archives, and the tokenizer loader uses the same
   approved `latest` release as the runtime model loader.
+- Updated the production schema reference with per-counselor appointment
+  preferences and the privacy-safe chatbot-feedback table.
+- Restricted production database creation to the explicit initialization path,
+  allowing the deployed application account to remain database-scoped.
 
 ### Verified
 

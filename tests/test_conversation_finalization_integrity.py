@@ -103,6 +103,51 @@ class ConversationFinalizationIntegrityTests(unittest.TestCase):
         self.assertEqual(result["status"], "skipped")
         discard.assert_called_once_with(81, 1)
 
+    def test_review_only_flag_creates_case_without_high_risk_notification(self) -> None:
+        with patch.object(
+            conversation_service.summary_service,
+            "generate_summary",
+            return_value=SimpleNamespace(
+                primary_concern="general",
+                conversation_type="general",
+                emotion="negative",
+                flagged=True,
+                appointment_recommendation=False,
+                recommendations="Guidance Office review is recommended.",
+                suggested_intervention="Guidance Office review is recommended.",
+                language="english",
+                total_messages=1,
+                summary="The student reported a wellbeing concern.",
+            ),
+        ) as generate, patch.object(
+            conversation_service,
+            "save_conversation_summary",
+            return_value=72,
+        ), patch.object(
+            conversation_service,
+            "fetch_open_conversation_case",
+            return_value=None,
+        ), patch.object(
+            conversation_service,
+            "save_escalation",
+        ) as save_escalation, patch.object(
+            conversation_service,
+            "_notify_high_risk_conversation_safely",
+        ) as notify:
+            conversation_service.finalize_conversation(
+                user={"id": 1, "full_name": "Student"},
+                conversation=[{"from": "user", "text": "I feel empty."}],
+                topic="general",
+                language="english",
+                emotion="negative",
+                flagged=True,
+                review_only=True,
+            )
+
+        self.assertTrue(generate.call_args.kwargs["review_only"])
+        save_escalation.assert_called_once()
+        notify.assert_not_called()
+
     def test_finalize_route_ignores_appointment_only_browser_payload(self) -> None:
         client = self._client()
         with patch(

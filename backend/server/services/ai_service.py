@@ -102,6 +102,8 @@ class ChatResponse:
 
     metadata: dict[str, str | None] | None
 
+    needs_staff_review: bool = False
+
 
 class AIService:
 
@@ -617,6 +619,7 @@ class AIService:
                     ),
                     normalized_topic=("crisis" if is_crisis else normalized_topic),
                     metadata=metadata.to_dict(),
+                    needs_staff_review=safety.should_flag_for_review,
                 )
 
             # -----------------------------------------
@@ -683,6 +686,7 @@ class AIService:
                     normalized_emotion=emotion.normalized_emotion,
                     normalized_topic=normalized_topic,
                     metadata=metadata.to_dict(),
+                    needs_staff_review=safety.should_flag_for_review,
                 )
 
             faq_answer = self.faq_settings.answer_faq(message, user)
@@ -715,6 +719,7 @@ class AIService:
                     normalized_emotion=emotion.normalized_emotion,
                     normalized_topic=normalized_topic,
                     metadata=metadata.to_dict(),
+                    needs_staff_review=safety.should_flag_for_review,
                 )
 
             basic_support_response = self._basic_support_request_response(message, user)
@@ -733,6 +738,7 @@ class AIService:
                     normalized_emotion=emotion.normalized_emotion,
                     normalized_topic=normalized_topic,
                     metadata=metadata.to_dict(),
+                    needs_staff_review=safety.should_flag_for_review,
                 )
 
             # -----------------------------------------
@@ -868,6 +874,7 @@ class AIService:
                 normalized_emotion=emotion.normalized_emotion,
                 normalized_topic=normalized_topic,
                 metadata=metadata.to_dict(),
+                needs_staff_review=safety.should_flag_for_review,
             )
 
         except Exception as exc:
