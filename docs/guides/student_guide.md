@@ -9,6 +9,10 @@ creates a server-side session; sign out when you finish using a shared device.
 If your session has expired, sign in again. Do not share passwords or browser
 session information. Before chat access, read and accept the Terms and
 Conditions for the current session. If you decline, the system signs you out.
+For privacy, an inactive student chat is finalized and signed out after
+15 minutes. If a phone sleeps while the chat is open, this happens when the
+browser next resumes; the completed conversation remains available to
+authorized Guidance Office staff through the normal Inbox workflow.
 
 ## Chatbot
 

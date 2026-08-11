@@ -17,7 +17,13 @@ const MIN_NORMAL_REPLY_TYPING_MS = 1200;
 const MAX_NORMAL_REPLY_TYPING_MS = 2200;
 
 let inactivityTimer = null;
-const INACTIVITY_TIMEOUT = 5 * 60 * 1000;
+// Student chat is intentionally the only surface that uses this shorter idle
+// policy. Staff and administrator dashboard sessions keep their normal
+// server-side session behavior.
+const STUDENT_INACTIVITY_TIMEOUT = 15 * 60 * 1000;
+const INACTIVITY_RETRY_DELAY = 60 * 1000;
+let inactivityDeadline = 0;
+let inactivityLogoutInProgress = false;
 const legacyProtectedStorageKeys = [
   "hau_escalations",
   "hau_escalation_event",
@@ -128,23 +134,58 @@ function serializeChat() {
   });
 }
 
-function resetInactivityTimer() {
+function scheduleInactivityCheck() {
   clearTimeout(inactivityTimer);
 
-  inactivityTimer = setTimeout(async () => {
-    if (document.hidden) {
-      return;
-    }
-    const finalized = await finalizeConversation({ resetUI: false });
+  const remaining = Math.max(0, inactivityDeadline - Date.now());
+  inactivityTimer = setTimeout(endStudentSessionForInactivity, remaining);
+}
 
-    if (finalized) {
-      console.log("Conversation finalized due to inactivity.");
-    }
-  }, INACTIVITY_TIMEOUT);
+async function endStudentSessionForInactivity() {
+  if (inactivityLogoutInProgress || Date.now() < inactivityDeadline) {
+    return;
+  }
+
+  // Do not interrupt a submitted message or leave its server request without
+  // a visible result. Re-check shortly after that turn completes instead.
+  if (isAwaitingReply) {
+    inactivityTimer = setTimeout(
+      endStudentSessionForInactivity,
+      INACTIVITY_RETRY_DELAY,
+    );
+    return;
+  }
+
+  inactivityLogoutInProgress = true;
+  setChatTurnPending(true);
+
+  const finalized = await finalizeConversation({ resetUI: false });
+
+  if (!finalized) {
+    inactivityLogoutInProgress = false;
+    setChatTurnPending(false);
+    inactivityDeadline = Date.now() + INACTIVITY_RETRY_DELAY;
+    scheduleInactivityCheck();
+    return;
+  }
+
+  console.log("Conversation finalized due to student inactivity.");
+  window.endAuthenticatedSession?.({
+    finalize: false,
+    reason: "inactive",
+  });
 }
 
 function recordActivity() {
-  resetInactivityTimer();
+  if (inactivityLogoutInProgress) return;
+  inactivityDeadline = Date.now() + STUDENT_INACTIVITY_TIMEOUT;
+  scheduleInactivityCheck();
+}
+
+function checkInactivityAfterVisibilityChange() {
+  if (!document.hidden && inactivityDeadline > 0) {
+    scheduleInactivityCheck();
+  }
 }
 
 function getTime() {
@@ -604,7 +645,7 @@ async function finalizeConversation({ resetUI = true } = {}) {
       input.placeholder = "Type your message here...";
 
       initializeChat();
-      resetInactivityTimer();
+      recordActivity();
     }
 
     return true;
@@ -669,7 +710,7 @@ async function initializeChat() {
     restoreVisibleChat(activeChat);
     setChatTurnPending(false);
     input.focus();
-    resetInactivityTimer();
+    recordActivity();
     return;
   }
 
@@ -684,7 +725,7 @@ async function initializeChat() {
     appendBotMessage(WELCOME_MESSAGE);
     setChatTurnPending(false);
     input.focus();
-    resetInactivityTimer();
+    recordActivity();
   }, typingDelay);
 }
 
@@ -702,6 +743,7 @@ document.addEventListener(
   () => {
     bindChatVisibleViewport();
     bindMobileKeyboardDismissal();
+    document.addEventListener("visibilitychange", checkInactivityAfterVisibilityChange);
     initializeChat();
   },
   { once: true },

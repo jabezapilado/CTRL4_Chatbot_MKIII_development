@@ -10,6 +10,10 @@ The format follows the principles of **Keep a Changelog**.
 
 ### Added
 
+- Added a student-only 15-minute inactive-chat policy. On the next available
+  browser event after the deadline, CTRL4 finalizes the active conversation
+  before signing the student out; staff and administrator session behavior is
+  unchanged.
 - Added turn-based student chat controls: the message field, Send button, and
   quick replies are unavailable while a response is pending.
 - Added a short 1.2–2.2 second typing state for ordinary chatbot replies. The

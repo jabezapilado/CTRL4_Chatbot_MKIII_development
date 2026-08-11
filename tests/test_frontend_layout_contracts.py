@@ -573,6 +573,7 @@ class FrontendLayoutContractTests(unittest.TestCase):
         self.assertIn("function setChatTurnPending(isPending)", chat)
         self.assertIn("if (isAwaitingReply || input.disabled) return;", chat)
         self.assertEqual(chat.count('aria-label="CTRL4 assistant">🦊</div>'), 2)
+
         self.assertIn("MIN_NORMAL_REPLY_TYPING_MS = 1200", chat)
         self.assertIn("MAX_NORMAL_REPLY_TYPING_MS = 2200", chat)
         self.assertIn("if (!result.escalated)", chat)
@@ -603,6 +604,20 @@ class FrontendLayoutContractTests(unittest.TestCase):
         self.assertNotIn("sessionStorage.setItem", chat)
         self.assertIn('transient_chat_service.clear(getattr(session, "sid", ""), user.get("id"))', _read("backend/server/auth.py"))
         self.assertIn('response.headers["Cache-Control"] = "no-store"', _read("backend/server/routes/frontend_routes.py"))
+
+    def test_student_idle_chat_finalizes_before_sign_out_without_changing_staff_sessions(self) -> None:
+        chat = _read("frontend/static/js/chat.js")
+        auth = _read("frontend/static/js/auth.js")
+        student_guide = _read("docs/guides/student_guide.md")
+
+        self.assertIn("const STUDENT_INACTIVITY_TIMEOUT = 15 * 60 * 1000;", chat)
+        self.assertIn("function checkInactivityAfterVisibilityChange()", chat)
+        self.assertIn('document.addEventListener("visibilitychange", checkInactivityAfterVisibilityChange);', chat)
+        self.assertIn("const finalized = await finalizeConversation({ resetUI: false });", chat)
+        self.assertIn("finalize: false,", chat)
+        self.assertIn('reason: "inactive",', chat)
+        self.assertIn("window.endAuthenticatedSession = endAuthenticatedSession;", auth)
+        self.assertIn("For privacy, an inactive student chat is finalized", student_guide)
 
     def test_terms_dialog_is_centered_in_the_viewport(self) -> None:
         stylesheet = _read("frontend/static/css/chatbot.css")

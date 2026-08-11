@@ -8,9 +8,23 @@ function requireAuth() {
   return user ? JSON.parse(user) : null;
 }
 
-async function logout() {
+function clearClientAuthState() {
+  sessionStorage.clear();
+  [
+    "hau_escalations",
+    "hau_escalation_event",
+    "hau_escalation_staff_msg",
+    "hau_escalation_user_msg",
+  ].forEach((key) => localStorage.removeItem(key));
+  sessionStorage.removeItem("current_escalation");
+}
+
+async function endAuthenticatedSession({
+  finalize = true,
+  reason = "logged-out",
+} = {}) {
   try {
-    if (window.finalizeConversation) {
+    if (finalize && window.finalizeConversation) {
       await window.finalizeConversation({ resetUI: false });
     }
   } catch (error) {
@@ -20,20 +34,18 @@ async function logout() {
   fetch(`${window.location.origin}/auth/logout`, { method: "POST" })
     .catch(() => {})
     .finally(() => {
-      sessionStorage.clear();
-      [
-        "hau_escalations",
-        "hau_escalation_event",
-        "hau_escalation_staff_msg",
-        "hau_escalation_user_msg",
-      ].forEach((key) => localStorage.removeItem(key));
-      sessionStorage.removeItem("current_escalation");
-      window.location.replace("/login?reason=logged-out");
+      clearClientAuthState();
+      window.location.replace(`/login?reason=${encodeURIComponent(reason)}`);
     });
+}
+
+async function logout() {
+  return endAuthenticatedSession();
 }
 
 window.getLoginUrl = getLoginUrl;
 window.requireAuth = requireAuth;
 window.logout = logout;
+window.endAuthenticatedSession = endAuthenticatedSession;
 
 document.getElementById("chat-logout-btn")?.addEventListener("click", logout);
