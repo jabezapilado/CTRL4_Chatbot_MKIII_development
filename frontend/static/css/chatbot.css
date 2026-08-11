@@ -26,13 +26,6 @@
   background: var(--white);
   box-shadow: var(--shadow-md);
   overflow: hidden;
-  /* Safari can pan its visual viewport to a focused field. The companion
-     viewport script offsets this shell back so the header remains visible. */
-  transform: translate3d(
-    var(--chat-visible-offset-left, 0px),
-    var(--chat-visible-offset-top, 0px),
-    0
-  );
 }
 
 /* ── HEADER ── */

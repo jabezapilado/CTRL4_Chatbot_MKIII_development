@@ -39,12 +39,12 @@ const quickReplyButtons = Array.from(
 const API_BASE = window.location.origin;
 
 // iOS Safari resizes the visual viewport (rather than the layout viewport)
-// when its software keyboard opens. Size only the chat shell to that visible
-// area so the header remains in place and the chat pane is the sole scroller.
+// when its software keyboard opens. Size the chat shell to that visible area
+// so the header stays anchored and the chat pane is the sole scroller.
 // Safari emits several resize and scroll events during the one keyboard
 // animation, so coalesce them to one visual update per paint frame.
 let viewportSyncFrame = null;
-let lastViewportMetrics = {};
+let lastViewportHeight = "";
 
 function syncChatVisibleViewport() {
   const viewport = window.visualViewport;
@@ -54,24 +54,11 @@ function syncChatVisibleViewport() {
   viewportSyncFrame = window.requestAnimationFrame(() => {
     viewportSyncFrame = null;
 
-    const metrics = {
-      height: `${Math.round(viewport.height)}px`,
-      offsetTop: `${Math.round(viewport.offsetTop)}px`,
-      offsetLeft: `${Math.round(viewport.offsetLeft)}px`,
-    };
-    const root = document.documentElement;
+    const height = `${Math.round(viewport.height)}px`;
+    if (height === lastViewportHeight) return;
 
-    if (metrics.height !== lastViewportMetrics.height) {
-      root.style.setProperty("--chat-visible-height", metrics.height);
-    }
-    if (metrics.offsetTop !== lastViewportMetrics.offsetTop) {
-      root.style.setProperty("--chat-visible-offset-top", metrics.offsetTop);
-    }
-    if (metrics.offsetLeft !== lastViewportMetrics.offsetLeft) {
-      root.style.setProperty("--chat-visible-offset-left", metrics.offsetLeft);
-    }
-
-    lastViewportMetrics = metrics;
+    document.documentElement.style.setProperty("--chat-visible-height", height);
+    lastViewportHeight = height;
   });
 }
 
@@ -80,6 +67,26 @@ function bindChatVisibleViewport() {
   window.visualViewport?.addEventListener("resize", syncChatVisibleViewport);
   window.visualViewport?.addEventListener("scroll", syncChatVisibleViewport);
   window.addEventListener("orientationchange", syncChatVisibleViewport);
+}
+
+function dismissMobileKeyboardFromChat(event) {
+  // Keep interactive controls interactive. A normal tap in the conversation
+  // pane is a familiar way to dismiss the software keyboard on mobile.
+  if (
+    !window.matchMedia("(hover: none), (pointer: coarse)").matches ||
+    document.activeElement !== input ||
+    event.target.closest("button, a, input, textarea, select, label, [contenteditable='true']")
+  ) {
+    return;
+  }
+
+  input.blur();
+}
+
+function bindMobileKeyboardDismissal() {
+  document
+    .querySelector(".chatbot-page .page")
+    ?.addEventListener("pointerdown", dismissMobileKeyboardFromChat);
 }
 
 function setChatTurnPending(isPending) {
@@ -694,6 +701,7 @@ document.addEventListener(
   "DOMContentLoaded",
   () => {
     bindChatVisibleViewport();
+    bindMobileKeyboardDismissal();
     initializeChat();
   },
   { once: true },
