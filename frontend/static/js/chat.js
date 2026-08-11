@@ -38,6 +38,25 @@ const quickReplyButtons = Array.from(
 );
 const API_BASE = window.location.origin;
 
+// iOS Safari resizes the visual viewport (rather than the layout viewport)
+// when its software keyboard opens. Size only the chat shell to that visible
+// area so the header remains in place and the chat pane is the sole scroller.
+function syncChatVisibleViewport() {
+  const viewport = window.visualViewport;
+  if (!viewport) return;
+  document.documentElement.style.setProperty(
+    "--chat-visible-height",
+    `${Math.round(viewport.height)}px`,
+  );
+}
+
+function bindChatVisibleViewport() {
+  syncChatVisibleViewport();
+  window.visualViewport?.addEventListener("resize", syncChatVisibleViewport);
+  window.visualViewport?.addEventListener("scroll", syncChatVisibleViewport);
+  window.addEventListener("orientationchange", syncChatVisibleViewport);
+}
+
 function setChatTurnPending(isPending) {
   isAwaitingReply = isPending;
   input.disabled = isPending;
@@ -646,7 +665,14 @@ document.getElementById("send-message")?.addEventListener("click", sendMessage);
 
 window.sendMessage = sendMessage;
 window.sendQuick = sendQuick;
-document.addEventListener("DOMContentLoaded", initializeChat, { once: true });
+document.addEventListener(
+  "DOMContentLoaded",
+  () => {
+    bindChatVisibleViewport();
+    initializeChat();
+  },
+  { once: true },
+);
 window.addEventListener("beforeunload", () => {
   clearTimeout(inactivityTimer);
 });
