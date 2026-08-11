@@ -39,7 +39,10 @@ class StudentSessionService:
         )
         if cache is None:
             assert config is not None
-            cache_directory = Path(config.SESSION_CACHE_DIR).parent / "student_sessions"
+            # Use the configured session directory itself: production grants
+            # the application user write access to that private directory,
+            # while its parent may intentionally be root-owned.
+            cache_directory = Path(config.SESSION_CACHE_DIR) / "student_sessions"
             cache_directory.mkdir(parents=True, exist_ok=True)
             cache_directory.chmod(0o700)
             cache = FileSystemCache(
