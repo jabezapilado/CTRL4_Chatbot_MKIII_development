@@ -31,6 +31,14 @@ MK III is the completed, current implementation. Historical roadmaps and MK II
 research records remain available for thesis provenance, but they are not the
 current system contract.
 
+## Production deployment
+
+Production is deployed on a single persistent VPS with Nginx, Gunicorn, MySQL,
+and GitHub Actions deployment from `main`. This preserves server-side sessions,
+the provisioned English emotion-model artifact, generated RAG data, and the
+production database. Follow the [Deployment Guide](docs/deployment/deployment_guide.md)
+for the supported setup and operational checks.
+
 ## Features
 
 ### AI and chatbot

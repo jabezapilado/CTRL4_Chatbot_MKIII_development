@@ -37,8 +37,9 @@ deliberately. They are not part of ordinary documentation or cleanup work.
   external model-artifact provisioning, RAG preparation, and development start.
 - [Deployment Guide](deployment/deployment_guide.md) — authoritative production
   topology, environment configuration, database preparation, backup/restore,
-  logging, Gunicorn procedure, and the private no-code Tailscale demonstration
-  procedure using temporary `CTRL4_HOST`/`CTRL4_PORT` exports.
+  logging, Gunicorn procedure, GitHub Actions deployment to the persistent VPS,
+  and the private no-code Tailscale demonstration procedure using temporary
+  `CTRL4_HOST`/`CTRL4_PORT` exports.
 
 ### User guides
 

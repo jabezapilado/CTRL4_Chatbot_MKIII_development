@@ -134,6 +134,24 @@ class FrontendLayoutContractTests(unittest.TestCase):
         self.assertIn('id="inbox-search-input"', template)
         self.assertIn('id="inbox-filter"', template)
 
+    def test_dashboard_uses_parallel_loads_and_a_targeted_flagged_case_refresh(self) -> None:
+        dashboard = _read("frontend/static/js/dashboard.js")
+
+        self.assertIn("let dashboardLoadPromise = null;", dashboard)
+        self.assertIn("async function loadDashboardData()", dashboard)
+        self.assertIn("await Promise.all([", dashboard)
+        self.assertIn("async function ensureReportsLoaded()", dashboard)
+        self.assertIn('if (viewId === "reports")', dashboard)
+        self.assertIn("async function refreshReviewableCaseLists()", dashboard)
+        self.assertIn("Promise.allSettled([", dashboard)
+        self.assertIn("refreshReviewableCaseLists(),", dashboard)
+        self.assertIn("openFlaggedConversationDetails(conversation, updatedDetail)", dashboard)
+        self.assertNotIn(
+            "conversation.status = reviewed.data.escalation_status;\n"
+            "        await loadBackendData();",
+            dashboard,
+        )
+
     def test_current_reviewed_case_history_item_is_visibly_inactive(self) -> None:
         dashboard = _read("frontend/static/js/dashboard.js")
         stylesheet = _read("frontend/static/css/dashboard.css")

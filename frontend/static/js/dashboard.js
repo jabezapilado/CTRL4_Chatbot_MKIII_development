@@ -23,6 +23,8 @@ let inboxStatistics = null;
 let counselorWorkloadAnalytics = null;
 let flaggedCaseAnalytics = null;
 let reportsAnalytics = null;
+let dashboardLoadPromise = null;
+let reportsLoadPromise = null;
 let appointmentCalendarMonth = new Date(
   new Date().getFullYear(),
   new Date().getMonth(),
@@ -3086,6 +3088,9 @@ function switchView(viewId, updateLocation = true) {
   if (dashboardSections[viewId]) {
     showDashboardSection(viewId, dashboardSections[viewId], false);
   }
+  if (viewId === "reports") {
+    void ensureReportsLoaded();
+  }
   if (updateLocation && !isSameView) updateDashboardLocation(viewId);
   window.scrollTo(0, 0);
 }
@@ -4034,6 +4039,22 @@ async function loadCombinedReports() {
   renderDashboardOverview();
 }
 
+async function ensureReportsLoaded() {
+  if (reportsAnalytics) return;
+  if (reportsLoadPromise) return reportsLoadPromise;
+
+  reportsLoadPromise = loadCombinedReports().catch((error) => {
+    console.error(error);
+    reportsAnalytics = null;
+    createToast("Unable to load reports.", "info");
+  });
+  try {
+    await reportsLoadPromise;
+  } finally {
+    reportsLoadPromise = null;
+  }
+}
+
 function csvCell(value) {
   const text = String(value ?? "");
   const safeText = /^[=+\-@]/.test(text) ? `'${text}` : text;
@@ -4598,7 +4619,7 @@ function formatReviewedCaseTimestamp(value) {
     : timestamp.toLocaleString();
 }
 
-async function renderReviewedCaseHistory(summaryId) {
+async function renderReviewedCaseHistory(summaryId, existingItems = null) {
   const card = document.getElementById("case-history-card");
   const list = document.getElementById("case-history-list");
   if (!card || !list) return;
@@ -4606,11 +4627,14 @@ async function renderReviewedCaseHistory(summaryId) {
   card.hidden = true;
   list.replaceChildren();
   try {
-    const response = await fetchJson(
-      `${API_BASE}/api/staff/inbox/${encodeURIComponent(summaryId)}/history`,
-      { cache: "no-store" },
-    );
-    const items = response.data?.items || [];
+    const items =
+      existingItems ||
+      (
+        await fetchJson(
+          `${API_BASE}/api/staff/inbox/${encodeURIComponent(summaryId)}/history`,
+          { cache: "no-store" },
+        )
+      ).data?.items || [];
     if (!items.length) return;
 
     items.forEach((item) => {
@@ -4825,21 +4849,20 @@ async function openFlaggedConversationDetails(
     const removeConfidentialityButton = document.getElementById(
       "remove-case-confidential-btn",
     );
-    const notesResponse = await fetchJson(
-      `${API_BASE}/api/flagged-conversations/${conversation.id}/notes`,
-    );
+    const [notesResponse, referralsResponse, interventionsResponse, confidentialityResponse, historyResponse] =
+      await Promise.all([
+        fetchJson(`${API_BASE}/api/flagged-conversations/${conversation.id}/notes`),
+        fetchJson(`${API_BASE}/api/flagged-conversations/${conversation.id}/referrals`),
+        fetchJson(`${API_BASE}/api/flagged-conversations/${conversation.id}/interventions`),
+        fetchJson(`${API_BASE}/api/flagged-conversations/${conversation.id}/confidentiality`),
+        fetchJson(
+          `${API_BASE}/api/staff/inbox/${encodeURIComponent(conversation.id)}/history`,
+          { cache: "no-store" },
+        ),
+      ]);
     const notes = notesResponse.data?.items || [];
-    const referralsResponse = await fetchJson(
-      `${API_BASE}/api/flagged-conversations/${conversation.id}/referrals`,
-    );
     const referrals = referralsResponse.data?.items || [];
-    const interventionsResponse = await fetchJson(
-      `${API_BASE}/api/flagged-conversations/${conversation.id}/interventions`,
-    );
     const interventions = interventionsResponse.data?.items || [];
-    const confidentialityResponse = await fetchJson(
-      `${API_BASE}/api/flagged-conversations/${conversation.id}/confidentiality`,
-    );
     let confidentiality = confidentialityResponse.data;
     let editingNoteId = null;
 
@@ -4898,17 +4921,34 @@ async function openFlaggedConversationDetails(
     reviewButton.disabled = detail.escalation_status === "reviewed";
     reviewButton.classList.toggle("disabled", reviewButton.disabled);
     reviewButton.onclick = async () => {
+      if (reviewButton.disabled) return;
+      reviewButton.disabled = true;
+      reviewButton.classList.add("disabled");
       try {
         const reviewed = await fetchJson(
           `${API_BASE}/api/flagged-conversations/${conversation.id}/review`,
           { method: "PATCH" },
         );
         conversation.status = reviewed.data.escalation_status;
-        await loadBackendData();
-        await openFlaggedConversationDetails(conversation);
+        const updatedDetail = {
+          ...detail,
+          ...reviewed.data,
+          summary_id: detail.summary_id || conversation.id,
+          student_name: detail.student_name,
+          student_number: detail.student_number,
+          program: detail.program,
+          flagged_status: true,
+          review_status: "reviewed",
+        };
+        await Promise.all([
+          refreshReviewableCaseLists(),
+          openFlaggedConversationDetails(conversation, updatedDetail),
+        ]);
         createToast("Flagged conversation marked as reviewed.", "success");
       } catch (error) {
         console.error(error);
+        reviewButton.disabled = false;
+        reviewButton.classList.remove("disabled");
         createToast("Unable to mark flagged conversation as reviewed.", "info");
       }
     };
@@ -5217,7 +5257,10 @@ async function openFlaggedConversationDetails(
     };
     updateConfidentialityControls();
 
-    await renderReviewedCaseHistory(detail.summary_id);
+    await renderReviewedCaseHistory(
+      detail.summary_id,
+      historyResponse.data?.items || [],
+    );
     switchView("case-details");
   } catch (error) {
     console.error(error);
@@ -5464,17 +5507,21 @@ function openAppointmentDetails(appointment) {
   switchView("appointment-details");
 }
 
-async function loadBackendData() {
+async function refreshReviewableCaseLists() {
   inboxLoadState = "loading";
   renderInquiryTable();
-  try {
-    const inbox = await fetchJson(`${API_BASE}/api/staff/inbox`, {
-      cache: "no-store",
-    });
+
+  const [inboxResult, flaggedResult] = await Promise.allSettled([
+    fetchJson(`${API_BASE}/api/staff/inbox`, { cache: "no-store" }),
+    fetchJson(`${API_BASE}/api/flagged-conversations`, { cache: "no-store" }),
+  ]);
+
+  if (inboxResult.status === "fulfilled") {
+    const inbox = inboxResult.value;
     staffInboxItems = (inbox.data?.items || []).map(mapInboxItem);
     inboxLoadState = "ready";
-  } catch (error) {
-    console.error(error);
+  } else {
+    console.error(inboxResult.reason);
     staffInboxItems = [];
     inboxLoadState = "error";
     setInboxState(
@@ -5483,135 +5530,188 @@ async function loadBackendData() {
     );
   }
 
-  try {
-    const flagged = await fetchJson(`${API_BASE}/api/flagged-conversations`, {
-      cache: "no-store",
-    });
+  if (flaggedResult.status === "fulfilled") {
+    const flagged = flaggedResult.value;
     flaggedConversations = (flagged.data?.items || []).map(
       mapFlaggedConversation,
     );
     flaggedConversationsLoaded = true;
-  } catch (error) {
-    console.error(error);
+  } else {
+    console.error(flaggedResult.reason);
     flaggedConversations = [];
     flaggedConversationsLoaded = false;
   }
 
-  chatbotFeedbackLoadState = "loading";
-  try {
-    const feedback = await fetchJson(`${API_BASE}/api/staff/chatbot-feedback`, {
-      cache: "no-store",
-    });
-    chatbotFeedback = (feedback.data?.items || []).map(mapChatbotFeedback);
-    chatbotFeedbackInsights = feedback.data?.insights || null;
-    chatbotFeedbackLoadState = "ready";
-  } catch (error) {
-    console.error(error);
-    chatbotFeedback = [];
-    chatbotFeedbackInsights = null;
-    chatbotFeedbackLoadState = "error";
-    setFeedbackState("Student feedback is unavailable right now.", "error");
-  }
+  renderInquiryTable();
+  renderFlaggedConversations();
+  updateFlaggedCount();
+}
 
-  try {
-    await loadInboxStatistics();
-  } catch (error) {
+async function loadDashboardData() {
+  inboxLoadState = "loading";
+  chatbotFeedbackLoadState = "loading";
+  renderInquiryTable();
+
+  const inboxTask = (async () => {
+    try {
+      const inbox = await fetchJson(`${API_BASE}/api/staff/inbox`, {
+        cache: "no-store",
+      });
+      staffInboxItems = (inbox.data?.items || []).map(mapInboxItem);
+      inboxLoadState = "ready";
+    } catch (error) {
+      console.error(error);
+      staffInboxItems = [];
+      inboxLoadState = "error";
+      setInboxState(
+        "Inbox items are unavailable. Retry to load persisted summaries.",
+        "error",
+      );
+    }
+  })();
+
+  const flaggedTask = (async () => {
+    try {
+      const flagged = await fetchJson(`${API_BASE}/api/flagged-conversations`, {
+        cache: "no-store",
+      });
+      flaggedConversations = (flagged.data?.items || []).map(
+        mapFlaggedConversation,
+      );
+      flaggedConversationsLoaded = true;
+    } catch (error) {
+      console.error(error);
+      flaggedConversations = [];
+      flaggedConversationsLoaded = false;
+    }
+  })();
+
+  const feedbackTask = (async () => {
+    try {
+      const feedback = await fetchJson(`${API_BASE}/api/staff/chatbot-feedback`, {
+        cache: "no-store",
+      });
+      chatbotFeedback = (feedback.data?.items || []).map(mapChatbotFeedback);
+      chatbotFeedbackInsights = feedback.data?.insights || null;
+      chatbotFeedbackLoadState = "ready";
+    } catch (error) {
+      console.error(error);
+      chatbotFeedback = [];
+      chatbotFeedbackInsights = null;
+      chatbotFeedbackLoadState = "error";
+      setFeedbackState("Student feedback is unavailable right now.", "error");
+    }
+  })();
+
+  const inboxStatisticsTask = loadInboxStatistics().catch((error) => {
     console.error(error);
     inboxStatistics = null;
     renderInboxStatistics();
-  }
+  });
 
-  try {
-    const appointments = await fetchJson(`${API_BASE}/api/appointments`);
-    window.backendAppointments = (appointments.data?.items || []).map(
-      mapAppointment,
-    );
-    appointmentsLoaded = true;
-  } catch (error) {
-    console.error(error);
-    window.backendAppointments = [];
-    appointmentsLoaded = false;
-  }
+  const appointmentsTask = (async () => {
+    try {
+      const appointments = await fetchJson(`${API_BASE}/api/appointments`);
+      window.backendAppointments = (appointments.data?.items || []).map(
+        mapAppointment,
+      );
+      appointmentsLoaded = true;
+    } catch (error) {
+      console.error(error);
+      window.backendAppointments = [];
+      appointmentsLoaded = false;
+    }
+  })();
 
-  try {
-    await loadAppointmentAnalytics();
-  } catch (error) {
+  const appointmentAnalyticsTask = loadAppointmentAnalytics().catch((error) => {
     console.error(error);
     appointmentAnalytics = null;
-  }
+  });
 
-  try {
-    await loadChatbotAnalytics();
-  } catch (error) {
+  const chatbotAnalyticsTask = loadChatbotAnalytics().catch((error) => {
     console.error(error);
     chatbotAnalytics = null;
-  }
+  });
 
-  try {
-    await loadCounselorWorkloadAnalytics();
-  } catch (error) {
-    console.error(error);
-    counselorWorkloadAnalytics = null;
-  }
+  const counselorWorkloadTask = loadCounselorWorkloadAnalytics().catch(
+    (error) => {
+      console.error(error);
+      counselorWorkloadAnalytics = null;
+    },
+  );
 
-  try {
-    await loadFlaggedCaseAnalytics();
-  } catch (error) {
+  const flaggedAnalyticsTask = loadFlaggedCaseAnalytics().catch((error) => {
     console.error(error);
     flaggedCaseAnalytics = null;
-  }
+  });
 
-  try {
-    await loadCombinedReports();
-  } catch (error) {
-    console.error(error);
-    reportsAnalytics = null;
-  }
-
-  try {
-    await loadPersistedSettings();
-  } catch (error) {
+  const settingsTask = loadPersistedSettings().catch((error) => {
     console.error(error);
     renderPersistedSettings(null);
     setSettingsStatus("Unable to load persisted settings.", "error");
-  }
+  });
 
-  try {
-    await loadCounselorProfile();
-  } catch (error) {
+  const counselorProfileTask = loadCounselorProfile().catch((error) => {
     console.error(error);
     setCounselorProfileStatus("Unable to load counselor profile.", "error");
-  }
+  });
 
-  try {
-    await loadFaqs();
-  } catch (error) {
+  const faqsTask = loadFaqs().catch((error) => {
     console.error(error);
     persistedFaqs = [];
     renderFaqs(persistedFaqs);
     setFaqStatus("Unable to load persisted FAQs.", "error");
-  }
+  });
 
-  try {
-    const bookingOptions = await fetchJson(
-      `${API_BASE}/api/appointments/booking-options`,
-    );
-    appointmentBookingOptions = bookingOptions.data || {
-      state: "unconfigured",
-      bookingEnabled: false,
-    };
-  } catch (error) {
-    console.error(error);
-    appointmentBookingOptions = {
-      state: "unconfigured",
-      bookingEnabled: false,
-    };
-  }
+  const bookingOptionsTask = (async () => {
+    try {
+      const bookingOptions = await fetchJson(
+        `${API_BASE}/api/appointments/booking-options`,
+      );
+      appointmentBookingOptions = bookingOptions.data || {
+        state: "unconfigured",
+        bookingEnabled: false,
+      };
+    } catch (error) {
+      console.error(error);
+      appointmentBookingOptions = {
+        state: "unconfigured",
+        bookingEnabled: false,
+      };
+    }
+  })();
+
+  await Promise.all([
+    inboxTask,
+    flaggedTask,
+    feedbackTask,
+    inboxStatisticsTask,
+    appointmentsTask,
+    appointmentAnalyticsTask,
+    chatbotAnalyticsTask,
+    counselorWorkloadTask,
+    flaggedAnalyticsTask,
+    settingsTask,
+    counselorProfileTask,
+    faqsTask,
+    bookingOptionsTask,
+  ]);
 
   renderAllTables();
   updateFlaggedCount();
   renderReports();
   renderAppointmentDashboard();
+}
+
+async function loadBackendData() {
+  if (dashboardLoadPromise) return dashboardLoadPromise;
+
+  dashboardLoadPromise = loadDashboardData();
+  try {
+    await dashboardLoadPromise;
+  } finally {
+    dashboardLoadPromise = null;
+  }
 }
 
 function logout() {

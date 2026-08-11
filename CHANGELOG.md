@@ -20,14 +20,16 @@ The format follows the principles of **Keep a Changelog**.
   Appointment Requests, and student appointment alerts to My Appointments.
 - Added separate AI-professional and web-professional qualitative evaluation
   templates, linked from the documentation index.
-- Added the Vercel Flask entrypoint configuration for an experimental build
-  attempt using `backend.app:app`.
 - Added counselor-approved staff-review flags for first-person reports of
   feeling empty, feeling depressed, and past abuse disclosures. These retain
   a supportive response while creating a pending Guidance Office review case.
 
 ### Changed
 
+- Improved staff dashboard responsiveness without changing any case workflow:
+  independent dashboard data loads now run in parallel, opening a flagged case
+  loads its protected supporting records concurrently, and marking a case
+  reviewed refreshes only the affected Inbox and Flagged Cases lists.
 - Updated the student chatbot avatar to a fox and refined the compact mobile
   chat layout. The header, message bubbles, Terms dialog, and message composer
   now remain within small phone viewports and respect iPhone safe areas.
@@ -52,9 +54,9 @@ The format follows the principles of **Keep a Changelog**.
 
 ### Notes
 
-- The Vercel configuration is an experiment, not a supported production
-  deployment. The current filesystem session, active-chat, model-artifact, and
-  RAG runtime design still requires a persistent-host or serverless redesign.
+- Production uses the documented persistent-VPS deployment topology. The
+  current filesystem session, active-chat, model-artifact, and RAG runtime
+  design require persistent host storage and controlled operational assets.
 - Generated RAG index artifacts, PDFs, local reference scans, backups, and
   environment files remain outside this source-control update.
 - Legacy model archives remain outside the repository. The controlled
