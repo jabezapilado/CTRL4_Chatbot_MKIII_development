@@ -20,7 +20,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 MODELS_DIR = PROJECT_ROOT / "ai_engine" / "models"
 
 TOKENIZER_PATHS = {
-    "english": MODELS_DIR / "english" / "v1",
+    # Keep the tokenizer paired with the runtime model release.
+    "english": MODELS_DIR / "english" / "latest",
     "filipino": MODELS_DIR / "filipino" / "v1",
 }
 

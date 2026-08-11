@@ -28,6 +28,10 @@ The format follows the principles of **Keep a Changelog**.
   the read action and its appointment destination.
 - Improved the Guidance Office response-playbook review template spacing for
   easier review and completion.
+- Retained only the approved `ai_engine/models/english/latest` tokenizer and
+  configuration release in source control. Legacy model releases and training
+  checkpoints are now local archives, and the tokenizer loader uses the same
+  approved `latest` release as the runtime model loader.
 
 ### Verified
 
@@ -42,6 +46,8 @@ The format follows the principles of **Keep a Changelog**.
   RAG runtime design still requires a persistent-host or serverless redesign.
 - Generated RAG index artifacts, PDFs, local reference scans, backups, and
   environment files remain outside this source-control update.
+- Legacy model archives remain outside the repository. The controlled
+  `model.safetensors` runtime artifact is provisioned separately.
 
 ---
 

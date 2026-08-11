@@ -81,6 +81,10 @@ dist/
 ai_engine/models/**/model.safetensors
 ai_engine/models/**/training_args.bin
 ai_engine/models/**/checkpoint-*/
+# The deployed application loads only english/latest.  Preserve legacy release
+# folders outside the repository rather than adding their tokenizer/config copies.
+ai_engine/models/english/v*/
+ai_engine/models/emotion_model/
 
 # ===========================================
 # Processed Datasets

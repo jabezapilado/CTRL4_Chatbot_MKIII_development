@@ -153,6 +153,11 @@ cd backend
 ../.venv/bin/python app.py
 ```
 
+Only the approved tokenizer/configuration release at
+`ai_engine/models/english/latest` is kept with the source. Historical model
+releases and training checkpoints are local archives, not Git or deployment
+requirements.
+
 By default, the development server listens at
 `http://127.0.0.1:5001`. Verify it with:
 
