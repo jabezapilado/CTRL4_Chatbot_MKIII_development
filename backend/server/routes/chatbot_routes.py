@@ -5,11 +5,11 @@ from secrets import token_urlsafe
 
 from flask import Blueprint, jsonify, request, session
 
-from ..auth import STUDENT_TERMS_ACCEPTED_SESSION_KEY
+from ..auth import STUDENT_SESSION_TOKEN_KEY, STUDENT_TERMS_ACCEPTED_SESSION_KEY
 from ..db import save_chatbot_feedback
 from ..request_validation import require_login
 
-from ..services import ai_service, transient_chat_service
+from ..services import ai_service, student_session_service, transient_chat_service
 from ..services.conversation_service import (
     determine_escalation_reason,
     finalize_conversation,
@@ -270,6 +270,23 @@ def chat():
                 user["id"],
                 escalation_reason,
             )
+        if str(user.get("role", "")).lower() == "student":
+            student_session_service.update_conversation_context(
+                user.get("id"),
+                session.get(STUDENT_SESSION_TOKEN_KEY),
+                topic=result.topic,
+                language=result.language,
+                emotion=result.emotion,
+                flagged=bool(
+                    session.get(_ESCALATION_SESSION_KEY)
+                    or session.get(_REVIEW_FLAG_SESSION_KEY)
+                ),
+                review_only=bool(session.get(_REVIEW_FLAG_SESSION_KEY))
+                and not bool(session.get(_ESCALATION_SESSION_KEY)),
+                escalation_reason=session.get(_ESCALATION_REASON_SESSION_KEY),
+                appointment=session.get(_FINALIZATION_APPOINTMENT_KEY),
+                active_summary_id=session.get(_ACTIVE_SUMMARY_SESSION_KEY),
+            )
 
         return jsonify(
             {
@@ -438,6 +455,11 @@ def finalize_chat():
         session.pop(_ACTIVE_SUMMARY_SESSION_KEY, None)
         session.pop(_FEEDBACK_RESPONSE_TOKENS_SESSION_KEY, None)
         transient_chat_service.clear(_opaque_session_id(), user.get("id"))
+        if str(user.get("role", "")).lower() == "student":
+            student_session_service.clear_conversation_context(
+                user.get("id"),
+                session.get(STUDENT_SESSION_TOKEN_KEY),
+            )
 
         message = (
             "No meaningful student message was recorded."

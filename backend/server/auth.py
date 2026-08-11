@@ -1,23 +1,50 @@
 from __future__ import annotations
 
 import logging
+from secrets import token_urlsafe
 
-from flask import Blueprint, current_app, jsonify, request, session
+from flask import Blueprint, current_app, g, jsonify, request, session
 from .csrf import get_csrf_token
-from .services import transient_chat_service
+from .services import student_session_service, transient_chat_service
 from .services.account_service import login_service
+from .services.conversation_service import finalize_conversation
 
 
 logger = logging.getLogger(__name__)
 
 STUDENT_TERMS_ACCEPTED_SESSION_KEY = "student_terms_accepted"
+STUDENT_SESSION_TOKEN_KEY = "student_session_token"
 
 auth_bp = Blueprint("auth", __name__)
 
 
+def _invalidate_replaced_student_session(user: dict) -> None:
+    """Clear a student browser that no longer owns the active lease."""
+
+    transient_chat_service.clear(getattr(session, "sid", ""), user.get("id"))
+    session.clear()
+    g.student_session_replaced = True
+    logger.info("Rejected a replaced student browser session.")
+
+
 def get_logged_in_user() -> dict | None:
     user = session.get("hau_user")
-    return user if isinstance(user, dict) and user.get("email") else None
+    if not isinstance(user, dict) or not user.get("email"):
+        return None
+
+    if str(user.get("role", "")).lower() != "student":
+        return user
+
+    token = session.get(STUDENT_SESSION_TOKEN_KEY)
+    # Existing sessions from before this student-only safeguard remain valid
+    # until their normal expiry. Every new student login receives a lease.
+    if not isinstance(token, str) or not token:
+        return user
+    if student_session_service.is_current(user.get("id"), token):
+        return user
+
+    _invalidate_replaced_student_session(user)
+    return None
 
 
 def role_landing_path(user: dict) -> str:
@@ -38,18 +65,76 @@ def _rotate_authenticated_session() -> None:
     if callable(regenerate):
         regenerate(session)
 
+
+def _student_session_replacement_requested(payload: dict) -> bool:
+    return payload.get("replace_existing_session") is True
+
+
+def _finalize_replaced_student_session(user: dict) -> None:
+    """Finish Device A with the established server-owned logout workflow."""
+
+    student_session_service.finalize_replaced_session(
+        user.get("id"),
+        session.get(STUDENT_SESSION_TOKEN_KEY),
+        user,
+        transient_chat=transient_chat_service,
+        finalizer=finalize_conversation,
+    )
+
+
 @auth_bp.post("/auth/login")
 def login():
     payload = request.get_json(silent=True) or {}
 
     try:
         user = login_service(payload)
+        is_student = str(user.get("role", "")).lower() == "student"
+        has_other_student_session = is_student and student_session_service.has_other_active_session(
+            user.get("id"), session.get(STUDENT_SESSION_TOKEN_KEY)
+        )
+        if has_other_student_session and not _student_session_replacement_requested(payload):
+            return jsonify(
+                {
+                    "success": False,
+                    "message": (
+                        "This student account is currently active on another device. "
+                        "Choose whether to replace that session."
+                    ),
+                    "errors": None,
+                }
+            ), 409
+        if has_other_student_session:
+            try:
+                _finalize_replaced_student_session(user)
+            except Exception as exc:
+                logger.error(
+                    "Student session replacement could not finalize the prior conversation "
+                    "(exception_type=%s).",
+                    type(exc).__name__,
+                )
+                return jsonify(
+                    {
+                        "success": False,
+                        "message": "Unable to safely sign out the other device. Please try again.",
+                        "errors": None,
+                    }
+                ), 503
+
         # Prevent session fixation by issuing a fresh authenticated session.
         session.clear()
         session["hau_user"] = user
-        if str(user.get("role", "")).lower() == "student":
+        if is_student:
             session[STUDENT_TERMS_ACCEPTED_SESSION_KEY] = False
         _rotate_authenticated_session()
+        if is_student:
+            student_token = token_urlsafe(32)
+            session[STUDENT_SESSION_TOKEN_KEY] = student_token
+            if not student_session_service.register(
+                user.get("id"),
+                student_token,
+                getattr(session, "sid", ""),
+            ):
+                raise RuntimeError("Unable to establish the student session.")
         session.permanent = True
         get_csrf_token()
     except ValueError as exc:
@@ -135,6 +220,9 @@ def logout():
     # session identifier. Remove it before clearing the session so a new login
     # cannot recover a prior authenticated session's chat.
     transient_chat_service.clear(getattr(session, "sid", ""), user.get("id"))
+    student_session_service.clear_if_current(
+        user.get("id"), session.get(STUDENT_SESSION_TOKEN_KEY)
+    )
     session.clear()
     if user:
         logger.info("Authenticated session cleared.")

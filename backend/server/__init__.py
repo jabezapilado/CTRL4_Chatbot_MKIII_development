@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from cachelib.file import FileSystemCache
-from flask import Flask, jsonify
+from flask import Flask, g, jsonify
 from flask_session import Session
 
 from .config import Config
@@ -42,6 +42,12 @@ def create_app() -> Flask:
     install_csrf_protection(app)
 
     register_blueprints(app)
+
+    @app.after_request
+    def identify_replaced_student_session(response):
+        if getattr(g, "student_session_replaced", False):
+            response.headers["X-CTRL4-Session-Replaced"] = "1"
+        return response
 
     @app.errorhandler(404)
     def not_found(_error):

@@ -36,7 +36,7 @@ unauthenticated users to login and enforces the listed role boundary.
 
 | Method | Path | Access | Request | Success / important errors |
 | --- | --- | --- | --- | --- |
-| POST | `/auth/login` | Public | `email`, `password` | 200 authenticated user in `data`; 400 validation, 401 invalid credentials, 403 blocked account |
+| POST | `/auth/login` | Public | `email`, `password`; optional `replace_existing_session` boolean | 200 authenticated user in `data`; 400 validation, 401 invalid credentials, 403 blocked account; 409 active student session requires confirmation; 503 prior conversation could not be safely finalized |
 | POST | `/auth/terms/accept` | Student | None | 200 marks the current server session as accepted; 401 no session, 403 non-student |
 | POST | `/auth/logout` | Authenticated | None | 200; 401 if no session |
 | GET | `/health` | Public | None | 200 service status; 500 only on health failure |
@@ -46,6 +46,13 @@ the existing frontend redirect; the browser cookie is opaque and must not be
 treated as an API credential to inspect. Students must explicitly accept the
 Terms and Conditions in each new server session before chatbot access; declining
 uses the existing logout flow.
+
+For a student-only active-device conflict, a login without
+`replace_existing_session: true` returns the normal error envelope with `409`.
+After explicit confirmation, CTRL4 finalizes the prior browser's active
+conversation with the same server-owned workflow used for normal finalization,
+then creates the new student's session. Staff and administrator logins do not
+use this confirmation flow.
 
 ## Accounts
 

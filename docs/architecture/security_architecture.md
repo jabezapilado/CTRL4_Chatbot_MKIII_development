@@ -56,6 +56,13 @@ authenticated-user data and escalation markers remain server-side.
 - Student login sets Terms acceptance to unaccepted. The student-only
   `/auth/terms/accept` mutation records explicit acceptance in the server
   session; declining uses the existing logout behavior.
+- A student account has one active-device lease. A second-device sign-in first
+  receives a confirmation response; an approved replacement finalizes the
+  prior browser's server-owned chat through the established summary, safety,
+  escalation, and staff-Inbox workflow before the new lease is issued. The
+  prior browser is cleared and follows the normal login redirect on its next
+  request. The lease stores only session/finalization metadata, never a raw
+  transcript. Staff and administrator sessions remain multi-device.
 - The currently supported deployment is one application instance. Horizontal
   scaling requires an approved shared server-side session backend first.
 

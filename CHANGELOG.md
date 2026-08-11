@@ -10,6 +10,12 @@ The format follows the principles of **Keep a Changelog**.
 
 ### Added
 
+- Added a student-only single-active-device safeguard. When a student confirms
+  a sign-in on Device B, CTRL4 first finalizes Device A through the existing
+  conversation, safety, summary, and staff-Inbox workflow, then issues Device
+  B a fresh session and Terms acknowledgement. Device A follows the normal
+  signed-out login flow on its next request; staff and administrator
+  multi-device sessions are unchanged.
 - Added a student-only 15-minute inactive-chat policy. On the next available
   browser event after the deadline, CTRL4 finalizes the active conversation
   before signing the student out; staff and administrator session behavior is
@@ -32,7 +38,7 @@ The format follows the principles of **Keep a Changelog**.
 
 - Stabilized the student chat on mobile and tablet browsers: keyboard viewport
   updates are coalesced per animation frame, the chat viewport avoids accidental
-  page/double-tap zoom, and the chat shell no longer follows iOS viewport-pan
+  page/double-tap zoom, and the chat shell compensates for iOS viewport-pan
   offsets while opening or closing the keyboard. The header remains anchored
   while composing. Tapping the non-interactive conversation area now dismisses
   the mobile software keyboard. These presentation-only changes do not alter

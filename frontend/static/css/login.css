@@ -456,6 +456,63 @@ body {
   line-height: 1.7;
 }
 
+.session-replacement-dialog {
+  width: min(440px, calc(100vw - 32px));
+  max-width: none;
+  margin: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 22px;
+  background: transparent;
+  box-shadow: 0 22px 72px rgba(33, 20, 13, 0.28);
+}
+
+.session-replacement-dialog::backdrop {
+  background: rgba(35, 29, 24, 0.52);
+  backdrop-filter: blur(3px);
+}
+
+.session-replacement-card {
+  padding: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  border-radius: inherit;
+  background: var(--white);
+}
+
+.session-replacement-kicker {
+  margin-bottom: 8px;
+  color: var(--orange);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.session-replacement-card h2 {
+  color: var(--gray-900);
+  font-family: "Playfair Display", serif;
+  font-size: 1.65rem;
+  line-height: 1.15;
+}
+
+.session-replacement-card > p:not(.session-replacement-kicker) {
+  margin-top: 12px;
+  color: var(--gray-700);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.session-replacement-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.session-replacement-actions .btn {
+  min-height: 42px;
+}
+
 .divider {
   font-size: 11px;
   font-weight: 700;
@@ -596,6 +653,18 @@ body {
 
   .form-input {
     font-size: 16px;
+  }
+
+  .session-replacement-card {
+    padding: 24px 20px;
+  }
+
+  .session-replacement-actions {
+    flex-direction: column-reverse;
+  }
+
+  .session-replacement-actions .btn {
+    width: 100%;
   }
 }
 

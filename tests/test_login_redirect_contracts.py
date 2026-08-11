@@ -42,6 +42,7 @@ def _load_frontend_blueprint_for_test():
         "staff": "/dashboard",
         "admin": "/admin",
     }.get(str(user.get("role", "student")).lower(), "/chatbot")
+    auth.STUDENT_TERMS_ACCEPTED_SESSION_KEY = "student_terms_accepted"
     sys.modules["backend.server.auth"] = auth
 
     validation = types.ModuleType("backend.server.request_validation")
@@ -153,6 +154,7 @@ class LoginRedirectContractTests(unittest.TestCase):
         notice_source = login[notice_start:notice_end]
 
         self.assertIn('reason === "session-required"', notice_source)
+        self.assertIn('reason === "session-replaced"', notice_source)
         self.assertNotIn("redirectToPage", notice_source)
         self.assertNotIn("window.location.replace", notice_source)
 
@@ -162,7 +164,8 @@ class LoginRedirectContractTests(unittest.TestCase):
 
         self.assertIn('public_paths = {"/", "/login", "/health", "/auth/login", "/auth/logout"}', routes)
         self.assertIn('if path in {"/", "/login"} and user:', routes)
-        self.assertEqual(routes.count('redirect("/login?reason=session-required")'), 1)
+        self.assertIn('def _login_redirect_for_current_session_state()', routes)
+        self.assertIn('"session-replaced"', routes)
         self.assertIn('if role == "staff":\n        return "/dashboard"', auth)
         self.assertIn('if role == "admin":\n        return "/admin"', auth)
         self.assertIn('return "/chatbot"', auth)
@@ -174,7 +177,12 @@ class LoginRedirectContractTests(unittest.TestCase):
         self.assertIn('redirectToPage("/dashboard")', login)
         self.assertIn('redirectToPage("/admin")', login)
         self.assertIn('redirectToPage("/chatbot")', login)
-        self.assertEqual(client_auth.count('window.location.replace("/login?reason=logged-out")'), 1)
+        self.assertEqual(
+            client_auth.count(
+                "window.location.replace(`/login?reason=${encodeURIComponent(reason)}`)",
+            ),
+            1,
+        )
         self.assertIn("sessionStorage.clear()", client_auth)
 
 

@@ -28,6 +28,7 @@ from .metadata_service import MetadataExtractionService
 from .response_safety_service import ResponseSafetyService
 from .operational_guidance_service import OperationalGuidanceService
 from .transient_chat_service import TransientChatService
+from .student_session_service import StudentSessionService
 from .ai_service import AIService
 from .summary_service import SummaryService
 
@@ -53,6 +54,7 @@ try:
     response_safety_service = ResponseSafetyService()
     operational_guidance_service = OperationalGuidanceService()
     transient_chat_service = TransientChatService()
+    student_session_service = StudentSessionService()
 
     # --------------------------------------------------
     # Main AI Orchestrator
@@ -147,6 +149,7 @@ __all__ = [
     "response_safety_service",
     "operational_guidance_service",
     "transient_chat_service",
+    "student_session_service",
     "ai_service",
     "summary_service",
     "get_service_status",

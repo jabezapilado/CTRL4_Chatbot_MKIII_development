@@ -126,6 +126,29 @@
       </div>
     </div>
 
+    <dialog
+      class="session-replacement-dialog"
+      id="session-replacement-dialog"
+      aria-labelledby="session-replacement-title"
+    >
+      <div class="session-replacement-card">
+        <p class="session-replacement-kicker">Student session already active</p>
+        <h2 id="session-replacement-title">Continue on this device?</h2>
+        <p>
+          This student account is currently signed in on another device. If you
+          continue, that device will be signed out the next time it connects.
+        </p>
+        <div class="session-replacement-actions">
+          <button type="button" class="btn btn-outline" id="session-replacement-cancel">
+            Cancel
+          </button>
+          <button type="button" class="btn btn-primary" id="session-replacement-proceed">
+            Sign out other device and continue
+          </button>
+        </div>
+      </div>
+    </dialog>
+
     <script src="/static/js/security.js"></script>
     <script>
       const API_BASE = window.location.origin;
@@ -147,20 +170,50 @@
         btn.setAttribute("aria-pressed", String(isHidden));
       }
 
-      function handleLogin(e) {
-        e.preventDefault();
+      function setLoginButtonState(isBusy, label = "Sign In") {
+        const btn = document.getElementById("login-btn");
+        btn.textContent = label;
+        btn.disabled = isBusy;
+      }
 
+      function completeLogin(user) {
+        sessionStorage.setItem(
+          "hau_user",
+          JSON.stringify({
+            email: user.email,
+            name: user.full_name,
+            role: user.role,
+          }),
+        );
+
+        if (user.role === "staff") {
+          redirectToPage("/dashboard");
+        } else if (user.role === "admin") {
+          redirectToPage("/admin");
+        } else {
+          redirectToPage("/chatbot");
+        }
+      }
+
+      function openSessionReplacementDialog() {
+        const dialog = document.getElementById("session-replacement-dialog");
+        if (!dialog.open) dialog.showModal();
+      }
+
+      function closeSessionReplacementDialog() {
+        const dialog = document.getElementById("session-replacement-dialog");
+        if (dialog.open) dialog.close();
+      }
+
+      async function submitLogin({ replaceExistingSession = false } = {}) {
         const email = document.getElementById("email").value.trim();
         const pw = document.getElementById("password").value;
-
-        const btn = document.getElementById("login-btn");
         const err = document.getElementById("login-error");
 
-        btn.textContent = "Signing in...";
-        btn.disabled = true;
+        setLoginButtonState(true, "Signing in...");
         err.classList.remove("show");
 
-        fetch(`${API_BASE}/auth/login`, {
+        const response = await fetch(`${API_BASE}/auth/login`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -168,49 +221,35 @@
           body: JSON.stringify({
             email,
             password: pw,
+            replace_existing_session: replaceExistingSession,
           }),
-        })
-          .then(async (response) => {
-            const data = await response.json();
+        });
+        const data = await response.json();
 
-            if (!response.ok) {
-              throw new Error(data.message || "Login failed");
-            }
+        if (response.status === 409) {
+          setLoginButtonState(false);
+          openSessionReplacementDialog();
+          return;
+        }
+        if (!response.ok) {
+          throw new Error(data.message || "Login failed");
+        }
+        completeLogin(data.data);
+      }
 
-            return data;
-          })
-          .then((response) => {
-            const user = response.data;
+      function handleLogin(e) {
+        e.preventDefault();
+        submitLogin().catch((error) => {
+          const err = document.getElementById("login-error");
+          err.textContent = `⚠ ${error.message}`;
+          err.classList.add("show");
+          setLoginButtonState(false);
 
-            sessionStorage.setItem(
-              "hau_user",
-              JSON.stringify({
-                email: user.email,
-                name: user.full_name,
-                role: user.role,
-              }),
-            );
-
-            if (user.role === "staff") {
-              redirectToPage("/dashboard");
-            } else if (user.role === "admin") {
-              redirectToPage("/admin");
-            } else {
-              redirectToPage("/chatbot");
-            }
-          })
-          .catch((error) => {
-            err.textContent = `⚠ ${error.message}`;
-            err.classList.add("show");
-
-            btn.textContent = "Sign In";
-            btn.disabled = false;
-
-            const password = document.getElementById("password");
-            password.value = "";
-            password.classList.add("error");
-            password.focus();
-          });
+          const password = document.getElementById("password");
+          password.value = "";
+          password.classList.add("error");
+          password.focus();
+        });
       }
 
       function showLoginNotice() {
@@ -231,6 +270,14 @@
           title.textContent = "Signed out";
           text.textContent =
             "Please sign in again to continue protected access.";
+        } else if (reason === "inactive") {
+          title.textContent = "Signed out for inactivity";
+          text.textContent =
+            "Your inactive chat was finalized. Sign in again when you are ready.";
+        } else if (reason === "session-replaced") {
+          title.textContent = "Signed out on this device";
+          text.textContent =
+            "This student account was signed in from another device.";
         } else {
           title.textContent = "Protected access";
           text.textContent = "Your account is required to continue.";
@@ -244,6 +291,25 @@
       // server session exists. Remove an outdated convenience copy so it
       // cannot redirect this login page back to a protected route.
       sessionStorage.removeItem("hau_user");
+      document
+        .getElementById("session-replacement-cancel")
+        .addEventListener("click", () => {
+          closeSessionReplacementDialog();
+          const password = document.getElementById("password");
+          password.value = "";
+          password.focus();
+        });
+      document
+        .getElementById("session-replacement-proceed")
+        .addEventListener("click", () => {
+          closeSessionReplacementDialog();
+          submitLogin({ replaceExistingSession: true }).catch((error) => {
+            const err = document.getElementById("login-error");
+            err.textContent = `⚠ ${error.message}`;
+            err.classList.add("show");
+            setLoginButtonState(false);
+          });
+        });
       showLoginNotice();
     </script>
   </body>

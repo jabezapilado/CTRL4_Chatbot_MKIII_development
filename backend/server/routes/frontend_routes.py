@@ -7,6 +7,7 @@ from flask import (
     redirect,
     session,
     make_response,
+    g,
 )
 
 from ..auth import (
@@ -24,6 +25,15 @@ from ..services import transient_chat_service
 logger = logging.getLogger(__name__)
 
 frontend_bp = Blueprint("frontend", __name__)
+
+
+def _login_redirect_for_current_session_state():
+    reason = (
+        "session-replaced"
+        if getattr(g, "student_session_replaced", False)
+        else "session-required"
+    )
+    return redirect(f"/login?reason={reason}")
 
 
 @frontend_bp.get("/")
@@ -106,7 +116,7 @@ def require_login_for_private_routes():
                 }
             ), 401
         logger.info("Redirecting unauthenticated user to login from %s", path)
-        return redirect("/login?reason=session-required")
+        return _login_redirect_for_current_session_state()
 
     role = str(user.get("role", ROLE_STUDENT)).lower()
     if path in {"/chatbot", "/appointment", "/case-status"} and role in {

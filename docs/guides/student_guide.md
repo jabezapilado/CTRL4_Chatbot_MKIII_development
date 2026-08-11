@@ -9,6 +9,12 @@ creates a server-side session; sign out when you finish using a shared device.
 If your session has expired, sign in again. Do not share passwords or browser
 session information. Before chat access, read and accept the Terms and
 Conditions for the current session. If you decline, the system signs you out.
+Only one active browser session is permitted for a student account. If you sign
+in on another device, CTRL4 asks whether to continue. Choosing **Cancel** keeps
+the other device signed in. Choosing **Sign out other device and continue**
+first finalizes that active conversation through the usual Guidance Office
+review workflow, then starts a new session on this device. The other browser
+shows the normal signed-out login screen when it next connects.
 For privacy, an inactive student chat is finalized and signed out after
 15 minutes. If a phone sleeps while the chat is open, this happens when the
 browser next resumes; the completed conversation remains available to

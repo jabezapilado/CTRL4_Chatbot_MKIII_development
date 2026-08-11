@@ -4,11 +4,13 @@ import logging
 
 from flask import Blueprint, jsonify, request, session
 
+from ..auth import STUDENT_SESSION_TOKEN_KEY
 from ..request_validation import (
     require_any_role,
     require_login,
     require_role,
 )
+from ..services import student_session_service
 
 from ..services.appointment_service import (
     create_student_appointment,
@@ -125,6 +127,12 @@ def create_appointment():
         "preferred_date": str(payload["preferred_date"]).strip(),
         "preferred_time_slot": str(payload["preferred_time_slot"]).strip(),
     }
+    if str(user.get("role", "")).lower() == "student":
+        student_session_service.set_appointment_context(
+            user.get("id"),
+            session.get(STUDENT_SESSION_TOKEN_KEY),
+            session[_FINALIZATION_APPOINTMENT_KEY],
+        )
     logger.info("Student %s created appointment %s", user["id"], appointment_id)
     return jsonify(
         {
