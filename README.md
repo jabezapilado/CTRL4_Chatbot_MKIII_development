@@ -57,6 +57,10 @@ Filipino or Taglish emotion model.
 - Privacy-projected personal case-status view.
 - Per-reply feedback for students, without storing chatbot reply text in the
   staff feedback view.
+- Turn-based chat controls with a short typing indicator for ordinary replies;
+  safety escalations remain immediate.
+- Responsive student chat layout for compact Android and iPhone viewports,
+  including safe-area handling for supported iPhone displays.
 
 ### Guidance-staff workflows
 

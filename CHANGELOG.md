@@ -12,7 +12,8 @@ The format follows the principles of **Keep a Changelog**.
 
 - Added turn-based student chat controls: the message field, Send button, and
   quick replies are unavailable while a response is pending.
-- Added a 3–5 second minimum typing state for ordinary chatbot replies. Safety
+- Added a short 1.2–2.2 second typing state for ordinary chatbot replies. The
+  Send control and quick replies remain unavailable during that turn. Safety
   escalation replies bypass the artificial delay and remain immediate.
 - Added notification navigation: opening an unread item marks it read and
   routes staff high-risk alerts to Flagged Cases, staff appointment alerts to
@@ -27,6 +28,9 @@ The format follows the principles of **Keep a Changelog**.
 
 ### Changed
 
+- Updated the student chatbot avatar to a fox and refined the compact mobile
+  chat layout. The header, message bubbles, Terms dialog, and message composer
+  now remain within small phone viewports and respect iPhone safe areas.
 - Updated the student notification guide to describe opening a notification as
   the read action and its appointment destination.
 - Improved the Guidance Office response-playbook review template spacing for

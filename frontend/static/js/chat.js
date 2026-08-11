@@ -10,10 +10,11 @@ let currentEmotion = "";
 let currentFlagged = false;
 let isAwaitingReply = false;
 
-// A brief typing state makes ordinary exchanges feel conversational without
-// holding back time-sensitive safety responses.
-const MIN_NORMAL_REPLY_TYPING_MS = 3000;
-const MAX_NORMAL_REPLY_TYPING_MS = 5000;
+// A short typing state makes ordinary exchanges feel conversational without
+// adding a noticeable wait after the server has already produced a reply.
+// Safety replies still bypass this entirely.
+const MIN_NORMAL_REPLY_TYPING_MS = 1200;
+const MAX_NORMAL_REPLY_TYPING_MS = 2200;
 
 let inactivityTimer = null;
 const INACTIVITY_TIMEOUT = 5 * 60 * 1000;
@@ -170,7 +171,7 @@ function appendBotMessage(htmlContent, emotionLabel, feedbackToken = "") {
   }
 
   row.innerHTML = `
-    <div class="avatar">🤖</div>
+    <div class="avatar" aria-label="CTRL4 assistant">🦊</div>
     <div class="bubble-wrap">
       <div class="bubble">${formattedContent}${badge ? "<br>" + badge : ""}</div>
       <span class="bubble-time">${getTime()}</span>
@@ -377,7 +378,7 @@ function showTypingIndicator() {
   row.className = "typing-row";
   row.id = "typing-indicator";
   row.innerHTML = `
-    <div class="avatar">🤖</div>
+    <div class="avatar" aria-label="CTRL4 assistant">🦊</div>
     <div class="typing-bubble">
       <div class="dot"></div>
       <div class="dot"></div>

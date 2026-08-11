@@ -32,6 +32,14 @@ Your active chat is used while you converse and for finalization; raw chat
 transcript/history is not permanently stored. Do not enter information you do
 not need the Guidance Office to handle.
 
+Send one message at a time. While CTRL4 is preparing an ordinary reply, the
+message field, **Send** button, and quick-reply buttons are briefly unavailable.
+They become available again after the reply. Safety and escalation replies are
+not deliberately delayed.
+
+The chat works on current compact mobile screens. On a narrow phone, quick
+reply options may scroll horizontally so their labels remain readable.
+
 After a chatbot reply, you may select the **like** or **dislike** icon and then
 choose a feedback category or optionally leave a short note. Feedback is used
 to review recurring quality issues; it is not monitored for emergencies and
