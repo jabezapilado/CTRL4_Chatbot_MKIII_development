@@ -41,22 +41,38 @@ const API_BASE = window.location.origin;
 // iOS Safari resizes the visual viewport (rather than the layout viewport)
 // when its software keyboard opens. Size only the chat shell to that visible
 // area so the header remains in place and the chat pane is the sole scroller.
+// Safari emits several resize and scroll events during the one keyboard
+// animation, so coalesce them to one visual update per paint frame.
+let viewportSyncFrame = null;
+let lastViewportMetrics = {};
+
 function syncChatVisibleViewport() {
   const viewport = window.visualViewport;
   if (!viewport) return;
-  const root = document.documentElement;
-  root.style.setProperty(
-    "--chat-visible-height",
-    `${Math.round(viewport.height)}px`,
-  );
-  root.style.setProperty(
-    "--chat-visible-offset-top",
-    `${Math.round(viewport.offsetTop)}px`,
-  );
-  root.style.setProperty(
-    "--chat-visible-offset-left",
-    `${Math.round(viewport.offsetLeft)}px`,
-  );
+  if (viewportSyncFrame !== null) return;
+
+  viewportSyncFrame = window.requestAnimationFrame(() => {
+    viewportSyncFrame = null;
+
+    const metrics = {
+      height: `${Math.round(viewport.height)}px`,
+      offsetTop: `${Math.round(viewport.offsetTop)}px`,
+      offsetLeft: `${Math.round(viewport.offsetLeft)}px`,
+    };
+    const root = document.documentElement;
+
+    if (metrics.height !== lastViewportMetrics.height) {
+      root.style.setProperty("--chat-visible-height", metrics.height);
+    }
+    if (metrics.offsetTop !== lastViewportMetrics.offsetTop) {
+      root.style.setProperty("--chat-visible-offset-top", metrics.offsetTop);
+    }
+    if (metrics.offsetLeft !== lastViewportMetrics.offsetLeft) {
+      root.style.setProperty("--chat-visible-offset-left", metrics.offsetLeft);
+    }
+
+    lastViewportMetrics = metrics;
+  });
 }
 
 function bindChatVisibleViewport() {

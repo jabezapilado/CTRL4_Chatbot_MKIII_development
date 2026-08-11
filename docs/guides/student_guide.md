@@ -37,8 +37,11 @@ message field, **Send** button, and quick-reply buttons are briefly unavailable.
 They become available again after the reply. Safety and escalation replies are
 not deliberately delayed.
 
-The chat works on current compact mobile screens. On a narrow phone, quick
-reply options may scroll horizontally so their labels remain readable.
+The chat works on current compact mobile and tablet screens. On a narrow phone,
+quick reply options may scroll horizontally so their labels remain readable.
+When the on-screen keyboard opens, the chat header remains visible and the
+composer stays above the keyboard. The student chat prevents accidental
+browser zoom while composing so the conversation layout remains stable.
 
 After a chatbot reply, you may select the **like** or **dislike** icon and then
 choose a feedback category or optionally leave a short note. Feedback is used
@@ -66,9 +69,10 @@ old one only after the replacement succeeds.
 
 ## Notifications and case status
 
-The notifications panel shows only your own in-app notifications. Opening an
-appointment notification marks it as read and takes you to **My Appointments**.
-Notifications are not sent by email or SMS.
+The notifications panel shows only your own in-app notifications. It opens from
+the bell as a popover above the chat header. Opening an appointment notification
+marks it as read and takes you to **My Appointments**. Notifications are not
+sent by email or SMS.
 
 The **Case Status** page shows only the approved generic progress/status of
 your own eligible case. It does not display counselor notes, summaries,

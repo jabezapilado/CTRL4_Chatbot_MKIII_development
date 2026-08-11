@@ -8,6 +8,9 @@
 .chatbot-page {
   overflow: hidden;
   overscroll-behavior-y: none;
+  /* Prevent double-tap gesture zoom from competing with the locked chat
+     shell. Operating-system accessibility magnification is unaffected. */
+  touch-action: manipulation;
 }
 
 .page {

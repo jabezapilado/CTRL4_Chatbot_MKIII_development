@@ -26,6 +26,15 @@ The format follows the principles of **Keep a Changelog**.
 
 ### Changed
 
+- Stabilized the student chat on mobile and tablet browsers: keyboard viewport
+  updates are coalesced per animation frame, the chat viewport avoids accidental
+  page/double-tap zoom, and the header remains visible while composing a
+  message. These presentation-only changes do not alter chat, safety, or
+  session behavior.
+- Fixed the in-app notification popover in the student chat and staff header.
+  It now renders above headers that clip decorative overflow, remains anchored
+  to the bell, and preserves its existing recipient-scoped loading, read, and
+  destination behavior.
 - Improved staff dashboard responsiveness without changing any case workflow:
   independent dashboard data loads now run in parallel, opening a flagged case
   loads its protected supporting records concurrently, and marking a case

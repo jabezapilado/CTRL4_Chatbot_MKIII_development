@@ -10,6 +10,28 @@
   let list;
   let count;
 
+  function positionHeaderPanel() {
+    if (!root?.classList.contains("notifications-widget--header") || panel.hidden) {
+      return;
+    }
+
+    const toggle = root.querySelector(".notifications-toggle");
+    const bounds = toggle.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const panelWidth = Math.min(360, Math.max(0, viewportWidth - 24));
+    const left = Math.max(
+      12,
+      Math.min(bounds.right - panelWidth, viewportWidth - panelWidth - 12),
+    );
+    const top = Math.min(bounds.bottom + 8, viewportHeight - 72);
+
+    panel.style.width = `${panelWidth}px`;
+    panel.style.left = `${left}px`;
+    panel.style.top = `${top}px`;
+    panel.style.maxHeight = `${Math.max(56, viewportHeight - top - 12)}px`;
+  }
+
   function isRead(notification) {
     return (
       notification.is_read === true ||
@@ -143,6 +165,7 @@
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
           root.remove();
+          panel.remove();
           return;
         }
         throw new Error(payload.message || "Unable to load notifications.");
@@ -221,6 +244,7 @@
     function setPanelOpen(open, restoreFocus = false) {
       panel.hidden = !open;
       toggle.setAttribute("aria-expanded", String(open));
+      if (open) positionHeaderPanel();
       if (!open && restoreFocus) toggle.focus();
     }
 
@@ -241,7 +265,7 @@
     });
 
     document.addEventListener("pointerdown", (event) => {
-      if (!panel.hidden && !root.contains(event.target)) {
+      if (!panel.hidden && !root.contains(event.target) && !panel.contains(event.target)) {
         setPanelOpen(false);
       }
     });
@@ -251,8 +275,18 @@
       }
     });
 
-    root.append(toggle, panel);
+    root.append(toggle);
     (headerMount || document.body).appendChild(root);
+    if (headerMount) {
+      // A chat header clips decorative overflow. Keep the popover outside it
+      // so notification content is never cut off on narrow viewports.
+      panel.classList.add("notifications-panel--header");
+      document.body.appendChild(panel);
+      window.addEventListener("resize", positionHeaderPanel);
+      window.visualViewport?.addEventListener("resize", positionHeaderPanel);
+    } else {
+      root.appendChild(panel);
+    }
     loadNotifications();
   }
 
