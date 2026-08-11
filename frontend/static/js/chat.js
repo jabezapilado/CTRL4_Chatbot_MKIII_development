@@ -44,9 +44,18 @@ const API_BASE = window.location.origin;
 function syncChatVisibleViewport() {
   const viewport = window.visualViewport;
   if (!viewport) return;
-  document.documentElement.style.setProperty(
+  const root = document.documentElement;
+  root.style.setProperty(
     "--chat-visible-height",
     `${Math.round(viewport.height)}px`,
+  );
+  root.style.setProperty(
+    "--chat-visible-offset-top",
+    `${Math.round(viewport.offsetTop)}px`,
+  );
+  root.style.setProperty(
+    "--chat-visible-offset-left",
+    `${Math.round(viewport.offsetLeft)}px`,
   );
 }
 
