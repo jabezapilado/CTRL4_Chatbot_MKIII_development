@@ -205,6 +205,29 @@ def accept_student_terms():
     ), 200
 
 
+@auth_bp.get("/auth/session-status")
+def session_status():
+    """Provide a lightweight, same-origin student lease check for open chats."""
+
+    user = get_logged_in_user()
+    if not user:
+        return jsonify(
+            {
+                "success": False,
+                "message": "Login required.",
+                "data": None,
+            }
+        ), 401
+
+    return jsonify(
+        {
+            "success": True,
+            "message": "Session is active.",
+            "data": {"role": str(user.get("role", "student")).lower()},
+        }
+    ), 200
+
+
 @auth_bp.post("/auth/logout")
 def logout():
     user = get_logged_in_user()

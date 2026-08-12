@@ -17,7 +17,9 @@ The format follows the principles of **Keep a Changelog**.
   signed-out login flow on its next request; staff and administrator
   multi-device sessions are unchanged. The Device B confirmation now uses an
   in-page cross-browser card with explicit **Cancel** and **Sign out other
-  device and continue** actions.
+  device and continue** actions. An open Device A chat now detects replacement
+  within 15 seconds (or when brought back to the foreground), shows a centered
+  session-ended notice, and then returns to the normal sign-in flow.
 - Added a student-only 15-minute inactive-chat policy. On the next available
   browser event after the deadline, CTRL4 finalizes the active conversation
   before signing the student out; staff and administrator session behavior is

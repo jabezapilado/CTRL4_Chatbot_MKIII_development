@@ -153,6 +153,54 @@ a {
   box-shadow: var(--shadow-md);
 }
 
+.student-session-ended-overlay {
+  position: fixed;
+  z-index: 10000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(42, 38, 34, 0.48);
+  backdrop-filter: blur(3px);
+}
+
+.student-session-ended-card {
+  width: min(440px, 100%);
+  padding: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.84);
+  border-radius: 22px;
+  background: var(--white);
+  box-shadow: 0 24px 72px rgba(33, 20, 13, 0.3);
+}
+
+.student-session-ended-kicker {
+  margin-bottom: 8px;
+  color: var(--orange);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.student-session-ended-card h1 {
+  color: var(--gray-900);
+  font-family: "Playfair Display", serif;
+  font-size: clamp(1.5rem, 5vw, 1.8rem);
+  line-height: 1.15;
+}
+
+.student-session-ended-card p:not(.student-session-ended-kicker) {
+  margin-top: 12px;
+  color: var(--gray-700);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.student-session-ended-card .btn {
+  width: 100%;
+  margin-top: 24px;
+}
+
 /* ── SCROLLBAR ── */
 .scrollable::-webkit-scrollbar {
   width: 4px;

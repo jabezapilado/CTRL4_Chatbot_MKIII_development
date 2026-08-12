@@ -162,14 +162,20 @@ class StudentSingleDeviceRouteTests(unittest.TestCase):
             finalize.assert_called_once()
             clear_chat.assert_called_once()
 
+            old_device_status = device_a.get(
+                "/auth/session-status",
+                base_url="https://localhost",
+            )
+            self.assertEqual(old_device_status.status_code, 401)
+            self.assertEqual(old_device_status.headers["X-CTRL4-Session-Replaced"], "1")
+
             old_device = device_a.get(
                 "/chatbot",
                 base_url="https://localhost",
                 follow_redirects=False,
             )
             self.assertEqual(old_device.status_code, 302)
-            self.assertEqual(old_device.headers["Location"], "/login?reason=session-replaced")
-            self.assertEqual(old_device.headers["X-CTRL4-Session-Replaced"], "1")
+            self.assertEqual(old_device.headers["Location"], "/login?reason=session-required")
 
             new_device = device_b.get("/chatbot", base_url="https://localhost")
             self.assertEqual(new_device.status_code, 200)

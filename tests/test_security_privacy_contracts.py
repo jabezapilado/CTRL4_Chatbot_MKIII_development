@@ -41,6 +41,7 @@ class SecurityPrivacyContractTests(unittest.TestCase):
         csrf = _source("backend/server/csrf.py")
         security = _source("frontend/static/js/security.js")
         app_factory = _source("backend/server/__init__.py")
+        auth = _source("backend/server/auth.py")
 
         self.assertIn('CSRF_HEADER_NAME = "X-CSRF-Token"', csrf)
         self.assertIn('SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS", "TRACE"})', csrf)
@@ -48,6 +49,8 @@ class SecurityPrivacyContractTests(unittest.TestCase):
         self.assertIn("hmac.compare_digest", csrf)
         self.assertIn('headers.set("X-CSRF-Token", csrfToken)', security)
         self.assertIn("isSameOrigin(input)", security)
+        self.assertIn('.fetch("/auth/session-status"', security)
+        self.assertIn("showStudentSessionReplacementNotice();", security)
         self.assertNotIn("CORS(app)", app_factory)
 
         for template_name in (
@@ -62,6 +65,11 @@ class SecurityPrivacyContractTests(unittest.TestCase):
             with self.subTest(template=template_name):
                 self.assertIn('name="csrf-token" content="{{ csrf_token }}"', template)
                 self.assertIn("js/security.js", template)
+
+        chatbot_template = _source("frontend/templates/chatbot.html")
+        self.assertIn('data-student-session-monitor="true"', chatbot_template)
+
+        self.assertIn('@auth_bp.get("/auth/session-status")', auth)
 
     def test_chat_logging_never_interpolates_protected_payloads(self) -> None:
         chatbot_routes = _source("backend/server/routes/chatbot_routes.py")
