@@ -75,6 +75,8 @@ jobs:
 
           GIT_SSH_COMMAND='ssh -i /home/ctrl4/.ssh/ctrl4_deploy -o IdentitiesOnly=yes' \
             git pull --ff-only origin main
+          restore_protected_assets
+          trap - EXIT
 
           .venv/bin/pip install --disable-pip-version-check -r requirements.txt
           .venv/bin/python backend/scripts/verify_emotion_model.py
