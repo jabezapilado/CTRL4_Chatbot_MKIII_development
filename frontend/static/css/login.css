@@ -456,27 +456,17 @@ body {
   line-height: 1.7;
 }
 
-.session-replacement-dialog {
-  width: min(440px, calc(100vw - 32px));
-  max-width: none;
-  margin: auto;
-  padding: 0;
-  border: 0;
-  border-radius: 22px;
-  background: transparent;
-  box-shadow: 0 22px 72px rgba(33, 20, 13, 0.28);
-}
-
-.session-replacement-dialog::backdrop {
-  background: rgba(35, 29, 24, 0.52);
-  backdrop-filter: blur(3px);
-}
-
 .session-replacement-card {
-  padding: 28px;
-  border: 1px solid rgba(255, 255, 255, 0.82);
-  border-radius: inherit;
-  background: var(--white);
+  margin: 18px 0;
+  padding: 22px;
+  border: 1px solid #f1cf8a;
+  border-radius: 18px;
+  background: #fffaf0;
+  box-shadow: 0 10px 28px rgba(105, 64, 14, 0.1);
+}
+
+.session-replacement-card[hidden] {
+  display: none;
 }
 
 .session-replacement-kicker {
@@ -504,7 +494,7 @@ body {
 
 .session-replacement-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 10px;
   margin-top: 24px;
 }

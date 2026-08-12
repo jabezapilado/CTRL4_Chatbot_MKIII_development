@@ -46,6 +46,29 @@
             ⚠ Incorrect email or password. Please try again.
           </div>
 
+          <section
+            class="session-replacement-card"
+            id="session-replacement-card"
+            aria-labelledby="session-replacement-title"
+            aria-live="polite"
+            hidden
+          >
+            <p class="session-replacement-kicker">Student session already active</p>
+            <h2 id="session-replacement-title">Continue on this device?</h2>
+            <p>
+              This student account is currently signed in on another device. If you
+              continue, that device will be signed out the next time it connects.
+            </p>
+            <div class="session-replacement-actions">
+              <button type="button" class="btn btn-outline" id="session-replacement-cancel">
+                Cancel
+              </button>
+              <button type="button" class="btn btn-primary" id="session-replacement-proceed">
+                Sign out other device and continue
+              </button>
+            </div>
+          </section>
+
           <form
             class="login-form"
             id="login-form"
@@ -126,29 +149,6 @@
       </div>
     </div>
 
-    <dialog
-      class="session-replacement-dialog"
-      id="session-replacement-dialog"
-      aria-labelledby="session-replacement-title"
-    >
-      <div class="session-replacement-card">
-        <p class="session-replacement-kicker">Student session already active</p>
-        <h2 id="session-replacement-title">Continue on this device?</h2>
-        <p>
-          This student account is currently signed in on another device. If you
-          continue, that device will be signed out the next time it connects.
-        </p>
-        <div class="session-replacement-actions">
-          <button type="button" class="btn btn-outline" id="session-replacement-cancel">
-            Cancel
-          </button>
-          <button type="button" class="btn btn-primary" id="session-replacement-proceed">
-            Sign out other device and continue
-          </button>
-        </div>
-      </div>
-    </dialog>
-
     <script src="/static/js/security.js"></script>
     <script>
       const API_BASE = window.location.origin;
@@ -196,13 +196,13 @@
       }
 
       function openSessionReplacementDialog() {
-        const dialog = document.getElementById("session-replacement-dialog");
-        if (!dialog.open) dialog.showModal();
+        const card = document.getElementById("session-replacement-card");
+        card.hidden = false;
+        card.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }
 
       function closeSessionReplacementDialog() {
-        const dialog = document.getElementById("session-replacement-dialog");
-        if (dialog.open) dialog.close();
+        document.getElementById("session-replacement-card").hidden = true;
       }
 
       async function submitLogin({ replaceExistingSession = false } = {}) {

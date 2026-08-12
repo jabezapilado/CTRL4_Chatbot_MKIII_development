@@ -94,6 +94,17 @@ class LoginRedirectContractTests(unittest.TestCase):
         self.assertEqual(login.count("showLoginNotice();"), 1)
         self.assertIn("showLoginNotice();", login)
 
+    def test_student_session_replacement_confirmation_is_visible_without_dialog_support(self) -> None:
+        login = _read("frontend/templates/login.html")
+
+        self.assertIn('id="session-replacement-card"', login)
+        self.assertIn('id="session-replacement-cancel"', login)
+        self.assertIn('id="session-replacement-proceed"', login)
+        self.assertIn('card.hidden = false;', login)
+        self.assertIn('card.scrollIntoView({ behavior: "smooth", block: "nearest" });', login)
+        self.assertIn('session-replacement-card").hidden = true;', login)
+        self.assertNotIn("showModal()", login)
+
     def test_unauthenticated_login_routes_remain_stable(self) -> None:
         for path in ("/login", "/login?reason=session-required"):
             with self.subTest(path=path):
