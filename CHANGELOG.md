@@ -35,8 +35,12 @@ The format follows the principles of **Keep a Changelog**.
 - Added separate AI-professional and web-professional qualitative evaluation
   templates, linked from the documentation index.
 - Added counselor-approved staff-review flags for first-person reports of
-  feeling empty, feeling depressed, and past abuse disclosures. These retain
-  a supportive response while creating a pending Guidance Office review case.
+  feeling empty, feeling depressed, hopelessness, worthlessness, social
+  withdrawal, giving away important belongings, past abuse disclosures, and
+  self-diagnosis requests. These retain an appropriate supportive or
+  diagnosis-boundary response while immediately creating a pending Guidance
+  Office review case. They do not create a high-risk notification unless
+  explicit immediate danger is also detected.
 
 ### Changed
 
@@ -57,6 +61,9 @@ The format follows the principles of **Keep a Changelog**.
   independent dashboard data loads now run in parallel, opening a flagged case
   loads its protected supporting records concurrently, and marking a case
   reviewed refreshes only the affected Inbox and Flagged Cases lists.
+- Fixed the Case Details action state after navigating from a routine Inbox
+  item to a pending flagged case: **Mark as Reviewed** is now visible and
+  available to authorized staff whenever that case is still pending.
 - Updated the student chatbot avatar to a fox and refined the compact mobile
   chat layout. The header, message bubbles, Terms dialog, and message composer
   now remain within small phone viewports and respect iPhone safe areas.

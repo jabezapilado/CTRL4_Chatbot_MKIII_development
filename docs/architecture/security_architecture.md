@@ -131,11 +131,16 @@ transactions, and the atomic appointment conflict operation.
 
 ## AI safety
 
-SafetyService handles pre-generation crisis/diagnosis safeguards in the detected
-language and remains authoritative for escalation. ResponseSafetyService
-performs deterministic post-generation checking and replaces an unsafe result
-without logging blocked content. The chatbot does not provide medical or
-psychological diagnosis, treatment, or prescription authority.
+SafetyService handles pre-generation safety safeguards in the detected language
+and remains authoritative for escalation. Explicit immediate danger receives the
+crisis response and urgent escalation. Counselor-approved warning signs (for
+example hopelessness, worthlessness, social withdrawal, giving away important
+belongings, abuse disclosures, and self-diagnosis requests) create a pending
+program-scoped Guidance Office review without being mislabeled as an immediate
+crisis or sending a high-risk notification. ResponseSafetyService performs
+deterministic post-generation checking and replaces an unsafe result without
+logging blocked content. The chatbot does not provide medical or psychological
+diagnosis, treatment, or prescription authority.
 
 ## Deferred security improvements
 

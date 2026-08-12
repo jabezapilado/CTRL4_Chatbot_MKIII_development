@@ -1501,6 +1501,32 @@ def mark_active_conversation_escalated(summary_id: int, account_id: int) -> bool
     return updated
 
 
+def mark_active_conversation_for_staff_review(summary_id: int, account_id: int) -> bool:
+    """Mark an active Inbox placeholder for counselor review without crisis labeling."""
+    initialize_database()
+
+    with _database_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE conversation_summaries
+                SET primary_concern = 'Wellbeing Concern',
+                    flagged_status = 1,
+                    appointment_recommendation = 'Guidance Office review recommended',
+                    recommendations = 'Guidance Office review is recommended.',
+                    suggested_intervention = 'Guidance Office review is recommended.'
+                WHERE id = %s
+                  AND account_id = %s
+                  AND conversation_type = 'active'
+                """,
+                (summary_id, account_id),
+            )
+            updated = cursor.rowcount == 1
+        connection.commit()
+
+    return updated
+
+
 def ensure_pending_escalation(
     account_id: int,
     summary_id: int,

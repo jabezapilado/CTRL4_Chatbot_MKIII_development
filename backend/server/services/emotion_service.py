@@ -16,6 +16,7 @@ Authors:
 from dataclasses import dataclass
 import json
 from pathlib import Path
+import re
 from typing import Final
 
 import torch
@@ -76,16 +77,30 @@ DISTRESSED_FEAR_KEYWORDS: Final[tuple[str, ...]] = (
 )
 
 DISTRESSED_SADNESS_KEYWORDS: Final[tuple[str, ...]] = (
+    "i am sad",
+    "i'm sad",
+    "i feel sad",
+    "feeling sad",
+    "feel sadness",
+    "feeling sadness",
     "alone",
     "lonely",
     "isolated",
     "left out",
     "abandoned",
+    "my friend left me",
+    "my friends left me",
+    "friends left me",
     "no one understands me",
 )
 
 DISTRESSED_KEYWORDS: Final[tuple[str, ...]] = (
     DISTRESSED_FEAR_KEYWORDS + DISTRESSED_SADNESS_KEYWORDS
+)
+
+_NEGATED_SADNESS_PATTERN: Final[re.Pattern[str]] = re.compile(
+    r"\b(?:not|never|no longer)\s+(?:really\s+)?(?:sad|feeling sad)\b",
+    re.IGNORECASE,
 )
 
 @dataclass
@@ -124,8 +139,13 @@ class EmotionService:
         if any(word in text for word in DISTRESSED_FEAR_KEYWORDS):
             return "Fear"
 
-        # Loneliness-related keywords are normalized to Sadness.
-        if any(word in text for word in DISTRESSED_SADNESS_KEYWORDS):
+        # Explicit sadness and social-loss language should not be flattened to
+        # Neutral when the English model is uncertain.  This only affects the
+        # dashboard label; safety escalation still remains SafetyService-owned.
+        if (
+            not _NEGATED_SADNESS_PATTERN.search(text)
+            and any(word in text for word in DISTRESSED_SADNESS_KEYWORDS)
+        ):
             return "Sadness"
 
         # Keep original model prediction

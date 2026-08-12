@@ -315,12 +315,12 @@
 
 .admin-sort-button::after {
   color: var(--gray-500);
-  content: "^";
+  content: "↑";
   font-size: 0.8rem;
 }
 
 .admin-sort-button[data-direction="desc"]::after {
-  content: "v";
+  content: "↓";
 }
 
 .admin-sort-button[data-direction="none"]::after {

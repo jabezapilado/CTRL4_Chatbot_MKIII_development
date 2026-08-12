@@ -160,7 +160,7 @@ Language detection
 → ResponseSafetyService
 ```
 
-- `SafetyService` remains authoritative for pre-generation crisis/diagnosis handling and escalation. It receives detected language for fixed safety replies.
+- `SafetyService` remains authoritative for pre-generation safety and diagnosis-boundary handling. It receives detected language for fixed safety replies. Explicit immediate danger follows the crisis path; counselor-approved warning signs and self-diagnosis requests create a pending Guidance Office review without sending a high-risk notification.
 - `LanguageService` supports English, Filipino, and Taglish. Shared lexicon vocabulary is neutral evidence; Taglish requires exclusive evidence from both language vocabularies.
 - The released emotion model is English-focused. Filipino/Tagalog and Taglish
   response/rule support does not establish equivalent emotion-classification

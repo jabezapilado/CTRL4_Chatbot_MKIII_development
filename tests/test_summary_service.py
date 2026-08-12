@@ -25,6 +25,19 @@ class _CapturingLlm:
         )
 
 
+class _SequencedLlm:
+    def __init__(self, *texts: str) -> None:
+        self.prompts: list[str] = []
+        self._texts = list(texts)
+
+    def generate(self, prompt: str):  # type: ignore[no-untyped-def]
+        self.prompts.append(prompt)
+        return SimpleNamespace(
+            success=True,
+            text=self._texts.pop(0),
+        )
+
+
 class SummaryServiceTests(unittest.TestCase):
     def test_crisis_summary_and_recommendation_are_deterministic_and_high_priority(self) -> None:
         service = SummaryService(_FailedLlm())
@@ -68,13 +81,18 @@ class SummaryServiceTests(unittest.TestCase):
         self.assertIn(message, llm.prompts[0])
         self.assertIn("each distinct factual question and emotional concern", llm.prompts[0])
 
-    def test_generated_summary_rejects_unsupported_engagement_claims_and_quotes(self) -> None:
+    def test_generated_summary_repairs_unsupported_engagement_claims_and_quotes(self) -> None:
         for generated in (
             'The student "agreed" to continue talking and accepted help.',
             "The student provided the phone number 09171234567.",
         ):
             with self.subTest(generated=generated):
-                summary = SummaryService(_CapturingLlm(generated)).generate_summary(
+                summary = SummaryService(
+                    _SequencedLlm(
+                        generated,
+                        "The student reported a wellbeing concern.",
+                    )
+                ).generate_summary(
                     student_name="Student",
                     conversation=[{"from": "user", "text": "I feel overwhelmed."}],
                     topic="general",
@@ -83,10 +101,7 @@ class SummaryServiceTests(unittest.TestCase):
                     flagged=False,
                 )
 
-                self.assertEqual(
-                    summary.summary,
-                    "A conservative summary could not be generated from the recorded session.",
-                )
+                self.assertEqual(summary.summary, "The student reported a wellbeing concern.")
 
     def test_routine_and_mixed_summaries_are_one_abstract_sentence(self) -> None:
         scenarios = (
@@ -137,21 +152,23 @@ class SummaryServiceTests(unittest.TestCase):
                 self.assertNotIn("finish my life", summary.summary)
                 self.assertNotIn("okay", summary.summary)
                 self.assertLessEqual(len(re.split(r"(?<=[.!?])\s+", summary.summary)), 2)
-    def test_summary_failure_does_not_claim_raw_transcript_is_available(self) -> None:
+    def test_summary_failure_uses_an_abstract_privacy_safe_fallback(self) -> None:
         service = SummaryService(_FailedLlm())
 
         summary = service.generate_summary(
             student_name="Student",
-            conversation=[{"from": "user", "text": "Private message"}],
+            conversation=[{"from": "user", "text": "I am sad and my friends left me."}],
             topic="academic",
             language="english",
             emotion="neutral",
             flagged=False,
         )
 
-        self.assertIn("could not be generated", summary.summary)
-        self.assertIn("recorded session", summary.summary)
-        self.assertNotIn("conversation manually", summary.summary)
+        self.assertEqual(
+            summary.summary,
+            "The student reported sadness and distress following social disconnection from friends.",
+        )
+        self.assertNotIn("friends left me", summary.summary)
         self.assertNotIn("transcript", summary.summary)
 
 

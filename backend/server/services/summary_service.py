@@ -236,12 +236,27 @@ class SummaryService:
 
         try:
             generated = self.generate_text(prompt)
-            return self._conservative_generated_summary(generated, flagged=flagged)
+            summary = self._conservative_generated_summary(generated, flagged=flagged)
+            if not summary.startswith("A conservative summary"):
+                return summary
+
+            repaired = self.generate_text(
+                self._build_summary_repair_prompt(
+                    conversation=conversation,
+                    appointment=appointment,
+                )
+            )
+            repaired_summary = self._conservative_generated_summary(
+                repaired,
+                flagged=flagged,
+            )
+            if not repaired_summary.startswith("A conservative summary"):
+                return repaired_summary
 
         except RuntimeError:
-            return (
-                "An AI summary could not be generated from the recorded session."
-            )
+            pass
+
+        return self._abstract_fallback_summary(conversation)
 
     @staticmethod
     def _conservative_generated_summary(text: object, *, flagged: bool) -> str:
@@ -271,6 +286,36 @@ class SummaryService:
             "concerns. The assistant provided an immediate safety response, and the "
             "conversation was referred to the Guidance Office for urgent review."
         )
+
+    @staticmethod
+    def _abstract_fallback_summary(conversation: list[dict]) -> str:
+        """Return a useful, non-transcript fallback when the provider is unavailable."""
+
+        student_text = " ".join(
+            str(message.get("content", "")).casefold()
+            for message in conversation
+            if message.get("role") == "user"
+        )
+        social_loss_terms = (
+            "friend left",
+            "friends left",
+            "left me",
+            "left out",
+            "lonely",
+            "alone",
+            "abandoned",
+        )
+        sadness_terms = ("sad", "sadness", "depressed", "empty")
+        if any(term in student_text for term in social_loss_terms) and any(
+            term in student_text for term in sadness_terms
+        ):
+            return (
+                "The student reported sadness and distress following social "
+                "disconnection from friends."
+            )
+        if any(term in student_text for term in sadness_terms):
+            return "The student reported a sadness-related wellbeing concern."
+        return "The student reported a wellbeing concern during the conversation."
     
     def _build_recommendation(
         self,
@@ -412,4 +457,31 @@ class SummaryService:
 
         New Conversation Evidence:
         {transcript}
+        """.strip()
+
+    def _build_summary_repair_prompt(
+        self,
+        *,
+        conversation: list[dict],
+        appointment: dict[str, str] | None,
+    ) -> str:
+        """Ask the provider to correct a rejected summary without exposing new data."""
+
+        transcript = self._format_conversation(conversation=conversation)
+        appointment_context = ""
+        if appointment is not None:
+            appointment_context = (
+                "\nConfirmed appointment context: "
+                f"{appointment['category']} on {appointment['preferred_date']} at "
+                f"{appointment['preferred_time_slot']}."
+            )
+        return f"""\
+        Write exactly one factual, third-person sentence for confidential Guidance
+        personnel from the supplied evidence. Use abstract language such as
+        \"reported\" or \"expressed\". Do not quote, include phone numbers,
+        mention the assistant, infer diagnosis or future behavior, or include any
+        information not in the evidence.
+
+        Evidence:
+        {transcript}{appointment_context}
         """.strip()

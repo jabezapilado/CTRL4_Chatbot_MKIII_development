@@ -101,11 +101,7 @@ class IntentService:
     def _is_emergency(text: str) -> bool:
         """Reuse the established safety escalation vocabulary without acting on it."""
 
-        patterns = (
-            SafetyService.CRISIS_PATTERNS
-            + SafetyService.DIAGNOSIS_PATTERNS
-        )
-        return any(re.search(pattern, text) for pattern in patterns)
+        return any(re.search(pattern, text) for pattern in SafetyService.CRISIS_PATTERNS)
 
     def _is_rescheduling(self, text: str) -> bool:
         if re.search(r"\breschedul(?:e|ed|ing)\b", text):

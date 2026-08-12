@@ -363,7 +363,10 @@ class ConversationFinalizationIntegrityTests(unittest.TestCase):
             flagged=False,
         )
 
-        self.assertIn("could not be generated", summary.summary)
+        self.assertEqual(
+            summary.summary,
+            "The student reported a wellbeing concern during the conversation.",
+        )
         for unsupported in ("anxiety", "distress", "overwhelm", "self-doubt", "academic pressure", "coping"):
             self.assertNotIn(unsupported, summary.summary.casefold())
 
@@ -468,6 +471,56 @@ class ConversationFinalizationIntegrityTests(unittest.TestCase):
             self.assertEqual(session["active_conversation_summary_id"], 81)
             self.assertEqual(session["conversation_escalation_reason"], "AI safety escalation.")
         mark_active.assert_called_once_with(81, 1, "AI safety escalation.")
+
+    def test_warning_sign_response_immediately_creates_review_only_case(self) -> None:
+        client = self._client()
+        warning_result = SimpleNamespace(
+            success=True,
+            response="You do not have to face this alone.",
+            emotion="Sadness",
+            sentiment="Negative",
+            language="english",
+            topic="Counseling",
+            state="Exploring Concern",
+            escalated=False,
+            needs_staff_review=True,
+            confidence=0.92,
+            intent="unknown",
+            normalized_emotion="sadness",
+            normalized_topic="counseling",
+            metadata={},
+        )
+        with patch(
+            "backend.server.routes.chatbot_routes.ai_service.respond",
+            return_value=warning_result,
+        ), patch(
+            "backend.server.routes.chatbot_routes.record_chat_inquiry",
+        ), patch(
+            "backend.server.routes.chatbot_routes.transient_chat_service.record_exchange",
+        ), patch(
+            "backend.server.routes.chatbot_routes.ensure_staff_visible_active_conversation",
+            return_value=81,
+        ), patch(
+            "backend.server.routes.chatbot_routes.mark_active_conversation_for_staff_review",
+        ) as mark_for_review, patch(
+            "backend.server.routes.chatbot_routes.mark_active_conversation_for_immediate_review",
+        ) as mark_immediate:
+            response = client.post(
+                "/chat",
+                json={"message": "I feel empty.", "conversation": []},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.get_json()["data"]["escalated"])
+        self.assertTrue(response.get_json()["data"]["needs_staff_review"])
+        mark_for_review.assert_called_once_with(
+            81,
+            1,
+            "Counselor review requested for a reported wellbeing warning sign.",
+        )
+        mark_immediate.assert_not_called()
+        with client.session_transaction() as session:
+            self.assertTrue(session["conversation_needs_staff_review"])
 
     def test_first_chat_message_creates_one_staff_visible_active_placeholder(self) -> None:
         client = self._client()
@@ -672,6 +725,33 @@ class ConversationFinalizationIntegrityTests(unittest.TestCase):
         mark_active.assert_called_once_with(81, 1)
         ensure_escalation.assert_called_once_with(1, 81, "AI safety escalation.")
         notify.assert_called_once_with(1)
+
+    def test_active_warning_sign_placeholder_is_pending_without_high_risk_notification(self) -> None:
+        with patch.object(
+            conversation_service,
+            "mark_active_summary_for_staff_review",
+            return_value=True,
+        ) as mark_active, patch.object(
+            conversation_service,
+            "ensure_pending_escalation",
+            return_value=True,
+        ) as ensure_escalation, patch.object(
+            conversation_service,
+            "_notify_high_risk_conversation_safely",
+        ) as notify:
+            conversation_service.mark_active_conversation_for_staff_review(
+                81,
+                1,
+                "Counselor review requested for a reported wellbeing warning sign.",
+            )
+
+        mark_active.assert_called_once_with(81, 1)
+        ensure_escalation.assert_called_once_with(
+            1,
+            81,
+            "Counselor review requested for a reported wellbeing warning sign.",
+        )
+        notify.assert_not_called()
 
     def test_notification_failure_does_not_roll_back_flagged_case_persistence(self) -> None:
         summary = SimpleNamespace(

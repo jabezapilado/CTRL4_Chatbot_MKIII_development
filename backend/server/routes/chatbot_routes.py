@@ -14,6 +14,7 @@ from ..services.conversation_service import (
     determine_escalation_reason,
     finalize_conversation,
     ensure_staff_visible_active_conversation,
+    mark_active_conversation_for_staff_review,
     mark_active_conversation_for_immediate_review,
     record_chat_inquiry,
     should_escalate_conversation,
@@ -251,10 +252,15 @@ def chat():
         )
         session_escalated = bool(session.get(_ESCALATION_SESSION_KEY))
         if needs_staff_review:
-            # Review-only signs stay on the normal supportive path. The flag is
-            # carried into finalization, where the existing staff case workflow
-            # records it without treating it as an immediate crisis response.
+            # Warning signs retain the normal supportive response, but are
+            # immediately visible to authorized counselors as a pending review.
+            # This is separate from the urgent-crisis notification path below.
             session[_REVIEW_FLAG_SESSION_KEY] = True
+            mark_active_conversation_for_staff_review(
+                int(session[_ACTIVE_SUMMARY_SESSION_KEY]),
+                user["id"],
+                "Counselor review requested for a reported wellbeing warning sign.",
+            )
         if should_escalate:
             escalation_reason = (
                 determine_escalation_reason(

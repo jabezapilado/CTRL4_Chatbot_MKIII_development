@@ -49,7 +49,9 @@ def _load_service_module(name: str) -> types.ModuleType:
 
 
 AIService = _load_service_module("ai_service").AIService
-EmotionPrediction = _load_service_module("emotion_service").EmotionPrediction
+_emotion_service_module = _load_service_module("emotion_service")
+EmotionPrediction = _emotion_service_module.EmotionPrediction
+EmotionService = _emotion_service_module.EmotionService
 IntentService = _load_service_module("intent_service").IntentService
 LanguagePrediction = _load_service_module("language_service").LanguagePrediction
 ConversationMetadata = _load_service_module("metadata_service").ConversationMetadata
@@ -875,6 +877,9 @@ class EscalationRegressionTests(unittest.TestCase):
             "I feel empty.",
             "I feel depressed.",
             "I have been abused by my father.",
+            "I have been feeling hopeless and worthless.",
+            "I have been withdrawing from everyone.",
+            "I have been giving away my important belongings.",
         ):
             with self.subTest(text=text):
                 result = safety.check(text)
@@ -882,6 +887,33 @@ class EscalationRegressionTests(unittest.TestCase):
                 self.assertFalse(result.should_escalate)
                 self.assertTrue(result.should_flag_for_review)
                 self.assertEqual(result.reason, "staff_review")
+
+    def test_self_diagnosis_requests_are_flagged_for_counselor_review(self) -> None:
+        safety = SafetyService()
+        for text in (
+            "Do I have depression?",
+            "I think I have anxiety.",
+            "May depression ba ako?",
+            "Sa tingin mo may ADHD ako?",
+        ):
+            with self.subTest(text=text):
+                result = safety.check(text)
+                self.assertTrue(result.safe)
+                self.assertFalse(result.should_escalate)
+                self.assertTrue(result.should_flag_for_review)
+                self.assertEqual(result.reason, "diagnosis")
+                self.assertIn("diagnos", (result.response or "").casefold())
+                self.assertNotEqual(IntentService().detect(text), "emergency")
+
+    def test_explicit_social_loss_sadness_is_not_overwritten_by_neutral_model_output(self) -> None:
+        self.assertEqual(
+            EmotionService.normalize_emotion(
+                object(),
+                "I am sad and my friends left me.",
+                "Neutral",
+            ),
+            "Sadness",
+        )
 
     def test_review_warning_sign_keeps_normal_supportive_ai_response(self) -> None:
         result = _service(

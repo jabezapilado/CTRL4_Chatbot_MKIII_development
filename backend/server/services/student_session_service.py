@@ -23,6 +23,18 @@ _DEFAULT_CONVERSATION_CONTEXT = {
     "active_summary_id": None,
 }
 
+_EMOTION_PRIORITY = {
+    "neutral": 0,
+    "positive": 0,
+    "unknown": 0,
+    "support request": 1,
+    "fear": 2,
+    "sadness": 2,
+    "anger": 2,
+    "negative": 2,
+    "crisis": 3,
+}
+
 
 class StudentSessionService:
     """Track the one current browser session permitted for each student."""
@@ -105,10 +117,14 @@ class StudentSessionService:
         if current is None:
             return False
 
+        prior_context = current["conversation"]
         current["conversation"] = self._conversation_context(
             topic=topic,
             language=language,
-            emotion=emotion,
+            emotion=self._most_relevant_emotion(
+                prior_context.get("emotion"),
+                emotion,
+            ),
             flagged=flagged,
             review_only=review_only,
             escalation_reason=escalation_reason,
@@ -334,6 +350,16 @@ class StudentSessionService:
     @staticmethod
     def _normalized_token(token: object) -> str:
         return str(token or "").strip()
+
+    @staticmethod
+    def _most_relevant_emotion(prior: object, current: object) -> str:
+        """Keep a meaningful earlier concern from being overwritten by small talk."""
+
+        prior_text = str(prior or "neutral").strip() or "neutral"
+        current_text = str(current or "neutral").strip() or "neutral"
+        prior_priority = _EMOTION_PRIORITY.get(prior_text.casefold(), 1)
+        current_priority = _EMOTION_PRIORITY.get(current_text.casefold(), 1)
+        return current_text if current_priority >= prior_priority else prior_text
 
 
 __all__ = ["StudentSessionService"]

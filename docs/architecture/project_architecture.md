@@ -124,15 +124,19 @@ neutral evidence; Taglish requires exclusive evidence from both languages.
 The released emotion model is English-focused; Filipino/Tagalog and Taglish
 emotion classification remains a limitation rather than a claim of equivalent
 model validation.
-SafetyService is authoritative for pre-generation crisis and diagnosis
-handling. ResponseSafetyService validates generated output and replaces an
-unsafe reply as a whole; it does not change escalation policy. Conversation
-Intelligence outputs are internal unless an existing API exposes a current
-field. The chatbot is not a diagnostic, treatment, or emergency service. Before
-chat use, students acknowledge the Guidance Office of the School of Computing
-at Holy Angel University scope, message recording/summarization for guidance
-support, confidentiality limits for safety/legal concerns, and immediate-danger
-directions to local emergency services or trusted school personnel.
+SafetyService is authoritative for pre-generation safety and diagnosis-boundary
+handling. Explicit immediate danger follows the crisis path. Counselor-approved
+warning signs and self-diagnosis requests create a pending Guidance Office
+review while retaining a non-emergency supportive response; a review-only case
+does not send a high-risk alert. ResponseSafetyService validates generated
+output and replaces an unsafe reply as a whole; it does not change escalation
+policy. Conversation Intelligence outputs are internal unless an existing API
+exposes a current field. The chatbot is not a diagnostic, treatment, or
+emergency service. Before chat use, students acknowledge the Guidance Office of
+the School of Computing at Holy Angel University scope, message
+recording/summarization for guidance support, confidentiality limits for
+safety/legal concerns, and immediate-danger directions to local emergency
+services or trusted school personnel.
 
 ## Analytics and reports
 

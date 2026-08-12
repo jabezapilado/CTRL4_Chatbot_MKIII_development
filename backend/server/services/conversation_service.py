@@ -14,6 +14,7 @@ from ..db import (
     ensure_pending_escalation,
     finalize_active_conversation_summary,
     mark_active_conversation_escalated,
+    mark_active_conversation_for_staff_review as mark_active_summary_for_staff_review,
     fetch_open_conversation_case,
     get_staff_by_program,
     get_dashboard_stats,
@@ -695,6 +696,17 @@ def mark_active_conversation_for_immediate_review(
         return
     if ensure_pending_escalation(account_id, summary_id, escalation_reason):
         _notify_high_risk_conversation_safely(account_id)
+
+
+def mark_active_conversation_for_staff_review(
+    summary_id: int,
+    account_id: int,
+    review_reason: str,
+) -> None:
+    """Expose an active warning-sign case without sending a high-risk alert."""
+    if not mark_active_summary_for_staff_review(summary_id, account_id):
+        return
+    ensure_pending_escalation(account_id, summary_id, review_reason)
 
 
 def should_escalate_conversation(

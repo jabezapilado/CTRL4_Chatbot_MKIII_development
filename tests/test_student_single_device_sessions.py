@@ -84,6 +84,42 @@ class StudentSessionServiceTests(unittest.TestCase):
         self.assertEqual(received["active_summary_id"], 19)
         self.assertNotIn("I need support.", str(service._cache.values))
 
+    def test_neutral_follow_up_does_not_overwrite_an_earlier_sadness_label(self) -> None:
+        service = StudentSessionService(cache=_MemoryCache(), timeout_seconds=900)
+        self.assertTrue(service.register(42, "device-token", "device-session"))
+        self.assertTrue(
+            service.update_conversation_context(
+                42,
+                "device-token",
+                topic="general",
+                language="english",
+                emotion="Sadness",
+                flagged=False,
+                review_only=False,
+                escalation_reason=None,
+                appointment=None,
+                active_summary_id=20,
+            )
+        )
+        self.assertTrue(
+            service.update_conversation_context(
+                42,
+                "device-token",
+                topic="general",
+                language="english",
+                emotion="Neutral",
+                flagged=False,
+                review_only=False,
+                escalation_reason=None,
+                appointment=None,
+                active_summary_id=20,
+            )
+        )
+
+        stored = service._get(42)
+        self.assertIsNotNone(stored)
+        self.assertEqual(stored["conversation"]["emotion"], "Sadness")
+
 
 class StudentSingleDeviceRouteTests(unittest.TestCase):
     def setUp(self) -> None:

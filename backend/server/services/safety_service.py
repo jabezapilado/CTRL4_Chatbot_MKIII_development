@@ -189,6 +189,8 @@ class SafetyService:
         r"\bdo i have anxiety\b",
         r"\bam i depressed\b",
         r"\bdiagnose me\b",
+        r"\b(?:can|could) you diagnose me\b",
+        r"\b(?:i think|do you think) i have (?:depression|anxiety|adhd|bipolar|ptsd)\b",
         r"\bdo i have adhd\b",
         r"\bdo i have bipolar\b",
         r"\bdo i have ptsd\b",
@@ -198,10 +200,13 @@ class SafetyService:
 
         r"\bmay depression ba ako\b",
         r"\bmay anxiety ba ako\b",
-        r"\bdiagnose\b",
+        r"\b(?:pwede|pwedeng|maaari|can) (?:mo|you) (?:ba )?akong? diagnose\b",
+        r"\bdiagnose (?:mo |me |ako)\b",
         r"\bmay adhd ba ako\b",
         r"\bmay bipolar ba ako\b",
         r"\bmay ptsd ba ako\b",
+        r"\bdepressed ba ako\b",
+        r"\bsa tingin mo (?:may|meron) (?:depression|anxiety|adhd|bipolar|ptsd) ako\b",
         r"\banong sakit ko\b",
     )
 
@@ -213,6 +218,12 @@ class SafetyService:
         r"\bi feel(?:ing)? (?:so |really |very )?empty\b",
         r"\bi feel(?:ing)? (?:so |really |very )?depressed\b",
         r"\bi(?:'m| am) (?:so |really |very )?depressed\b",
+        r"\bi feel(?:ing)? (?:so |really |very )?(?:hopeless|worthless)\b",
+        r"\bi(?:'m| am) (?:so |really |very )?(?:hopeless|worthless)\b",
+        r"\bi(?:'ve| have) been feeling (?:so |really |very )?(?:empty|depressed|hopeless|worthless)\b",
+        r"\bi(?:'ve| have) (?:been )?withdrawing from (?:everyone|others|people|my friends)\b",
+        r"\bi(?:'m| am) withdrawing from (?:everyone|others|people|my friends)\b",
+        r"\bi(?:'ve| have) (?:been )?giving away (?:my )?(?:important )?(?:things|belongings)\b",
         r"\bi (?:have been|was) abused\b",
         r"\bmy (?:father|mother|parent|guardian|partner|relative) "
         r"(?:abused|abuses|hurt|hurts|is abusing|is hurting) me\b",
@@ -295,8 +306,9 @@ class SafetyService:
         if self._asks_for_diagnosis(text):
 
             return SafetyResult(
-                safe=False,
-                should_escalate=True,
+                safe=True,
+                should_escalate=False,
+                should_flag_for_review=True,
                 reason="diagnosis",
                 response=self._DIAGNOSIS_RESPONSES.get(
                     language.lower(),

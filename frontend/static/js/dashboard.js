@@ -4882,6 +4882,7 @@ async function openFlaggedConversationDetails(
       detail.primary_concern || "General inquiry";
     document.getElementById("case-emotion").textContent =
       displayCaseEmotion(detail);
+    const safetyRisk = safetyRiskPresentation(detail);
     applySafetyRisk(detail);
     document.getElementById("case-time").textContent = detail.created_at
       ? new Date(detail.created_at).toLocaleString()
@@ -4910,8 +4911,11 @@ async function openFlaggedConversationDetails(
     badge.textContent =
       detail.escalation_status === "reviewed" ? "Reviewed" : "Pending review";
     staffActionsNote.textContent =
-      "Immediate Guidance Office review is recommended. Assess the student's immediate safety, follow the approved Guidance Office protocol, and document the action taken.";
+      safetyRisk.label === "Immediate safety concern"
+        ? "Immediate Guidance Office review is recommended. Assess the student's immediate safety, follow the approved Guidance Office protocol, and document the action taken."
+        : "Guidance Office review is recommended. Review the reported warning sign, follow the approved Guidance Office procedure, and document the action taken.";
 
+    reviewButton.hidden = false;
     pendingButton.hidden = true;
     notesCard.hidden = false;
     referralsCard.hidden = false;
