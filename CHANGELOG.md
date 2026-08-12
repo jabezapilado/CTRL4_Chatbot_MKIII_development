@@ -10,6 +10,20 @@ The format follows the principles of **Keep a Changelog**.
 
 ### Added
 
+- Added an opt-in, survey-only student self-registration flow. It is disabled
+  by default and requires both a VPS-only enable switch and private survey
+  code. It creates only student accounts, generates student numbers
+  server-side, accepts only active programs and `@student.hau.edu.ph` emails,
+  and retains the normal sign-in and Terms acknowledgement flow.
+
+- Added a local SSH-tunnel helper for secure production database UI access.
+  It forwards a Mac or workstation-local port to the VPS-local MySQL listener
+  without exposing MySQL or a database administration UI to the internet.
+- Added a separate local helper for optional phpMyAdmin access through an SSH
+  tunnel, with no public phpMyAdmin route, firewall rule, or stored database
+  credential.
+- Added a local SSH-tunnel helper for the optional Cockpit VPS administration
+  UI, keeping its system-administration port private to the VPS.
 - Added a student-only single-active-device safeguard. When a student confirms
   a sign-in on Device B, CTRL4 first finalizes Device A through the existing
   conversation, safety, summary, and staff-Inbox workflow, then issues Device
@@ -44,6 +58,8 @@ The format follows the principles of **Keep a Changelog**.
 
 ### Changed
 
+- Centered the Administrator account-creation and program-creation dialogs in
+  the viewport while retaining their existing responsive scrolling behavior.
 - Stabilized the student chat on mobile and tablet browsers: keyboard viewport
   updates apply immediately so the shell does not visibly lag behind iOS
   Safari's keyboard pan. The chat viewport avoids accidental page/double-tap

@@ -42,7 +42,11 @@ def install_csrf_protection(app: Flask) -> None:
         # Login starts without an authenticated session, but its page bootstrap
         # token still protects the session-establishing request. Other expired
         # sessions continue to the existing route guard and return its 401.
-        if request.endpoint != "auth.login" and not _has_authenticated_session():
+        if (
+            request.endpoint
+            not in {"auth.login", "auth.student_self_registration"}
+            and not _has_authenticated_session()
+        ):
             return None
 
         expected = session.get(CSRF_SESSION_KEY)

@@ -37,6 +37,16 @@ class Config:
         self.SECRET_KEY = os.getenv("CHATBOT_SECRET_KEY", "dev-secret-key-change-me")
         self.PORT = int(os.getenv("CHATBOT_PORT", "5001"))
 
+        # Survey registration is intentionally opt-in. Production keeps this
+        # disabled unless the operator supplies both values in the VPS-only
+        # environment file.
+        self.STUDENT_SELF_REGISTRATION_ENABLED = os.getenv(
+            "CHATBOT_STUDENT_SELF_REGISTRATION_ENABLED", "false"
+        ).lower() == "true"
+        self.STUDENT_SELF_REGISTRATION_CODE = os.getenv(
+            "CHATBOT_STUDENT_SELF_REGISTRATION_CODE", ""
+        )
+
         # Production deployments perform migrations explicitly, after backup.
         # Development retains the existing automatic startup initialization.
         self.DATABASE_INITIALIZE_ON_START = os.getenv(

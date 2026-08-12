@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="csrf-token" content="{{ csrf_token }}" />
+    <title>Student Registration — HAU SOC Guidance Chatbot</title>
+    <link rel="icon" type="image/svg+xml" href="/static/img/hau_soc_logo_revised4.png" />
+    <link rel="stylesheet" href="/static/css/base.css" />
+    <link rel="stylesheet" href="/static/css/login.css" />
+  </head>
+  <body>
+    <main class="login-page">
+      <section class="login-brand" aria-label="SOC Guidance Office">
+        <img src="/static/img/hau_soc_logo_revised4.svg" alt="SOC Guidance Office logo" class="hau-logo brand-logo" />
+        <h1 class="brand-title">SOC Guidance Office</h1>
+        <p class="brand-sub">School of Computing</p>
+        <div class="gold-rule"></div>
+      </section>
+      <section class="login-form-panel">
+        <div class="login-form-inner registration-form-inner">
+          <p class="registration-kicker">Survey participant access</p>
+          <h2>Create student account</h2>
+          <p class="login-sub">Use your school student email. Staff and administrator accounts are created by the system administrator.</p>
+
+          <div class="alert-error" id="registration-error" aria-live="polite"></div>
+          <div class="login-notice" id="registration-success" aria-live="polite" hidden>
+            <span class="login-notice-icon">✓</span>
+            <div>
+              <strong>Account created</strong>
+              <p>Sign in to continue. You will be asked to accept the Terms and Conditions.</p>
+            </div>
+          </div>
+
+          <form class="login-form" id="student-registration-form">
+            <div class="form-group">
+              <label class="form-label" for="full-name">Full name</label>
+              <input class="form-input" type="text" id="full-name" autocomplete="name" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="email">School student email</label>
+              <input class="form-input" type="email" id="email" placeholder="e.g. name@student.hau.edu.ph" autocomplete="email" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="gender">Gender</label>
+              <select class="form-input" id="gender" required>
+                <option value="" selected disabled>Select gender</option>
+                <option value="Female">Female</option>
+                <option value="Male">Male</option>
+                <option value="Prefer not to say">Prefer not to say</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="program">Program</label>
+              <select class="form-input" id="program" required disabled>
+                <option value="">Loading active programs…</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="password">Password</label>
+              <input class="form-input" type="password" id="password" minlength="8" autocomplete="new-password" required />
+              <p class="registration-help">Use at least eight characters.</p>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="registration-code">Survey registration code</label>
+              <input class="form-input" type="password" id="registration-code" autocomplete="off" required />
+            </div>
+            <button type="submit" class="btn btn-primary w-full login-submit" id="registration-submit">Create account</button>
+          </form>
+          <p class="registration-link-wrap">Already have an account? <a href="/login">Sign in</a></p>
+        </div>
+      </section>
+    </main>
+    <script src="/static/js/security.js"></script>
+    <script>
+      const form = document.getElementById("student-registration-form");
+      const errorBox = document.getElementById("registration-error");
+      const successBox = document.getElementById("registration-success");
+      const programSelect = document.getElementById("program");
+      const submitButton = document.getElementById("registration-submit");
+
+      function setError(message) {
+        errorBox.textContent = message ? `⚠ ${message}` : "";
+        errorBox.classList.toggle("show", Boolean(message));
+      }
+
+      async function loadPrograms() {
+        const response = await fetch("/auth/student-registration/programs", { cache: "no-store" });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.message || "Unable to load programs.");
+        programSelect.replaceChildren(new Option("Select program", "", true, true));
+        payload.data.items.forEach((program) => {
+          programSelect.add(new Option(program.display_name, program.display_name));
+        });
+        programSelect.disabled = false;
+      }
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        setError("");
+        submitButton.disabled = true;
+        submitButton.textContent = "Creating account…";
+        try {
+          const response = await fetch("/auth/student-registration", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              full_name: document.getElementById("full-name").value.trim(),
+              email: document.getElementById("email").value.trim(),
+              gender: document.getElementById("gender").value,
+              program: programSelect.value,
+              password: document.getElementById("password").value,
+              registration_code: document.getElementById("registration-code").value,
+            }),
+          });
+          const payload = await response.json();
+          if (!response.ok) throw new Error(payload.message || "Unable to create account.");
+          form.hidden = true;
+          successBox.hidden = false;
+          document.querySelector(".registration-link-wrap").hidden = false;
+        } catch (error) {
+          setError(error.message);
+          document.getElementById("registration-code").value = "";
+        } finally {
+          submitButton.disabled = false;
+          submitButton.textContent = "Create account";
+        }
+      });
+
+      loadPrograms().catch((error) => {
+        setError(error.message);
+      });
+    </script>
+  </body>
+</html>

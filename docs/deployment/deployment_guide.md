@@ -79,6 +79,36 @@ Development behavior is unchanged: `CHATBOT_ENV` defaults to `development`,
 debug defaults to `true`, and database initialization remains enabled by
 default.
 
+### Temporary survey student registration
+
+Student self-registration is disabled by default. To open it only for an
+approved survey window, add these values to the VPS-only `backend/.env` file:
+
+```ini
+CHATBOT_STUDENT_SELF_REGISTRATION_ENABLED=true
+CHATBOT_STUDENT_SELF_REGISTRATION_CODE=use-a-private-random-survey-code
+```
+
+Restart the application after changing the file:
+
+```bash
+sudo systemctl restart ctrl4
+sudo systemctl status ctrl4 --no-pager
+```
+
+The public `/register` page is available only while both values are set. It
+creates **student** accounts only, accepts active programs and
+`@student.hau.edu.ph` email addresses, generates the student number on the
+server, and keeps the regular sign-in and Terms acknowledgement flow. Do not
+commit the registration code, share it outside the survey participants, or use
+it as a replacement for account administration.
+
+Immediately after the survey, close registration and restart the service:
+
+```ini
+CHATBOT_STUDENT_SELF_REGISTRATION_ENABLED=false
+```
+
 ## MySQL client credentials for backup and restore
 
 Do not put database passwords on a command line. Create a restricted client
@@ -101,6 +131,99 @@ chmod 600 /etc/ctrl4/mysql-client.cnf
 
 Set `CTRL4_MYSQL_DEFAULTS_FILE` to this file only for the backup or restore
 command. It is never written to application configuration or logs.
+
+## Private production database UI access
+
+Do not expose MySQL or phpMyAdmin to the public internet. To use a local
+database UI such as VS Code Database Client, DBeaver, or TablePlus, open an SSH
+tunnel from the repository root:
+
+```bash
+./scripts/open-production-db-tunnel.sh
+```
+
+The script forwards only the local endpoint `127.0.0.1:3307` to MySQL's
+VPS-local endpoint `127.0.0.1:3306`. It contains no database credentials; the
+normal SSH authentication prompt or configured SSH key is still required.
+Leave the terminal open while the database UI is in use, then press `Ctrl+C` to
+close the tunnel. Its default host is the provisioned VPS address so SSH can
+use the operator-verified host key; the website domain is not used for this
+SSH connection.
+
+Configure the database UI with:
+
+| Field | Value |
+| --- | --- |
+| Host | `127.0.0.1` |
+| Port | `3307` |
+| Database | the production database name, for example `soc_chatbot` |
+| Username | the database-scoped application or read-only database user |
+| Password | enter in the UI; do not save it in this repository |
+
+If local port `3307` is occupied, choose another local-only port without
+changing MySQL or the firewall:
+
+```bash
+CTRL4_TUNNEL_PORT=3308 ./scripts/open-production-db-tunnel.sh
+```
+
+The host and SSH user may also be overridden for a future approved production
+host change with `CTRL4_TUNNEL_HOST` and `CTRL4_TUNNEL_USER`.
+
+### Optional phpMyAdmin through the same private access pattern
+
+phpMyAdmin is optional and must never be served on the public CTRL4 domain.
+If a browser database UI is needed, install it on the VPS with PHP-FPM and bind
+its Nginx server to `127.0.0.1:8081` only. During the `phpmyadmin` package
+installation, select **no web server** and decline `dbconfig-common`; CTRL4's
+existing MySQL application account remains the only database credential used
+to sign in.
+
+After the server-side setup, open it only through the local helper:
+
+```bash
+./scripts/open-production-phpmyadmin.sh
+```
+
+Then open `http://127.0.0.1:8080/` in a local browser and sign in with a
+database-scoped user such as `ctrl4_app`. Do not use the MySQL `root` account.
+The script forwards the browser connection to VPS-local port `8081`; neither
+phpMyAdmin nor MySQL receives a public firewall rule or public DNS record.
+
+If the local browser port is occupied:
+
+```bash
+CTRL4_PHPMYADMIN_TUNNEL_PORT=8082 ./scripts/open-production-phpmyadmin.sh
+```
+
+### Optional Cockpit VPS administration UI
+
+Cockpit provides a browser UI for VPS health, storage, logs, updates, and
+service status. Install and enable it on Ubuntu:
+
+```bash
+sudo apt install cockpit
+sudo systemctl enable --now cockpit.socket
+```
+
+Do not add a public firewall rule for Cockpit's port `9090`. Open it through
+the local helper instead:
+
+```bash
+./scripts/open-production-cockpit.sh
+```
+
+Open `https://127.0.0.1:9090/` and sign in with the VPS Linux account, such as
+`ctrl4`. Cockpit uses a server-local certificate, so a browser warning is
+expected for `127.0.0.1`; confirm that the address is exactly the local URL
+shown by the helper before proceeding. Cockpit has system administration
+authority, so do not share this tunnel or its VPS credentials.
+
+If the local port is occupied:
+
+```bash
+CTRL4_COCKPIT_TUNNEL_PORT=9091 ./scripts/open-production-cockpit.sh
+```
 
 ## Database initialization
 

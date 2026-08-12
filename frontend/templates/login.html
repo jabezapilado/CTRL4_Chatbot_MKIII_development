@@ -140,6 +140,12 @@
               Use your school-issued email and password.
             </div>
 
+            {% if student_self_registration_available %}
+            <p class="registration-link-wrap">
+              Taking part in the survey? <a href="/register">Create a student account</a>
+            </p>
+            {% endif %}
+
             <p class="login-note">
               This system is for SOC Guidance Office use only.<br />
               For technical issues, contact your system administrator.

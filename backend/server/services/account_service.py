@@ -1,3 +1,4 @@
+import hmac
 import json
 import re
 from datetime import datetime
@@ -67,6 +68,17 @@ STAFF_OWN_PASSWORD_FIELDS = frozenset({
     "new_password",
     "confirm_password",
 })
+STUDENT_SELF_REGISTRATION_FIELDS = frozenset(
+    {
+        "full_name",
+        "email",
+        "password",
+        "gender",
+        "program",
+        "registration_code",
+    }
+)
+STUDENT_SELF_REGISTRATION_EMAIL_DOMAIN = "student.hau.edu.ph"
 CONSULTATION_SCHEDULE_FIELDS = frozenset({"room", "days", "time"})
 MAX_APPOINTMENT_SLOTS = 24
 MAX_CONSULTATION_MODES = 12
@@ -495,6 +507,38 @@ def create_account_service(payload: dict) -> dict:
         gender=gender,
         program=program,
         **staff_profile,
+    )
+
+
+def create_student_self_registration_service(
+    payload: object,
+    *,
+    registration_code: object,
+) -> dict:
+    """Create a student account through the temporary public survey flow."""
+    if not isinstance(payload, dict):
+        raise ValueError("Invalid request payload.")
+    if set(payload) - STUDENT_SELF_REGISTRATION_FIELDS:
+        raise ValueError("Unsupported registration field.")
+
+    supplied_code = str(payload.get("registration_code") or "")
+    expected_code = str(registration_code or "")
+    if not expected_code or not hmac.compare_digest(supplied_code, expected_code):
+        raise PermissionError("The survey registration code is invalid.")
+
+    email = str(payload.get("email") or "").strip().lower()
+    if not email.endswith(f"@{STUDENT_SELF_REGISTRATION_EMAIL_DOMAIN}"):
+        raise ValueError("Use your school student email address to register.")
+
+    return create_account_service(
+        {
+            "full_name": payload.get("full_name"),
+            "email": email,
+            "password": payload.get("password"),
+            "gender": payload.get("gender"),
+            "program": payload.get("program"),
+            "role": "student",
+        }
     )
 
 

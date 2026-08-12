@@ -6,7 +6,11 @@ from secrets import token_urlsafe
 from flask import Blueprint, current_app, g, jsonify, request, session
 from .csrf import get_csrf_token
 from .services import student_session_service, transient_chat_service
-from .services.account_service import login_service
+from .services.account_service import (
+    create_student_self_registration_service,
+    login_service,
+)
+from .services.program_service import program_service
 from .services.conversation_service import finalize_conversation
 
 
@@ -16,6 +20,13 @@ STUDENT_TERMS_ACCEPTED_SESSION_KEY = "student_terms_accepted"
 STUDENT_SESSION_TOKEN_KEY = "student_session_token"
 
 auth_bp = Blueprint("auth", __name__)
+
+
+def _student_self_registration_available() -> bool:
+    return bool(
+        current_app.config.get("STUDENT_SELF_REGISTRATION_ENABLED")
+        and str(current_app.config.get("STUDENT_SELF_REGISTRATION_CODE") or "")
+    )
 
 
 def _invalidate_replaced_student_session(user: dict) -> None:
@@ -173,6 +184,63 @@ def login():
             "data": user,
         }
     ), 200
+
+
+@auth_bp.get("/auth/student-registration/programs")
+def student_self_registration_programs():
+    if not _student_self_registration_available():
+        return jsonify(
+            {
+                "success": False,
+                "message": "Student registration is unavailable.",
+                "errors": None,
+            }
+        ), 404
+    return jsonify(
+        {
+            "success": True,
+            "message": "Programs retrieved successfully.",
+            "data": {"items": program_service.list_programs()},
+        }
+    ), 200
+
+
+@auth_bp.post("/auth/student-registration")
+def student_self_registration():
+    if not _student_self_registration_available():
+        return jsonify(
+            {
+                "success": False,
+                "message": "Student registration is unavailable.",
+                "errors": None,
+            }
+        ), 404
+
+    try:
+        account = create_student_self_registration_service(
+            request.get_json(silent=True) or {},
+            registration_code=current_app.config.get("STUDENT_SELF_REGISTRATION_CODE"),
+        )
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc), "errors": None}), 400
+    except PermissionError as exc:
+        return jsonify({"success": False, "message": str(exc), "errors": None}), 403
+    except FileExistsError as exc:
+        return jsonify({"success": False, "message": str(exc), "errors": None}), 409
+    except Exception:
+        logger.exception("Student self-registration failed.")
+        return jsonify(
+            {"success": False, "message": "Internal server error.", "errors": None}
+        ), 500
+
+    logger.info("Student self-registration created account %s", account["id"])
+    return jsonify(
+        {
+            "success": True,
+            "message": "Account created. Sign in to continue.",
+            "data": {"student_number": account["student_number"]},
+        }
+    ), 201
 
 
 @auth_bp.post("/auth/terms/accept")

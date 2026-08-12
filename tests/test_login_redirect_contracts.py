@@ -173,8 +173,10 @@ class LoginRedirectContractTests(unittest.TestCase):
         routes = _read("backend/server/routes/frontend_routes.py")
         auth = _read("backend/server/auth.py")
 
-        self.assertIn('public_paths = {"/", "/login", "/health", "/auth/login", "/auth/logout"}', routes)
-        self.assertIn('if path in {"/", "/login"} and user:', routes)
+        self.assertIn('"/auth/student-registration"', routes)
+        self.assertIn('"/auth/student-registration/programs"', routes)
+        self.assertIn('"/register"', routes)
+        self.assertIn('if path in {"/", "/login", "/register"} and user:', routes)
         self.assertIn('def _login_redirect_for_current_session_state()', routes)
         self.assertIn('"session-replaced"', routes)
         self.assertIn('if role == "staff":\n        return "/dashboard"', auth)

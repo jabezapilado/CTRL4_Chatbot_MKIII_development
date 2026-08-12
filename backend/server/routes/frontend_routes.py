@@ -8,6 +8,7 @@ from flask import (
     session,
     make_response,
     g,
+    current_app,
 )
 
 from ..auth import (
@@ -38,12 +39,32 @@ def _login_redirect_for_current_session_state():
 
 @frontend_bp.get("/")
 def home():
-    return render_template("login.html")
+    return render_template(
+        "login.html",
+        student_self_registration_available=_student_self_registration_available(),
+    )
 
 
 @frontend_bp.get("/login")
 def login():
-    return render_template("login.html")
+    return render_template(
+        "login.html",
+        student_self_registration_available=_student_self_registration_available(),
+    )
+
+
+def _student_self_registration_available() -> bool:
+    return bool(
+        current_app.config.get("STUDENT_SELF_REGISTRATION_ENABLED")
+        and str(current_app.config.get("STUDENT_SELF_REGISTRATION_CODE") or "")
+    )
+
+
+@frontend_bp.get("/register")
+def student_registration():
+    if not _student_self_registration_available():
+        return jsonify({"error": "Not found"}), 404
+    return render_template("student_registration.html")
 
 
 @frontend_bp.get("/chatbot")
@@ -94,12 +115,21 @@ def admin_accounts():
 
 @frontend_bp.before_request
 def require_login_for_private_routes():
-    public_paths = {"/", "/login", "/health", "/auth/login", "/auth/logout"}
+    public_paths = {
+        "/",
+        "/login",
+        "/register",
+        "/health",
+        "/auth/login",
+        "/auth/logout",
+        "/auth/student-registration",
+        "/auth/student-registration/programs",
+    }
     path = request.path
 
     if path.startswith("/static/") or path in public_paths:
         user = get_logged_in_user()
-        if path in {"/", "/login"} and user:
+        if path in {"/", "/login", "/register"} and user:
             return redirect(role_landing_path(user))
         return None
 
