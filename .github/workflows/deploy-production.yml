@@ -45,6 +45,34 @@ jobs:
           # Runtime configuration, the controlled model artifact, and generated
           # RAG data are local operational assets and are intentionally not
           # changed by a source deployment.
+          protected_assets_tmp="$(mktemp -d)"
+          restore_protected_assets() {
+            for asset in \
+              backend/data/rag_index/knowledge.faiss \
+              backend/data/rag_index/metadata.json
+            do
+              if [ -e "${protected_assets_tmp}/${asset}" ]; then
+                mkdir -p "$(dirname "${asset}")"
+                cp -a "${protected_assets_tmp}/${asset}" "${asset}"
+              fi
+            done
+            rm -rf "${protected_assets_tmp}"
+          }
+          trap restore_protected_assets EXIT
+
+          for asset in \
+            backend/data/rag_index/knowledge.faiss \
+            backend/data/rag_index/metadata.json
+          do
+            if [ -e "${asset}" ]; then
+              mkdir -p "${protected_assets_tmp}/$(dirname "${asset}")"
+              cp -a "${asset}" "${protected_assets_tmp}/${asset}"
+            fi
+            if git ls-files --error-unmatch "${asset}" >/dev/null 2>&1; then
+              git restore --source=HEAD --worktree -- "${asset}"
+            fi
+          done
+
           GIT_SSH_COMMAND='ssh -i /home/ctrl4/.ssh/ctrl4_deploy -o IdentitiesOnly=yes' \
             git pull --ff-only origin main
 

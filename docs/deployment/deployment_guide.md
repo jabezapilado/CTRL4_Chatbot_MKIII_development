@@ -315,7 +315,10 @@ single-worker `ctrl4` service, and checks local `/health`.
 
 It deliberately does **not** copy or recreate `backend/.env`, the MySQL
 database, the controlled model artifact, or generated RAG files. Those are
-protected server-side operational assets.
+protected server-side operational assets. Before pulling source updates, the
+workflow saves the generated RAG index files locally and restores them after
+the pull so a repository cleanup cannot remove the provisioned production
+index.
 
 Create a dedicated GitHub Actions SSH key; do not reuse the server-to-GitHub
 read-only repository deploy key. Add its public key to the production
