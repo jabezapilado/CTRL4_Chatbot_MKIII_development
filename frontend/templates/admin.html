@@ -373,6 +373,64 @@
     </dialog>
 
     <dialog
+      class="account-dialog account-password-reset-dialog"
+      id="student-password-reset-dialog"
+      aria-labelledby="student-password-reset-title"
+    >
+      <form class="account-form" id="student-password-reset-form" novalidate>
+        <div class="account-dialog-header">
+          <div>
+            <p class="admin-eyebrow">Student account recovery</p>
+            <h2 id="student-password-reset-title">Reset student password</h2>
+          </div>
+          <button
+            class="account-dialog-close"
+            type="button"
+            id="student-password-reset-close"
+            aria-label="Close password reset form"
+          >
+            ×
+          </button>
+        </div>
+
+        <p class="account-form-help" id="student-password-reset-account"></p>
+        <p id="student-password-reset-message" class="admin-feedback" role="alert"></p>
+
+        <fieldset class="account-form-section">
+          <legend>New temporary password</legend>
+          <div class="account-form-grid">
+            <label for="student-reset-new-password">
+              <span>New password</span>
+              <input
+                id="student-reset-new-password"
+                type="password"
+                autocomplete="new-password"
+                minlength="8"
+                required
+              />
+              <small>At least eight characters. Share it only with the student.</small>
+            </label>
+            <label for="student-reset-confirm-password">
+              <span>Confirm new password</span>
+              <input
+                id="student-reset-confirm-password"
+                type="password"
+                autocomplete="new-password"
+                minlength="8"
+                required
+              />
+            </label>
+          </div>
+        </fieldset>
+
+        <div class="account-form-actions">
+          <button class="btn btn-outline" type="button" id="student-password-reset-cancel">Cancel</button>
+          <button class="btn btn-primary" type="submit" id="student-password-reset-submit">Reset password</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog
       class="account-dialog"
       id="program-dialog"
       aria-labelledby="program-dialog-title"

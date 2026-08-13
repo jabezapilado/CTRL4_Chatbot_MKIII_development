@@ -151,6 +151,79 @@ class AccountBoundaryTests(unittest.TestCase):
                 },
             )
 
+    def test_admin_can_reset_student_password_without_exposing_the_hash(self) -> None:
+        with patch.object(
+            account_service,
+            "fetch_account_by_id",
+            return_value={"id": 12, "role": "student", "status": "active"},
+        ), patch.object(
+            account_service,
+            "update_account_password_hash",
+            return_value=True,
+        ) as update:
+            account_service.reset_student_password_service(
+                12,
+                {
+                    "new_password": "SurveyReset123!",
+                    "confirm_password": "SurveyReset123!",
+                },
+            )
+
+        self.assertEqual(update.call_args.args[0], 12)
+        self.assertEqual(update.call_args.kwargs["role"], "student")
+        self.assertTrue(
+            account_service.check_password_hash(
+                update.call_args.args[1],
+                "SurveyReset123!",
+            )
+        )
+
+    def test_admin_student_password_reset_rejects_nonstudent_or_invalid_payload(self) -> None:
+        with patch.object(account_service, "fetch_account_by_id", return_value=None):
+            with self.assertRaisesRegex(LookupError, "Student account not found"):
+                account_service.reset_student_password_service(
+                    12,
+                    {"new_password": "SurveyReset123!", "confirm_password": "SurveyReset123!"},
+                )
+
+        with self.assertRaisesRegex(ValueError, "New passwords do not match"):
+            account_service.reset_student_password_service(
+                12,
+                {"new_password": "SurveyReset123!", "confirm_password": "different-password"},
+            )
+
+    def test_student_password_reset_route_requires_admin_role(self) -> None:
+        from backend.server.routes import account_routes
+        from backend.server.routes.account_routes import account_bp
+
+        app = Flask(__name__)
+        app.secret_key = "student-password-reset-routes"
+        app.register_blueprint(account_bp)
+
+        def client_for(role: str):
+            client = app.test_client()
+            with client.session_transaction() as session:
+                session["hau_user"] = {
+                    "id": 7,
+                    "email": f"{role}@example.test",
+                    "role": role,
+                }
+            return client
+
+        payload = {
+            "new_password": "SurveyReset123!",
+            "confirm_password": "SurveyReset123!",
+        }
+        with patch.object(account_routes, "reset_student_password_service") as reset:
+            response = client_for("admin").post("/api/accounts/12/password", json=payload)
+
+        self.assertEqual(response.status_code, 200)
+        reset.assert_called_once_with(12, payload)
+        self.assertEqual(
+            client_for("student").post("/api/accounts/12/password", json=payload).status_code,
+            403,
+        )
+
     def test_program_and_profile_routes_enforce_role_boundaries(self) -> None:
         from backend.server.routes.account_routes import account_bp
         from backend.server.routes import account_routes

@@ -100,7 +100,13 @@ class GeminiProvider(BaseProvider):
 
         try:
 
-            response = self.model.generate_content(prompt)
+            response = self.model.generate_content(
+                prompt,
+                generation_config=genai.GenerationConfig(
+                    temperature=self.config.GEMINI_TEMPERATURE,
+                    max_output_tokens=self.config.GEMINI_MAX_OUTPUT_TOKENS,
+                ),
+            )
 
             if response and response.text:
 

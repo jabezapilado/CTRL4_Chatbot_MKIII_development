@@ -13,6 +13,7 @@ from ..services.account_service import (
     update_staff_account_service,
     update_student_account_service,
     search_students_for_staff_service,
+    reset_student_password_service,
     get_own_staff_operational_profile_service,
     update_own_staff_password_service,
     update_own_staff_operational_profile_service,
@@ -433,6 +434,35 @@ def update_account_route(account_id: int):
             "success": True,
             "message": "Student account updated successfully.",
             "data": {"account": account},
+        }
+    ), 200
+
+
+@account_bp.post("/<int:account_id>/password")
+def reset_student_password_route(account_id: int):
+    user, error = require_role("admin")
+    if error:
+        return error
+
+    try:
+        reset_student_password_service(
+            account_id,
+            request.get_json(silent=True) or {},
+        )
+    except ValueError as exc:
+        return _error_response(str(exc), 400)
+    except LookupError as exc:
+        return _error_response(str(exc), 404)
+    except Exception:
+        logger.exception("Failed to reset student password.")
+        return _error_response("Internal server error.", 500)
+
+    logger.info("Admin %s reset password for student account %s", user["id"], account_id)
+    return jsonify(
+        {
+            "success": True,
+            "message": "Student password reset successfully.",
+            "data": None,
         }
     ), 200
 

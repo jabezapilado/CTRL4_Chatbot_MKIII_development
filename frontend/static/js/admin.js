@@ -25,6 +25,27 @@ const staffProfileFields = document.getElementById("staff-profile-fields");
 const accountPasswordField = document.getElementById("account-password-field");
 const accountPassword = document.getElementById("account-password");
 const accountFormSubmit = document.getElementById("account-form-submit");
+const studentPasswordResetDialog = document.getElementById(
+  "student-password-reset-dialog",
+);
+const studentPasswordResetForm = document.getElementById(
+  "student-password-reset-form",
+);
+const studentPasswordResetMessage = document.getElementById(
+  "student-password-reset-message",
+);
+const studentPasswordResetAccount = document.getElementById(
+  "student-password-reset-account",
+);
+const studentPasswordResetNewPassword = document.getElementById(
+  "student-reset-new-password",
+);
+const studentPasswordResetConfirmPassword = document.getElementById(
+  "student-reset-confirm-password",
+);
+const studentPasswordResetSubmit = document.getElementById(
+  "student-password-reset-submit",
+);
 const programDialog = document.getElementById("program-dialog");
 const programForm = document.getElementById("program-form");
 const programFormMessage = document.getElementById("program-form-message");
@@ -42,6 +63,7 @@ let accountSort = { key: "account_number", direction: "asc" };
 let programSort = { key: "display_name", direction: "asc" };
 let loadedAccounts = [];
 let loadedProgramCatalog = [];
+let resettingStudentAccount = null;
 
 function accountNumber(account) {
   return account.student_number || account.staff_number || "—";
@@ -240,6 +262,14 @@ function renderAccounts(accounts) {
         openAccountForm(account);
       }),
     );
+
+    if (account.role === "student" && account.status === "active") {
+      actions.appendChild(
+        createActionButton("Reset password", "btn btn-outline btn-sm", () => {
+          openStudentPasswordReset(account);
+        }),
+      );
+    }
 
     if (account.status === "active") {
       actions.appendChild(
@@ -582,6 +612,62 @@ function closeAccountForm() {
   if (accountDialog.open) accountDialog.close();
 }
 
+function openStudentPasswordReset(account) {
+  resettingStudentAccount = account;
+  studentPasswordResetForm.reset();
+  studentPasswordResetAccount.textContent = `Set a new temporary password for ${account.full_name || "this student"}.`;
+  setFeedback(studentPasswordResetMessage);
+  studentPasswordResetDialog.showModal();
+  studentPasswordResetNewPassword.focus();
+}
+
+function closeStudentPasswordReset() {
+  if (studentPasswordResetDialog.open) studentPasswordResetDialog.close();
+  resettingStudentAccount = null;
+}
+
+function updateStudentPasswordResetButton() {
+  const passwordsMatch =
+    studentPasswordResetNewPassword.value === studentPasswordResetConfirmPassword.value;
+  studentPasswordResetSubmit.disabled = !(
+    studentPasswordResetNewPassword.value.length >= 8 &&
+    studentPasswordResetConfirmPassword.value &&
+    passwordsMatch
+  );
+}
+
+async function submitStudentPasswordReset(event) {
+  event.preventDefault();
+  if (!resettingStudentAccount || studentPasswordResetSubmit.disabled) return;
+
+  studentPasswordResetSubmit.disabled = true;
+  setFeedback(studentPasswordResetMessage, "Resetting password…");
+  try {
+    const response = await fetch(
+      `${ADMIN_API_BASE}/api/accounts/${resettingStudentAccount.id}/password`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          new_password: studentPasswordResetNewPassword.value,
+          confirm_password: studentPasswordResetConfirmPassword.value,
+        }),
+      },
+    );
+    const result = await responsePayload(response, "Unable to reset student password.");
+    closeStudentPasswordReset();
+    setFeedback(accountListMessage, result.message, "success");
+  } catch (error) {
+    setFeedback(
+      studentPasswordResetMessage,
+      error.message || "Unable to reset student password.",
+      "error",
+    );
+  } finally {
+    updateStudentPasswordResetButton();
+  }
+}
+
 function formRole() {
   return editingAccount?.role || accountRole.value;
 }
@@ -753,6 +839,19 @@ accountForm.addEventListener("submit", saveAccount);
 accountDialog.addEventListener("click", (event) => {
   if (event.target === accountDialog) closeAccountForm();
 });
+studentPasswordResetForm.addEventListener("submit", submitStudentPasswordReset);
+studentPasswordResetDialog.addEventListener("click", (event) => {
+  if (event.target === studentPasswordResetDialog) closeStudentPasswordReset();
+});
+document
+  .getElementById("student-password-reset-close")
+  .addEventListener("click", closeStudentPasswordReset);
+document
+  .getElementById("student-password-reset-cancel")
+  .addEventListener("click", closeStudentPasswordReset);
+[studentPasswordResetNewPassword, studentPasswordResetConfirmPassword].forEach(
+  (input) => input.addEventListener("input", updateStudentPasswordResetButton),
+);
 programForm.addEventListener("submit", saveProgram);
 programDialog.addEventListener("click", (event) => {
   if (event.target === programDialog) closeProgramForm();
@@ -763,3 +862,4 @@ document.getElementById("admin-logout-btn").addEventListener("click", () => {
 
 void loadPrograms();
 loadAccounts();
+updateStudentPasswordResetButton();

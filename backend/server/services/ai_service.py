@@ -70,6 +70,12 @@ _BASIC_SUPPORT_REQUEST_PATTERN: Final[re.Pattern[str]] = re.compile(
     r"^\s*i (?:need|want) help\s*$",
     re.IGNORECASE,
 )
+_GUIDANCE_FOLLOW_UP_PATTERN: Final[re.Pattern[str]] = re.compile(
+    r"\b(?:what about|how about|what time|when|where|tomorrow|today|"
+    r"weekend|weekends|that|there|it|them|next|can i|could i|"
+    r"paano|saan|anong oras|bukas|ngayon)\b",
+    re.IGNORECASE,
+)
 
 
 
@@ -265,6 +271,36 @@ class AIService:
             keyword in message 
             for keyword in GUIDANCE_KEYWORDS
         )
+
+    def guidance_retrieval_query(
+        self,
+        message: str,
+        conversation: list[dict],
+    ) -> str | None:
+        """Return a grounded query for an office-information follow-up.
+
+        RAG is normally driven by the current message.  Short follow-ups such
+        as "What about Saturday?" contain no office keyword, even when they
+        clearly continue a prior office-hours question.  Reuse only the most
+        recent *student* office-information message, never an earlier model
+        response, so generated text cannot become a source of facts.
+        """
+        if self.should_use_rag(message):
+            return message
+
+        if not _GUIDANCE_FOLLOW_UP_PATTERN.search(message):
+            return None
+
+        # Keep the inherited subject genuinely recent.  An office question from
+        # much earlier in a conversation must not hijack a new, unrelated topic.
+        for item in reversed(normalize_conversation_history(conversation)[-4:]):
+            if item["role"] != "user":
+                continue
+            previous_message = item["content"]
+            if self.should_use_rag(previous_message):
+                return f"{previous_message}\nFollow-up: {message}"
+
+        return None
 
     @staticmethod
     def _basic_support_request_response(message: str, user: dict | None) -> str | None:
@@ -749,8 +785,9 @@ class AIService:
 
             documents = []
 
-            if self.rag.ready and self.should_use_rag(message):
-                documents = self.rag.retrieve(message)
+            retrieval_query = self.guidance_retrieval_query(message, conversation)
+            if self.rag.ready and retrieval_query is not None:
+                documents = self.rag.retrieve(retrieval_query)
 
             rag_time = time.perf_counter() - rag_start
 

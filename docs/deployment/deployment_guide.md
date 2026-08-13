@@ -68,7 +68,7 @@ reference, including optional seed-account and RAG tuning values.
 | Sessions | `CHATBOT_SESSION_TYPE=cachelib`, an absolute protected `CHATBOT_SESSION_FILE_DIR`, and `CHATBOT_SESSION_COOKIE_SECURE=true` |
 | Logging | an absolute protected `CHATBOT_LOG_FILE`, `CHATBOT_LOG_LEVEL`, `CHATBOT_LOG_MAX_BYTES`, and `CHATBOT_LOG_BACKUP_COUNT` |
 | Database startup | `CHATBOT_DATABASE_INITIALIZE_ON_START=false`; perform upgrades explicitly after backup |
-| AI | `CHATBOT_LLM_PROVIDER`, Gemini values when using Gemini, or Ollama URL/model when using Ollama |
+| AI | `CHATBOT_LLM_PROVIDER`, Gemini values when using Gemini, or Ollama URL/model when using Ollama. `CHATBOT_GEMINI_TEMPERATURE` controls response variation; `CHATBOT_GEMINI_MAX_OUTPUT_TOKENS` limits reply length, not active-chat context. |
 | RAG | `CHATBOT_RAG_DOCS_DIR`, `CHATBOT_RAG_INDEX_DIR`; set `CHATBOT_RAG_AUTO_BUILD_ON_START=false` after provisioning the index |
 
 Production startup rejects unsafe combinations: debug mode, the default secret,
@@ -108,6 +108,12 @@ Immediately after the survey, close registration and restart the service:
 ```ini
 CHATBOT_STUDENT_SELF_REGISTRATION_ENABLED=false
 ```
+
+If a survey participant forgets their password, an administrator can select
+**Reset password** beside that student in **Account Management**. Enter and
+confirm a new temporary password, then provide it privately to that student.
+The old password cannot be viewed or recovered, and the normal account-edit
+form does not change passwords.
 
 ## MySQL client credentials for backup and restore
 

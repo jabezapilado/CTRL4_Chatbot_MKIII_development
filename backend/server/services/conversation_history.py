@@ -10,8 +10,13 @@ from __future__ import annotations
 from typing import Final
 
 
-MAX_HISTORY_MESSAGES: Final[int] = 24
-MAX_HISTORY_MESSAGE_CHARACTERS: Final[int] = 2_000
+# Keep enough active-session continuity for a longer guidance conversation
+# without increasing the maximum history text budget (40 * 1,200 = 48,000
+# characters, the same upper bound as the previous 24 * 2,000 limit).
+# This state remains server-session-scoped and is cleared on finalization,
+# logout, expiry, or a device replacement.
+MAX_HISTORY_MESSAGES: Final[int] = 40
+MAX_HISTORY_MESSAGE_CHARACTERS: Final[int] = 1_200
 
 _ROLE_ALIASES: Final[dict[str, str]] = {
     "user": "user",

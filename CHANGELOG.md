@@ -10,6 +10,10 @@ The format follows the principles of **Keep a Changelog**.
 
 ### Added
 
+- Added an administrator-only **Reset password** action for student accounts.
+  It uses a dedicated confirmation form, stores only a newly generated password
+  hash, and never exposes the previous password.
+
 - Added an opt-in, survey-only student self-registration flow. It is disabled
   by default and requires both a VPS-only enable switch and private survey
   code. It creates only student accounts, generates student numbers
@@ -58,6 +62,11 @@ The format follows the principles of **Keep a Changelog**.
 
 ### Changed
 
+- Improved active-chat continuity without creating a durable transcript. CTRL4
+  now retains up to 20 recent exchanges for the authenticated active session
+  (previously 12), while keeping the same maximum text budget. The configured
+  Gemini temperature and output-token limit are now passed to Gemini for each
+  generation; the token setting limits reply length, not conversation memory.
 - Centered the Administrator account-creation and program-creation dialogs in
   the viewport while retaining their existing responsive scrolling behavior.
 - Stabilized the student chat on mobile and tablet browsers: keyboard viewport

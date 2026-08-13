@@ -256,6 +256,30 @@ class ResponseValidationRegressionTests(unittest.TestCase):
         self.assertFalse(result.allowed)
         self.assertEqual(result.category, "fabricated_institutional_information")
 
+    def test_general_guidance_referral_is_not_treated_as_an_unverified_fact(self) -> None:
+        result = ResponseSafetyService().validate(
+            "You do not have to handle this alone. If you would like support, "
+            "you can contact the Guidance Office directly.",
+            [],
+        )
+
+        self.assertTrue(result.allowed)
+
+    def test_supportive_referral_survives_final_response_safety(self) -> None:
+        llm = _CapturingLlm([
+            "That sounds painful. You do not have to handle it alone, and you "
+            "can contact the Guidance Office directly if speaking with someone "
+            "would help."
+        ])
+
+        result = _service(llm, response_safety=ResponseSafetyService()).respond(
+            "I feel sad because my friends left me."
+        )
+
+        self.assertTrue(result.success)
+        self.assertIn("sounds painful", result.response.casefold())
+        self.assertNotIn("i can't confirm", result.response.casefold())
+
 
 class ConversationHistoryRegressionTests(unittest.TestCase):
     def test_mixed_office_hours_and_routine_stress_keeps_factual_answer_and_empathy(self) -> None:
@@ -590,6 +614,62 @@ class ConversationHistoryRegressionTests(unittest.TestCase):
             "The SOC Guidance Office is open Monday to Friday, 8:00 AM to 5:00 PM.",
         )
         self.assertNotIn("University Guidance Center", result.response)
+
+    def test_office_information_follow_up_reuses_the_prior_student_question(self) -> None:
+        official_chunk = (
+            "The SOC Guidance Office is open Monday to Friday, 8:00 AM to 5:00 PM. "
+            "It is closed on weekends and public holidays."
+        )
+        rag = _RetrievedRag(
+            [
+                SimpleNamespace(
+                    source="office_hours.json",
+                    text=official_chunk,
+                    score=0.99,
+                )
+            ]
+        )
+        llm = _CapturingLlm([
+            "The office is closed on weekends and public holidays."
+        ])
+
+        result = _service(llm, rag=rag, response_safety=ResponseSafetyService()).respond(
+            "What about Saturday?",
+            conversation=[
+                {"from": "user", "text": "What are your office hours?"},
+                {
+                    "from": "bot",
+                    "text": "The SOC Guidance Office is open Monday to Friday.",
+                },
+            ],
+        )
+
+        self.assertEqual(
+            rag.queries,
+            ["What are your office hours?\nFollow-up: What about Saturday?"],
+        )
+        self.assertIn(official_chunk, llm.prompts[0])
+        self.assertIn("closed on weekends", result.response.casefold())
+
+    def test_old_office_question_does_not_hijack_a_new_unrelated_follow_up(self) -> None:
+        rag = _RetrievedRag([])
+        llm = _CapturingLlm([
+            "It makes sense that this friendship situation still feels difficult."
+        ])
+
+        _service(llm, rag=rag).respond(
+            "What about that?",
+            conversation=[
+                {"from": "user", "text": "What are your office hours?"},
+                {"from": "bot", "text": "We are open on weekdays."},
+                {"from": "user", "text": "My friend stopped talking to me."},
+                {"from": "bot", "text": "That sounds hurtful."},
+                {"from": "user", "text": "I do not know what to say."},
+                {"from": "bot", "text": "You can take your time."},
+            ],
+        )
+
+        self.assertEqual(rag.queries, [])
 
     def test_taglish_appointment_request_uses_retrieved_appointment_context(self) -> None:
         official_chunk = (

@@ -68,6 +68,10 @@ STAFF_OWN_PASSWORD_FIELDS = frozenset({
     "new_password",
     "confirm_password",
 })
+ADMIN_STUDENT_PASSWORD_RESET_FIELDS = frozenset({
+    "new_password",
+    "confirm_password",
+})
 STUDENT_SELF_REGISTRATION_FIELDS = frozenset(
     {
         "full_name",
@@ -725,6 +729,37 @@ def update_own_staff_password_service(staff_account: dict, payload: dict) -> Non
     )
     if not updated:
         raise LookupError("Staff account not found.")
+
+
+def reset_student_password_service(account_id: int, payload: dict) -> None:
+    """Set a new student password through the administrator-only recovery flow."""
+    if account_id <= 0:
+        raise ValueError("Invalid account id.")
+    if not isinstance(payload, dict):
+        raise ValueError("Invalid request payload.")
+    if set(payload) - ADMIN_STUDENT_PASSWORD_RESET_FIELDS:
+        raise ValueError("Unsupported password reset field.")
+
+    new_password = str(payload.get("new_password", ""))
+    confirm_password = str(payload.get("confirm_password", ""))
+    if not new_password or not confirm_password:
+        raise ValueError("New password and confirmation are required.")
+    if len(new_password) < 8:
+        raise ValueError("New password must be at least 8 characters long.")
+    if new_password != confirm_password:
+        raise ValueError("New passwords do not match.")
+
+    existing_account = fetch_account_by_id(account_id, role="student")
+    if not existing_account:
+        raise LookupError("Student account not found.")
+
+    updated = update_account_password_hash(
+        account_id,
+        generate_password_hash(new_password),
+        role="student",
+    )
+    if not updated:
+        raise LookupError("Student account not found.")
 
 
 def update_admin_account_service(account_id: int, payload: dict) -> dict:

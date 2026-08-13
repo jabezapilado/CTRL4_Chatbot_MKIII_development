@@ -80,6 +80,23 @@ class TransientChatServiceTests(unittest.TestCase):
         self.assertEqual(self.service.get_visible_history("session-a", 11), [])
         self.assertEqual(len(self.cache.deleted), 1)
 
+    def test_retains_twenty_recent_exchanges_without_expanding_transient_storage(self) -> None:
+        for number in range(1, 22):
+            prior = self.service.prior_history("session-a", 11, [], "")
+            self.service.record_exchange(
+                "session-a",
+                11,
+                prior,
+                f"Student message {number}",
+                f"Assistant reply {number}",
+            )
+
+        visible = self.service.get_visible_history("session-a", 11)
+
+        self.assertEqual(len(visible), 40)
+        self.assertEqual(visible[0], {"from": "user", "text": "Student message 2"})
+        self.assertEqual(visible[-1], {"from": "bot", "text": "Assistant reply 21"})
+
     def test_browser_history_is_only_a_compatibility_seed_and_current_message_is_excluded(self) -> None:
         prior = self.service.prior_history(
             "session-a",

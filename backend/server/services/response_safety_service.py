@@ -25,8 +25,11 @@ PRIVACY_DISCLOSURE_REPLACEMENT: Final[str] = (
     "I can't disclose confidential or protected personal information."
 )
 FABRICATED_INSTITUTIONAL_INFORMATION_REPLACEMENT: Final[str] = (
-    "I can't confirm that information. Please contact the Guidance Office "
-    "or consult official university resources."
+    "I don't have verified Guidance Office details for that specific question, "
+    "so I don't want to guess. You can check the official office information "
+    "or contact the Guidance Office directly. If you tell me whether you need "
+    "help with office hours, location, contact details, or an appointment, I "
+    "can help you identify the next step."
 )
 
 
@@ -70,8 +73,8 @@ class ResponseSafetyService:
     _INSTITUTIONAL_CLAIM: Final[re.Pattern[str]] = re.compile(
         r"\b(?:guidance office|university guidance|counselor|counsellor)\b"
         r"[^.]{0,120}\b(?:official(?:ly)?|policy|policies|office hours?|"
-        r"open(?:s|ing)?|close(?:d|s|ing)?|located|room|contact|email|"
-        r"phone|appointment|must|required)\b",
+        r"open(?:s|ing)?|close(?:d|s|ing)?|located|room|email|phone|"
+        r"must|required)\b",
         re.IGNORECASE,
     )
     _FACTUAL_DETAILS: Final[re.Pattern[str]] = re.compile(
@@ -147,6 +150,10 @@ class ResponseSafetyService:
         response: str,
         documents: Iterable[object],
     ) -> bool:
+        # A general, non-factual suggestion to contact the Guidance Office is
+        # appropriate supportive language.  It is not an institutional claim
+        # that needs RAG evidence.  Specific hours, rooms, contact details,
+        # policies, and requirements remain grounded facts and are guarded.
         if not self._INSTITUTIONAL_CLAIM.search(response):
             return False
 

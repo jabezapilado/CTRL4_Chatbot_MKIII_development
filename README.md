@@ -222,6 +222,9 @@ terminal.
 Configure provider values only in `backend/.env`:
 
 - Use the configured Gemini variables when `CHATBOT_LLM_PROVIDER=gemini`.
+- `CHATBOT_GEMINI_TEMPERATURE` controls response variation and
+  `CHATBOT_GEMINI_MAX_OUTPUT_TOKENS` bounds a generated reply. Neither setting
+  increases the amount of prior conversation retained for an active chat.
 - Use the configured Ollama URL and model values when
   `CHATBOT_LLM_PROVIDER=ollama`.
 

@@ -27,14 +27,17 @@ The portal supports the approved existing operations:
 Unsupported role-specific fields are rejected rather than ignored. Account
 roles are selected when creating an account and are not changed by the current
 account-update contract. The current API supports deactivation, not
-reactivation or destructive deletion. Password hashes are never shown, and
-administrators cannot reset another user's password through this portal.
+reactivation or destructive deletion. Password hashes are never shown. For an
+active student who has forgotten a password, administrators can use the
+dedicated **Reset password** action to set and privately provide a new
+temporary password. Administrators cannot view an existing password or reset
+staff or administrator passwords.
 
 You can update and deactivate student, staff, and administrator accounts using
 their dedicated account operations. Administrator accounts cannot retain
 student, staff, counselor-profile metadata, or account numbers. You cannot
-deactivate your own administrator account. Users remain responsible for their
-own password updates.
+deactivate your own administrator account. Guidance staff and administrators
+remain responsible for their own password updates.
 
 ## Access boundary
 
