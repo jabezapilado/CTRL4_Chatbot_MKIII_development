@@ -63,7 +63,7 @@ The format follows the principles of **Keep a Changelog**.
 ### Changed
 
 - Improved active-chat continuity without creating a durable transcript. CTRL4
-  now retains up to 20 recent exchanges for the authenticated active session
+  now retains up to 50 recent exchanges for the authenticated active session
   (previously 12), while keeping the same maximum text budget. The configured
   Gemini temperature and output-token limit are now passed to Gemini for each
   generation; the token setting limits reply length, not conversation memory.

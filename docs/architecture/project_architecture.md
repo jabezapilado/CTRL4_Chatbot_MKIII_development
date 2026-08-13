@@ -87,7 +87,7 @@ Appointment policy is service-owned:
 ## Conversations, cases, and notifications
 
 Raw message history is used only for the active interaction and finalization;
-the authenticated session retains a bounded recent window of up to 20 exchanges
+the authenticated session retains a bounded recent window of up to 50 exchanges
 for continuity, using the same bounded text budget as before. It is not
 persisted as a transcript and is cleared on finalization, logout, expiry, or
 student device replacement. Finalization persists the existing
