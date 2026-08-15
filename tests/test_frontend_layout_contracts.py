@@ -614,14 +614,14 @@ class FrontendLayoutContractTests(unittest.TestCase):
         auth = _read("frontend/static/js/auth.js")
         student_guide = _read("docs/guides/student_guide.md")
 
-        self.assertIn("const STUDENT_INACTIVITY_TIMEOUT = 15 * 60 * 1000;", chat)
+        self.assertIn("const STUDENT_INACTIVITY_TIMEOUT = 20 * 60 * 1000;", chat)
         self.assertIn("function checkInactivityAfterVisibilityChange()", chat)
         self.assertIn('document.addEventListener("visibilitychange", checkInactivityAfterVisibilityChange);', chat)
         self.assertIn("const finalized = await finalizeConversation({ resetUI: false });", chat)
         self.assertIn("finalize: false,", chat)
         self.assertIn('reason: "inactive",', chat)
         self.assertIn("window.endAuthenticatedSession = endAuthenticatedSession;", auth)
-        self.assertIn("For privacy, an inactive student chat is finalized", student_guide)
+        self.assertIn("server-owned inactivity finalizer", student_guide)
 
     def test_terms_dialog_is_centered_in_the_viewport(self) -> None:
         stylesheet = _read("frontend/static/css/chatbot.css")

@@ -1,0 +1,12 @@
+[Unit]
+Description=Run CTRL4 idle student conversation finalizer regularly
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=1min
+AccuracySec=15s
+Persistent=true
+Unit=ctrl4-idle-finalizer.service
+
+[Install]
+WantedBy=timers.target

@@ -66,6 +66,24 @@ class Config:
         self.SESSION_COOKIE_SAMESITE = "Lax"
         self.SESSION_COOKIE_NAME = "ctrl4_session"
         self.PERMANENT_SESSION_LIFETIME = timedelta(hours=8)
+        # A student conversation is finalized from its last chat exchange,
+        # rather than from ordinary page activity.  The authenticated session
+        # still has its normal eight-hour upper bound.
+        self.STUDENT_CHAT_IDLE_TIMEOUT_SECONDS = int(
+            os.getenv("CHATBOT_STUDENT_CHAT_IDLE_TIMEOUT_SECONDS", str(20 * 60))
+        )
+        if self.STUDENT_CHAT_IDLE_TIMEOUT_SECONDS < 60:
+            raise RuntimeError(
+                "CHATBOT_STUDENT_CHAT_IDLE_TIMEOUT_SECONDS must be at least 60 seconds."
+            )
+        # The VPS-only idle-finalizer timer authenticates to a localhost app
+        # endpoint with this value.  Falling back to the required Flask secret
+        # avoids introducing an unset production secret while keeping the
+        # endpoint inaccessible without server configuration.
+        self.STUDENT_CHAT_IDLE_FINALIZER_KEY = (
+            os.getenv("CHATBOT_STUDENT_CHAT_IDLE_FINALIZER_KEY", "").strip()
+            or self.SECRET_KEY
+        )
         # The supported deployment is one application instance on one host.
         # Filesystem sessions keep payloads server-side and are not shared
         # across workers or hosts.

@@ -10,6 +10,12 @@ The format follows the principles of **Keep a Changelog**.
 
 ### Added
 
+- Added a VPS-owned student chat inactivity finalizer. After 20 minutes without
+  a completed chat exchange, it finalizes the existing active conversation via
+  the normal summary, safety, and Inbox workflow, then invalidates that
+  student lease. This also handles closed browsers, which cannot run the
+  client-side finalization code.
+
 - Added an administrator-only **Reset password** action for student accounts.
   It uses a dedicated confirmation form, stores only a newly generated password
   hash, and never exposes the previous password.
@@ -38,10 +44,6 @@ The format follows the principles of **Keep a Changelog**.
   device and continue** actions. An open Device A chat now detects replacement
   within 15 seconds (or when brought back to the foreground), shows a centered
   session-ended notice, and then returns to the normal sign-in flow.
-- Added a student-only 15-minute inactive-chat policy. On the next available
-  browser event after the deadline, CTRL4 finalizes the active conversation
-  before signing the student out; staff and administrator session behavior is
-  unchanged.
 - Added turn-based student chat controls: the message field, Send button, and
   quick replies are unavailable while a response is pending.
 - Added a short 1.2–2.2 second typing state for ordinary chatbot replies. The
@@ -61,6 +63,15 @@ The format follows the principles of **Keep a Changelog**.
   explicit immediate danger is also detected.
 
 ### Changed
+
+- Gemini responses that explicitly reach the configured output-token limit, or
+  visibly end mid-sentence despite a normal provider finish result, now receive
+  one concise-completion retry. CTRL4 never displays the original incomplete
+  candidate; if the retry is also incomplete, it safely reports a generation
+  failure instead of a cut-off reply.
+- Refined operational Guidance Office question recognition so a general or
+  hypothetical reference to a counselor cannot be mistaken for an office
+  location request. Those questions continue to the normal safe response path.
 
 - Improved active-chat continuity without creating a durable transcript. CTRL4
   now retains up to 50 recent exchanges for the authenticated active session

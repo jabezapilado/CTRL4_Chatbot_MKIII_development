@@ -67,6 +67,10 @@ Filipino or Taglish emotion model.
   staff feedback view.
 - Turn-based chat controls with a short typing indicator for ordinary replies;
   safety escalations remain immediate.
+- Server-owned 20-minute idle-chat finalization so closed or abandoned student
+  browser sessions do not remain indefinitely as active conversations.
+- Gemini output is checked for provider token-limit and visibly unfinished
+  replies, with one concise retry before a partial reply can reach a student.
 - Responsive student chat layout for compact Android and iPhone viewports,
   including safe-area handling for supported iPhone displays.
 
@@ -224,7 +228,9 @@ Configure provider values only in `backend/.env`:
 - Use the configured Gemini variables when `CHATBOT_LLM_PROVIDER=gemini`.
 - `CHATBOT_GEMINI_TEMPERATURE` controls response variation and
   `CHATBOT_GEMINI_MAX_OUTPUT_TOKENS` bounds a generated reply. Neither setting
-  increases the amount of prior conversation retained for an active chat.
+  increases the amount of prior conversation retained for an active chat. A
+  clipped candidate receives one concise retry; increasing the token limit is
+  not a replacement for preserving a complete, focused response.
 - Use the configured Ollama URL and model values when
   `CHATBOT_LLM_PROVIDER=ollama`.
 

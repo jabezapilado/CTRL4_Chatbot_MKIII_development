@@ -3,10 +3,10 @@ import hmac
 from hashlib import sha256
 from secrets import token_urlsafe
 
-from flask import Blueprint, jsonify, request, session
+from flask import Blueprint, current_app, jsonify, request, session
 
 from ..auth import STUDENT_SESSION_TOKEN_KEY, STUDENT_TERMS_ACCEPTED_SESSION_KEY
-from ..db import save_chatbot_feedback
+from ..db import fetch_account_by_id, save_chatbot_feedback
 from ..request_validation import require_login
 
 from ..services import ai_service, student_session_service, transient_chat_service
@@ -156,6 +156,57 @@ chatbot_bp = Blueprint(
 )
 
 
+@chatbot_bp.post("/internal/maintenance/finalize-idle-student-conversations")
+def finalize_idle_student_conversations():
+    """Finalize abandoned student chats for the VPS-local maintenance timer.
+
+    This endpoint deliberately has no browser session.  It is protected by a
+    server-only secret header and is called through the loopback Gunicorn
+    listener, never by the public UI.
+    """
+
+    configured_key = str(
+        current_app.config.get("STUDENT_CHAT_IDLE_FINALIZER_KEY") or ""
+    )
+    provided_key = request.headers.get("X-CTRL4-Idle-Finalizer-Key", "")
+    if not configured_key or not hmac.compare_digest(configured_key, provided_key):
+        logger.warning("Rejected idle student conversation finalizer request.")
+        return jsonify(
+            {
+                "success": False,
+                "message": "Maintenance authorization failed.",
+                "errors": None,
+            }
+        ), 403
+
+    report = student_session_service.finalize_idle_sessions(
+        idle_timeout_seconds=current_app.config[
+            "STUDENT_CHAT_IDLE_TIMEOUT_SECONDS"
+        ],
+        transient_chat=transient_chat_service,
+        finalizer=finalize_conversation,
+        user_loader=lambda account_id: fetch_account_by_id(
+            account_id,
+            role="student",
+        ),
+    )
+    logger.info(
+        "Idle student conversation maintenance completed "
+        "(checked=%s finalized=%s cleared=%s failed=%s).",
+        report["checked"],
+        report["finalized"],
+        report["cleared"],
+        report["failed"],
+    )
+    return jsonify(
+        {
+            "success": True,
+            "message": "Idle student conversation maintenance completed.",
+            "data": report,
+        }
+    ), 200
+
+
 @chatbot_bp.post("/chat")
 def chat():
     payload = request.get_json(silent=True) or {}
@@ -292,6 +343,10 @@ def chat():
                 escalation_reason=session.get(_ESCALATION_REASON_SESSION_KEY),
                 appointment=session.get(_FINALIZATION_APPOINTMENT_KEY),
                 active_summary_id=session.get(_ACTIVE_SUMMARY_SESSION_KEY),
+            )
+            student_session_service.record_chat_activity(
+                user.get("id"),
+                session.get(STUDENT_SESSION_TOKEN_KEY),
             )
 
         return jsonify(

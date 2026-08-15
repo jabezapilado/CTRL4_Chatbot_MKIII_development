@@ -1,0 +1,12 @@
+[Unit]
+Description=Finalize idle CTRL4 student conversations
+After=network.target ctrl4.service
+Requires=ctrl4.service
+
+[Service]
+Type=oneshot
+User=ctrl4
+Group=ctrl4
+WorkingDirectory=/srv/ctrl4/app
+EnvironmentFile=/srv/ctrl4/app/backend/.env
+ExecStart=/bin/sh -c '/usr/bin/curl --fail --silent --show-error --max-time 190 --request POST --header "X-CTRL4-Idle-Finalizer-Key: ${CHATBOT_STUDENT_CHAT_IDLE_FINALIZER_KEY:-$CHATBOT_SECRET_KEY}" http://127.0.0.1:5001/internal/maintenance/finalize-idle-student-conversations'

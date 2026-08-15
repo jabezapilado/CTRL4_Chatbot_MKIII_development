@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import hmac
+import logging
+import time
 from pathlib import Path
 from typing import Any, Callable
 
@@ -12,6 +14,8 @@ from ..config import Config
 
 
 _CACHE_PREFIX = "active-student-session:"
+_INDEX_KEY = "active-student-session-index"
+logger = logging.getLogger(__name__)
 _DEFAULT_CONVERSATION_CONTEXT = {
     "topic": "general",
     "language": "unknown",
@@ -81,14 +85,14 @@ class StudentSessionService:
         session_text = str(session_id or "").strip()
         if key is None or not token_text or not session_text:
             return False
-        self._cache.set(
-            key,
+        self._save(
+            account_id,
             {
                 "token": token_text,
                 "session_id": session_text,
                 "conversation": dict(_DEFAULT_CONVERSATION_CONTEXT),
+                "last_chat_activity_at": int(time.time()),
             },
-            timeout=self._timeout_seconds,
         )
         return True
 
@@ -131,11 +135,22 @@ class StudentSessionService:
             appointment=appointment,
             active_summary_id=active_summary_id,
         )
-        self._cache.set(
-            self._key(account_id),
-            current,
-            timeout=self._timeout_seconds,
-        )
+        self._save(account_id, current)
+        return True
+
+    def record_chat_activity(self, account_id: object, token: object) -> bool:
+        """Record a completed student chat exchange for idle finalization.
+
+        Page loads, scrolling, and dashboard traffic do not extend this timer.
+        That prevents a closed or abandoned browser from keeping its active
+        conversation visible indefinitely.
+        """
+
+        current = self._current_for_token(account_id, token)
+        if current is None:
+            return False
+        current["last_chat_activity_at"] = int(time.time())
+        self._save(account_id, current)
         return True
 
     def finalize_replaced_session(
@@ -181,11 +196,7 @@ class StudentSessionService:
         )
         transient_chat.clear(current["session_id"], account_id)
         current["conversation"] = dict(_DEFAULT_CONVERSATION_CONTEXT)
-        self._cache.set(
-            self._key(account_id),
-            current,
-            timeout=self._timeout_seconds,
-        )
+        self._save(account_id, current)
         return result
 
     def set_appointment_context(
@@ -210,11 +221,7 @@ class StudentSessionService:
             appointment=appointment,
             active_summary_id=context["active_summary_id"],
         )
-        self._cache.set(
-            self._key(account_id),
-            current,
-            timeout=self._timeout_seconds,
-        )
+        self._save(account_id, current)
         return True
 
     def clear_conversation_context(self, account_id: object, token: object) -> bool:
@@ -224,11 +231,7 @@ class StudentSessionService:
         if current is None:
             return False
         current["conversation"] = dict(_DEFAULT_CONVERSATION_CONTEXT)
-        self._cache.set(
-            self._key(account_id),
-            current,
-            timeout=self._timeout_seconds,
-        )
+        self._save(account_id, current)
         return True
 
     def is_current(self, account_id: object, token: object) -> bool:
@@ -238,11 +241,7 @@ class StudentSessionService:
             return False
         if not hmac.compare_digest(current["token"], candidate):
             return False
-        self._cache.set(
-            self._key(account_id),
-            current,
-            timeout=self._timeout_seconds,
-        )
+        self._save(account_id, current)
         return True
 
     def clear_if_current(self, account_id: object, token: object) -> bool:
@@ -253,7 +252,85 @@ class StudentSessionService:
         if key is None:
             return False
         self._cache.delete(key)
+        self._remove_from_index(account_id)
         return True
+
+    def finalize_idle_sessions(
+        self,
+        *,
+        idle_timeout_seconds: int,
+        transient_chat: Any,
+        finalizer: Callable[..., dict],
+        user_loader: Callable[[int], dict | None],
+        now_epoch: int | None = None,
+    ) -> dict[str, int]:
+        """Finalize student chats abandoned beyond the approved idle window.
+
+        Only compact lease metadata and the existing bounded transient chat are
+        read.  No transcript is made durable by this maintenance operation.
+        A failed finalization keeps the lease intact for a safe retry.
+        """
+
+        timeout = max(60, int(idle_timeout_seconds))
+        now = int(time.time()) if now_epoch is None else int(now_epoch)
+        report = {"checked": 0, "finalized": 0, "cleared": 0, "failed": 0}
+
+        for account_id in self._indexed_account_ids():
+            current = self._get(account_id)
+            if current is None:
+                self._remove_from_index(account_id)
+                continue
+
+            report["checked"] += 1
+            last_activity = current.get("last_chat_activity_at")
+            if not isinstance(last_activity, int):
+                # Leases created before this safeguard get one full idle
+                # window from their first maintenance pass instead of being
+                # unexpectedly signed out during deployment.
+                current["last_chat_activity_at"] = now
+                self._save(account_id, current)
+                continue
+            if now - last_activity < timeout:
+                continue
+
+            context = current["conversation"]
+            try:
+                user = user_loader(account_id)
+                conversation = transient_chat.get_visible_history(
+                    current["session_id"], account_id
+                )
+                if user is not None and (
+                    conversation or context.get("active_summary_id")
+                ):
+                    result = finalizer(
+                        user=user,
+                        conversation=conversation,
+                        topic=context["topic"],
+                        language=context["language"],
+                        emotion=context["emotion"],
+                        flagged=context["flagged"],
+                        review_only=context["review_only"],
+                        escalation_reason=context["escalation_reason"],
+                        appointment=context["appointment"],
+                        active_summary_id=context["active_summary_id"],
+                    )
+                    if not isinstance(result, dict) or not result.get("success"):
+                        raise RuntimeError("Idle conversation finalization was unsuccessful.")
+                    report["finalized"] += 1
+                transient_chat.clear(current["session_id"], account_id)
+                key = self._key(account_id)
+                if key is not None:
+                    self._cache.delete(key)
+                self._remove_from_index(account_id)
+                report["cleared"] += 1
+            except Exception:
+                report["failed"] += 1
+                logger.exception(
+                    "Idle student conversation finalization failed (account_id=%s).",
+                    account_id,
+                )
+
+        return report
 
     def _current_for_token(self, account_id: object, token: object) -> dict | None:
         current = self._get(account_id)
@@ -281,7 +358,63 @@ class StudentSessionService:
             "conversation": self._conversation_context_from_value(
                 value.get("conversation")
             ),
+            "last_chat_activity_at": self._activity_timestamp(
+                value.get("last_chat_activity_at")
+            ),
         }
+
+    def _save(self, account_id: object, value: dict) -> bool:
+        key = self._key(account_id)
+        if key is None:
+            return False
+        self._cache.set(key, value, timeout=self._timeout_seconds)
+        self._add_to_index(account_id)
+        return True
+
+    def _indexed_account_ids(self) -> list[int]:
+        value = self._cache.get(_INDEX_KEY)
+        if not isinstance(value, list):
+            return []
+        account_ids: list[int] = []
+        for item in value:
+            try:
+                account_id = int(item)
+            except (TypeError, ValueError):
+                continue
+            if account_id > 0 and account_id not in account_ids:
+                account_ids.append(account_id)
+        return account_ids
+
+    def _add_to_index(self, account_id: object) -> None:
+        try:
+            value = int(account_id)
+        except (TypeError, ValueError):
+            return
+        if value <= 0:
+            return
+        account_ids = self._indexed_account_ids()
+        if value not in account_ids:
+            account_ids.append(value)
+        self._cache.set(_INDEX_KEY, account_ids, timeout=self._timeout_seconds)
+
+    def _remove_from_index(self, account_id: object) -> None:
+        try:
+            value = int(account_id)
+        except (TypeError, ValueError):
+            return
+        account_ids = [item for item in self._indexed_account_ids() if item != value]
+        if account_ids:
+            self._cache.set(_INDEX_KEY, account_ids, timeout=self._timeout_seconds)
+        else:
+            self._cache.delete(_INDEX_KEY)
+
+    @staticmethod
+    def _activity_timestamp(value: object) -> int | None:
+        try:
+            timestamp = int(value)
+        except (TypeError, ValueError):
+            return None
+        return timestamp if timestamp > 0 else None
 
     @classmethod
     def _conversation_context_from_value(cls, value: object) -> dict:

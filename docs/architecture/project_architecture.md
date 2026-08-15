@@ -88,8 +88,8 @@ Appointment policy is service-owned:
 
 Raw message history is used only for the active interaction and finalization;
 the authenticated session retains a bounded recent window of up to 50 exchanges
-for continuity, using the same bounded text budget as before. It is not
-persisted as a transcript and is cleared on finalization, logout, expiry, or
+for continuity, using the same bounded text budget as before. It is not persisted as a transcript and is
+cleared on finalization, logout, expiry, or
 student device replacement. Finalization persists the existing
 counselor-oriented summary and approved metadata, and may create one
 summary-linked escalation. Staff-only case workflows build on flagged

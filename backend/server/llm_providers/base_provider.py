@@ -28,6 +28,7 @@ class LLMResponse:
     success: bool
     text: str
     error: str | None = None
+    finish_reason: str | None = None
 
 
 class BaseProvider(ABC):

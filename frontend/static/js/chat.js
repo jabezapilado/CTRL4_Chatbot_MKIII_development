@@ -20,7 +20,7 @@ let inactivityTimer = null;
 // Student chat is intentionally the only surface that uses this shorter idle
 // policy. Staff and administrator dashboard sessions keep their normal
 // server-side session behavior.
-const STUDENT_INACTIVITY_TIMEOUT = 15 * 60 * 1000;
+const STUDENT_INACTIVITY_TIMEOUT = 20 * 60 * 1000;
 const INACTIVITY_RETRY_DELAY = 60 * 1000;
 let inactivityDeadline = 0;
 let inactivityLogoutInProgress = false;
@@ -184,7 +184,7 @@ async function endStudentSessionForInactivity() {
   });
 }
 
-function recordActivity() {
+function recordChatActivity() {
   if (inactivityLogoutInProgress) return;
   inactivityDeadline = Date.now() + STUDENT_INACTIVITY_TIMEOUT;
   scheduleInactivityCheck();
@@ -512,7 +512,7 @@ async function sendMessage() {
   // Show user message
   appendUserMessage(text);
 
-  recordActivity();
+  recordChatActivity();
 
   // Show typing indicator
   showTypingIndicator();
@@ -553,7 +553,7 @@ async function sendMessage() {
     currentEmotion = result.emotion || currentEmotion;
     currentFlagged = Boolean(result.escalated);
 
-    recordActivity();
+    recordChatActivity();
 
     if (result.escalated) {
       setTimeout(appendEscalationNotice, 400);
@@ -653,7 +653,6 @@ async function finalizeConversation({ resetUI = true } = {}) {
       input.placeholder = "Type your message here...";
 
       initializeChat();
-      recordActivity();
     }
 
     return true;
@@ -718,7 +717,6 @@ async function initializeChat() {
     restoreVisibleChat(activeChat);
     setChatTurnPending(false);
     input.focus();
-    recordActivity();
     return;
   }
 
@@ -733,7 +731,6 @@ async function initializeChat() {
     appendBotMessage(WELCOME_MESSAGE);
     setChatTurnPending(false);
     input.focus();
-    recordActivity();
   }, typingDelay);
 }
 

@@ -65,10 +65,10 @@ reference, including optional seed-account and RAG tuning values.
 | --- | --- |
 | Runtime | `CHATBOT_ENV=production`, `CHATBOT_DEBUG=false`, a strong unique `CHATBOT_SECRET_KEY`, and `CHATBOT_PORT` (default `5001`) |
 | Database | `CHATBOT_DB_HOST`, `CHATBOT_DB_PORT`, `CHATBOT_DB_USER`, `CHATBOT_DB_PASSWORD`, `CHATBOT_DB_NAME`; optionally `CHATBOT_DB_SSL_CA` and `CHATBOT_DB_SSL_VERIFY_CERT=true` |
-| Sessions | `CHATBOT_SESSION_TYPE=cachelib`, an absolute protected `CHATBOT_SESSION_FILE_DIR`, and `CHATBOT_SESSION_COOKIE_SECURE=true` |
+| Sessions | `CHATBOT_SESSION_TYPE=cachelib`, an absolute protected `CHATBOT_SESSION_FILE_DIR`, `CHATBOT_SESSION_COOKIE_SECURE=true`, and `CHATBOT_STUDENT_CHAT_IDLE_TIMEOUT_SECONDS=1200` |
 | Logging | an absolute protected `CHATBOT_LOG_FILE`, `CHATBOT_LOG_LEVEL`, `CHATBOT_LOG_MAX_BYTES`, and `CHATBOT_LOG_BACKUP_COUNT` |
 | Database startup | `CHATBOT_DATABASE_INITIALIZE_ON_START=false`; perform upgrades explicitly after backup |
-| AI | `CHATBOT_LLM_PROVIDER`, Gemini values when using Gemini, or Ollama URL/model when using Ollama. `CHATBOT_GEMINI_TEMPERATURE` controls response variation; `CHATBOT_GEMINI_MAX_OUTPUT_TOKENS` limits reply length, not active-chat context. |
+| AI | `CHATBOT_LLM_PROVIDER`, Gemini values when using Gemini, or Ollama URL/model when using Ollama. `CHATBOT_GEMINI_TEMPERATURE` controls response variation; `CHATBOT_GEMINI_MAX_OUTPUT_TOKENS` limits reply length, not active-chat context. Gemini retries a visibly incomplete candidate once with a concise-completion requirement. |
 | RAG | `CHATBOT_RAG_DOCS_DIR`, `CHATBOT_RAG_INDEX_DIR`; set `CHATBOT_RAG_AUTO_BUILD_ON_START=false` after provisioning the index |
 
 Production startup rejects unsafe combinations: debug mode, the default secret,
@@ -78,6 +78,52 @@ migrations without `CHATBOT_DATABASE_BACKUP_CONFIRMED=true`.
 Development behavior is unchanged: `CHATBOT_ENV` defaults to `development`,
 debug defaults to `true`, and database initialization remains enabled by
 default.
+
+### Server-owned idle student-chat finalization
+
+Browsers cannot reliably run logout JavaScript after a tab is closed or a
+phone sleeps. Production therefore runs a small **VPS-local** timer every
+minute. It finalizes a student conversation only after the configured period
+without a completed chat exchange (20 minutes by default), preserves the
+existing final summary and escalation workflow, clears the active student
+lease, and never makes a transcript durable.
+
+The internal endpoint is bound to Gunicorn's loopback listener and requires a
+private header value. Set a dedicated value in the VPS-only `backend/.env`
+when possible:
+
+```ini
+CHATBOT_STUDENT_CHAT_IDLE_TIMEOUT_SECONDS=1200
+CHATBOT_STUDENT_CHAT_IDLE_FINALIZER_KEY=replace-with-a-long-random-secret
+```
+
+If the finalizer key is absent, CTRL4 uses the required `CHATBOT_SECRET_KEY`
+only for the loopback maintenance call. Never put either value in GitHub,
+browser code, or a command copied into a public shell history.
+
+Install the tracked timer units once on the VPS after the application code has
+been deployed:
+
+```bash
+sudo install -m 644 /srv/ctrl4/app/docs/deployment/systemd/ctrl4-idle-finalizer.service \
+  /etc/systemd/system/ctrl4-idle-finalizer.service
+sudo install -m 644 /srv/ctrl4/app/docs/deployment/systemd/ctrl4-idle-finalizer.timer \
+  /etc/systemd/system/ctrl4-idle-finalizer.timer
+sudo systemctl daemon-reload
+sudo systemctl enable --now ctrl4-idle-finalizer.timer
+systemctl list-timers ctrl4-idle-finalizer.timer
+```
+
+Verify a manual safe run without printing its secret:
+
+```bash
+sudo systemctl start ctrl4-idle-finalizer.service
+sudo journalctl -u ctrl4-idle-finalizer.service -n 20 --no-pager
+```
+
+The timer reads the VPS-only environment file and connects only to
+`127.0.0.1:5001`. Do not publish this maintenance endpoint through Nginx or
+add a public firewall rule for it.
 
 ### Temporary survey student registration
 

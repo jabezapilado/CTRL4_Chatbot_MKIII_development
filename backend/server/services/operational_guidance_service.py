@@ -111,7 +111,16 @@ class OperationalGuidanceService:
     def _is_location_question(text: str) -> bool:
         return bool(
             re.search(r"\b(?:where|location|address|room|saan|nasaan)\b", text)
-            and re.search(r"\b(?:guidance|office|counselor|counsellor)\b", text)
+            # A bare mention of a "counselor" is not enough.  Students can
+            # mention a counselor while discussing a personal concern (for
+            # example, a hypothetical roleplay).  Only resolve live office
+            # location when the message clearly targets the Guidance Office
+            # or a counselor's physical office.
+            and re.search(
+                r"\b(?:guidance\s+(?:office|counselor|counsellor)|"
+                r"(?:counselor|counsellor)'?s\s+office|office)\b",
+                text,
+            )
         )
 
     @staticmethod

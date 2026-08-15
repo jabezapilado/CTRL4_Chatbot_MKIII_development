@@ -15,10 +15,11 @@ the other device signed in. Choosing **Sign out other device and continue**
 first finalizes that active conversation through the usual Guidance Office
 review workflow, then starts a new session on this device. The other browser
 shows the normal signed-out login screen when it next connects.
-For privacy, an inactive student chat is finalized and signed out after
-15 minutes. If a phone sleeps while the chat is open, this happens when the
-browser next resumes; the completed conversation remains available to
-authorized Guidance Office staff through the normal Inbox workflow.
+For privacy, a student chat is finalized and signed out after **20 minutes**
+without another completed chat exchange. A server-owned inactivity finalizer
+also handles a closed browser or sleeping phone; it finalizes the active
+conversation through the normal Inbox workflow and signs the student out on
+their next request.
 
 ## Chatbot
 
