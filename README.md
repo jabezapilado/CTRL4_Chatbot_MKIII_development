@@ -229,8 +229,11 @@ Configure provider values only in `backend/.env`:
 - `CHATBOT_GEMINI_TEMPERATURE` controls response variation and
   `CHATBOT_GEMINI_MAX_OUTPUT_TOKENS` bounds a generated reply. Neither setting
   increases the amount of prior conversation retained for an active chat. A
-  clipped candidate receives one concise retry; increasing the token limit is
-  not a replacement for preserving a complete, focused response.
+  clipped candidate, including one that consumes its entire output budget while
+  reporting a normal stop, receives one concise retry. That retry uses a
+  response-only 1,536-token ceiling and asks for a complete response of at
+  most 160 words; increasing the normal token limit is not a replacement for
+  preserving a complete, focused response.
 - Use the configured Ollama URL and model values when
   `CHATBOT_LLM_PROVIDER=ollama`.
 

@@ -64,11 +64,13 @@ The format follows the principles of **Keep a Changelog**.
 
 ### Changed
 
-- Gemini responses that explicitly reach the configured output-token limit, or
-  visibly end mid-sentence despite a normal provider finish result, now receive
-  one concise-completion retry. CTRL4 never displays the original incomplete
-  candidate; if the retry is also incomplete, it safely reports a generation
-  failure instead of a cut-off reply.
+- Gemini responses that explicitly reach the configured output-token limit,
+  consume the complete output-token budget despite a normal provider finish
+  result, or visibly end mid-sentence now receive one concise-completion retry.
+  The retry has a response-only 1,536-token ceiling and a 160-word completion
+  contract. CTRL4 never displays the original incomplete candidate; if the
+  retry is also incomplete, it safely reports a generation failure instead of
+  a cut-off reply.
 - Refined operational Guidance Office question recognition so a general or
   hypothetical reference to a counselor cannot be mistaken for an office
   location request. Those questions continue to the normal safe response path.

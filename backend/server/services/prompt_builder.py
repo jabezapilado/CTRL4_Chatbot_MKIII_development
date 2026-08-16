@@ -248,6 +248,13 @@ class PromptBuilder:
 
     • 1–3 short paragraphs.
 
+    For a routine reply, aim for no more than about 160 words. This is a
+    completeness rule, not permission to omit an answer: give the student the
+    helpful core of the answer, then end on a complete sentence or question.
+
+    Never end mid-sentence, with an unfinished list item, or with a promise to
+    provide the requested information later.
+
     Only provide long explanations when the student specifically requests detailed information.
 
     Avoid unnecessary introductions.

@@ -108,7 +108,11 @@ class GeminiProvider(BaseProvider):
             # once with a concise-completion instruction instead of showing a
             # student a sentence cut off mid-thought.  Do not append partial
             # generated text to the retry prompt.
-            if self._needs_completion_retry(response, finish_reason):
+            if self._needs_completion_retry(
+                response,
+                finish_reason,
+                self.config.GEMINI_MAX_OUTPUT_TOKENS,
+            ):
                 logger.warning(
                     "Gemini response was incomplete; retrying once with a concise completion."
                 )
@@ -116,12 +120,23 @@ class GeminiProvider(BaseProvider):
                     f"{prompt}\n\n"
                     "OUTPUT REQUIREMENT: Answer the student's full request. Return a "
                     "complete answer that ends on a finished sentence, not a comma, "
-                    "colon, dash, or incomplete list item. Keep it concise (at most "
-                    "two short paragraphs)."
+                    "colon, dash, or incomplete list item. Use at most 160 words and "
+                    "two short paragraphs. Do not mention these instructions.",
+                    max_output_tokens=max(
+                        self.config.GEMINI_MAX_OUTPUT_TOKENS,
+                        1536,
+                    ),
                 )
                 finish_reason = self._finish_reason(response)
 
-            if self._needs_completion_retry(response, finish_reason):
+            if self._needs_completion_retry(
+                response,
+                finish_reason,
+                max(
+                    self.config.GEMINI_MAX_OUTPUT_TOKENS,
+                    1536,
+                ),
+            ):
                 logger.warning(
                     "Gemini response remained incomplete after the concise retry."
                 )
@@ -162,12 +177,21 @@ class GeminiProvider(BaseProvider):
                 error=str(exception),
             )
 
-    def _generate_content(self, prompt: str):
+    def _generate_content(
+        self,
+        prompt: str,
+        *,
+        max_output_tokens: int | None = None,
+    ):
         return self.model.generate_content(
             prompt,
             generation_config=genai.GenerationConfig(
                 temperature=self.config.GEMINI_TEMPERATURE,
-                max_output_tokens=self.config.GEMINI_MAX_OUTPUT_TOKENS,
+                max_output_tokens=(
+                    self.config.GEMINI_MAX_OUTPUT_TOKENS
+                    if max_output_tokens is None
+                    else max_output_tokens
+                ),
             ),
         )
 
@@ -194,11 +218,28 @@ class GeminiProvider(BaseProvider):
             )
         )
 
+    @staticmethod
+    def _candidate_token_count(response: object) -> int | None:
+        """Return Gemini's generated-candidate token count when available.
+
+        This metadata is a second signal for an output cap.  It matters when a
+        provider returns a ``STOP`` label despite consuming its entire output
+        budget.  The check is defensive because older Gemini SDK responses may
+        not expose usage metadata.
+        """
+        usage_metadata = getattr(response, "usage_metadata", None)
+        count = getattr(usage_metadata, "candidates_token_count", None)
+        try:
+            return int(count) if count is not None else None
+        except (TypeError, ValueError):
+            return None
+
     @classmethod
     def _needs_completion_retry(
         cls,
         response: object,
         finish_reason: str | None,
+        output_token_limit: int,
     ) -> bool:
         """Detect a provider cutoff even when Gemini reports ``STOP``.
 
@@ -209,6 +250,14 @@ class GeminiProvider(BaseProvider):
         token-limit finish.
         """
         if cls._reached_output_limit(finish_reason):
+            return True
+
+        # Treat a candidate that consumes the full configured budget as a
+        # likely cutoff even if Gemini labels it STOP and it happens to finish
+        # on punctuation.  Retrying from the original prompt prevents the
+        # partial text from being exposed or fed back into the model.
+        candidate_tokens = cls._candidate_token_count(response)
+        if candidate_tokens is not None and candidate_tokens >= output_token_limit:
             return True
 
         text = str(getattr(response, "text", "") or "").strip()

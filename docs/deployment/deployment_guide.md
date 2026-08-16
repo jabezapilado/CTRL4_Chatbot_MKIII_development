@@ -68,7 +68,7 @@ reference, including optional seed-account and RAG tuning values.
 | Sessions | `CHATBOT_SESSION_TYPE=cachelib`, an absolute protected `CHATBOT_SESSION_FILE_DIR`, `CHATBOT_SESSION_COOKIE_SECURE=true`, and `CHATBOT_STUDENT_CHAT_IDLE_TIMEOUT_SECONDS=1200` |
 | Logging | an absolute protected `CHATBOT_LOG_FILE`, `CHATBOT_LOG_LEVEL`, `CHATBOT_LOG_MAX_BYTES`, and `CHATBOT_LOG_BACKUP_COUNT` |
 | Database startup | `CHATBOT_DATABASE_INITIALIZE_ON_START=false`; perform upgrades explicitly after backup |
-| AI | `CHATBOT_LLM_PROVIDER`, Gemini values when using Gemini, or Ollama URL/model when using Ollama. `CHATBOT_GEMINI_TEMPERATURE` controls response variation; `CHATBOT_GEMINI_MAX_OUTPUT_TOKENS` limits reply length, not active-chat context. Gemini retries a visibly incomplete candidate once with a concise-completion requirement. |
+| AI | `CHATBOT_LLM_PROVIDER`, Gemini values when using Gemini, or Ollama URL/model when using Ollama. `CHATBOT_GEMINI_TEMPERATURE` controls response variation; `CHATBOT_GEMINI_MAX_OUTPUT_TOKENS` limits reply length, not active-chat context. Gemini retries one visibly incomplete or output-budget-exhausted candidate once with a concise-completion requirement and a response-only 1,536-token ceiling. |
 | RAG | `CHATBOT_RAG_DOCS_DIR`, `CHATBOT_RAG_INDEX_DIR`; set `CHATBOT_RAG_AUTO_BUILD_ON_START=false` after provisioning the index |
 
 Production startup rejects unsafe combinations: debug mode, the default secret,

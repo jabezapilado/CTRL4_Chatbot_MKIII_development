@@ -98,6 +98,32 @@ class _UnfinishedStopModel(_Model):
         return self._responses.pop(0)
 
 
+class _BudgetExhaustedStopModel(_Model):
+    def __init__(self) -> None:
+        super().__init__()
+        self._responses = [
+            types.SimpleNamespace(
+                text="This reply appears finished but used the full response budget.",
+                candidates=[types.SimpleNamespace(finish_reason="STOP")],
+                usage_metadata=types.SimpleNamespace(candidates_token_count=640),
+            ),
+            types.SimpleNamespace(
+                text="Here is the complete answer within the available response budget.",
+                candidates=[types.SimpleNamespace(finish_reason="STOP")],
+                usage_metadata=types.SimpleNamespace(candidates_token_count=80),
+            ),
+        ]
+
+    def generate_content(
+        self,
+        prompt: str,
+        *,
+        generation_config: _GenerationConfig,
+    ) -> object:
+        self.calls.append((prompt, generation_config))
+        return self._responses.pop(0)
+
+
 def _load_provider() -> tuple[type, _Model]:
     root_package = types.ModuleType("gemini_provider_test")
     root_package.__path__ = []
@@ -254,6 +280,44 @@ class GeminiProviderConfigurationTests(unittest.TestCase):
             self.assertEqual(result.text, "Here is the complete answer.")
             self.assertEqual(len(unfinished_model.calls), 2)
             self.assertIn("Answer the student's full request", unfinished_model.calls[1][0])
+        finally:
+            for name, module in previous_modules.items():
+                if module is None:
+                    sys.modules.pop(name, None)
+                else:
+                    sys.modules[name] = module
+
+    def test_retries_when_stop_response_consumes_the_output_budget(self) -> None:
+        module_names = (
+            "gemini_provider_test",
+            "gemini_provider_test.server",
+            PACKAGE,
+            "gemini_provider_test.server.config",
+            f"{PACKAGE}.gemini_provider",
+            f"{PACKAGE}.base_provider",
+            "google",
+            "google.generativeai",
+        )
+        previous_modules = {name: sys.modules.get(name) for name in module_names}
+
+        try:
+            provider_class, _model = _load_provider()
+            budget_model = _BudgetExhaustedStopModel()
+            provider = provider_class()
+            provider.model = budget_model
+
+            result = provider.generate("Prompt")
+
+            self.assertTrue(result.success)
+            self.assertEqual(
+                result.text,
+                "Here is the complete answer within the available response budget.",
+            )
+            self.assertEqual(len(budget_model.calls), 2)
+            self.assertEqual(
+                budget_model.calls[1][1].values["max_output_tokens"],
+                1536,
+            )
         finally:
             for name, module in previous_modules.items():
                 if module is None:
