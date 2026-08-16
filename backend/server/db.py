@@ -63,6 +63,7 @@ APPOINTMENT_STATUSES: Final[tuple[str, ...]] = (
     "completed",
 )
 APPOINTMENT_CONFLICT_LOCK_TIMEOUT_SECONDS: Final[int] = 5
+STUDENT_NUMBER_ALLOCATION_MAX_ATTEMPTS: Final[int] = 5
 APPOINTMENT_CONFLICT_BLOCKING_STATUSES: Final[tuple[str, ...]] = (
     "pending",
     "confirmed",
@@ -3853,7 +3854,10 @@ def create_account(
 
     # Automatic account number generation
     if role == "student":
-        student_number = generate_next_student_number()
+        # Allocate this inside the persistence retry below.  Multiple survey
+        # registrations can otherwise read the same next number before either
+        # INSERT commits.
+        student_number = None
         staff_number = None
     elif role == "staff":
         staff_number = generate_next_staff_number()
@@ -3883,10 +3887,7 @@ def create_account(
     if fetch_account_by_email(email):
         raise ValueError("An account with this email already exists.")
     
-    if (
-        student_number
-        and fetch_account_by_student_number(student_number)
-    ):
+    if student_number and fetch_account_by_student_number(student_number):
         raise ValueError("Student number already exists.")
     
     if (
@@ -3898,50 +3899,69 @@ def create_account(
     if gender and gender not in ALLOWED_GENDERS:
         raise ValueError("Invalid gender.")
 
-    with _database_connection() as connection:
-        with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                INSERT INTO accounts (
-                    full_name,
-                    student_number,
-                    staff_number,
-                    gender,
-                    program,
-                    assigned_programs,
-                    office,
-                    support_statement,
-                    consultation_rooms,
-                    consultation_schedules,
-                    email,
-                    password_hash,
-                    role,
-                    status,
-                    created_at
-                )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'active', %s)
-                """,
-                (
-                    full_name,
-                    student_number,
-                    staff_number,
-                    gender,
-                    program,
-                    _json_column_value(assigned_programs),
-                    office,
-                    support_statement,
-                    _json_column_value(consultation_rooms),
-                    _json_column_value(consultation_schedules),
-                    email,
-                    password_hash,
-                    role,
-                    current_time(),
-                ),
+    attempts = STUDENT_NUMBER_ALLOCATION_MAX_ATTEMPTS if role == "student" else 1
+    for attempt in range(attempts):
+        if role == "student":
+            student_number = generate_next_student_number()
+
+        try:
+            with _database_connection() as connection:
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        """
+                        INSERT INTO accounts (
+                            full_name,
+                            student_number,
+                            staff_number,
+                            gender,
+                            program,
+                            assigned_programs,
+                            office,
+                            support_statement,
+                            consultation_rooms,
+                            consultation_schedules,
+                            email,
+                            password_hash,
+                            role,
+                            status,
+                            created_at
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'active', %s)
+                        """,
+                        (
+                            full_name,
+                            student_number,
+                            staff_number,
+                            gender,
+                            program,
+                            _json_column_value(assigned_programs),
+                            office,
+                            support_statement,
+                            _json_column_value(consultation_rooms),
+                            _json_column_value(consultation_schedules),
+                            email,
+                            password_hash,
+                            role,
+                            current_time(),
+                        ),
+                    )
+
+                    account_id = cursor.lastrowid
+
+                connection.commit()
+        except mysql.connector.IntegrityError as exc:
+            is_student_number_collision = (
+                role == "student"
+                and getattr(exc, "errno", None) == 1062
+                and "student_number" in str(exc).lower()
             )
-
-            account_id = cursor.lastrowid
-
-        connection.commit()
+            if is_student_number_collision and attempt + 1 < attempts:
+                continue
+            raise
+        else:
+            break
+    else:
+        raise RuntimeError("Unable to allocate a unique student number.")
 
     return {
         "id": account_id,

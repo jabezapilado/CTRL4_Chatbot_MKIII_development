@@ -4,10 +4,81 @@ import unittest
 from unittest.mock import patch
 from flask import Flask
 
+import mysql.connector
+
 from backend.server.services import account_service
 
 
 class AccountBoundaryTests(unittest.TestCase):
+    def test_student_account_retries_after_concurrent_number_collision(self) -> None:
+        from backend.server import db
+
+        class Cursor:
+            def __init__(self, exception=None, account_id=0):
+                self.exception = exception
+                self.lastrowid = account_id
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def execute(self, *_args):
+                if self.exception:
+                    raise self.exception
+
+        class Connection:
+            def __init__(self, cursor):
+                self.cursor_value = cursor
+                self.committed = False
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def cursor(self):
+                return self.cursor_value
+
+            def commit(self):
+                self.committed = True
+
+        duplicate_number = mysql.connector.IntegrityError(
+            msg="Duplicate entry '2024-00042' for key 'accounts.student_number'",
+            errno=1062,
+        )
+        first_connection = Connection(Cursor(exception=duplicate_number))
+        second_connection = Connection(Cursor(account_id=91))
+
+        with patch.object(db, "initialize_database"), patch.object(
+            db,
+            "fetch_account_by_email",
+            return_value=None,
+        ), patch.object(
+            db,
+            "generate_next_student_number",
+            side_effect=("2024-00042", "2024-00043"),
+        ) as next_number, patch.object(
+            db,
+            "_database_connection",
+            side_effect=(first_connection, second_connection),
+        ):
+            account = db.create_account(
+                full_name="Concurrent Survey Student",
+                email="concurrent@student.hau.edu.ph",
+                password_hash="hash",
+                role="student",
+                gender="Prefer not to say",
+                program="BS Computer Science",
+            )
+
+        self.assertEqual(account["id"], 91)
+        self.assertEqual(account["student_number"], "2024-00043")
+        self.assertEqual(next_number.call_count, 2)
+        self.assertTrue(second_connection.committed)
+
     def test_verified_profile_seed_uses_only_documented_rooms_and_schedule_windows(self) -> None:
         from backend.server import db
 

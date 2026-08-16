@@ -25,6 +25,10 @@ The format follows the principles of **Keep a Changelog**.
   code. It creates only student accounts, generates student numbers
   server-side, accepts only active programs and `@student.hau.edu.ph` emails,
   and retains the normal sign-in and Terms acknowledgement flow.
+- Student-number allocation now retries a database collision during concurrent
+  registrations, so survey participants registering at the same time do not
+  lose their account creation request because they were assigned the same next
+  number.
 
 - Added a local SSH-tunnel helper for secure production database UI access.
   It forwards a Mac or workstation-local port to the VPS-local MySQL listener

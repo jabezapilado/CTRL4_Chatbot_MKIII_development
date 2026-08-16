@@ -145,9 +145,11 @@ sudo systemctl status ctrl4 --no-pager
 The public `/register` page is available only while both values are set. It
 creates **student** accounts only, accepts active programs and
 `@student.hau.edu.ph` email addresses, generates the student number on the
-server, and keeps the regular sign-in and Terms acknowledgement flow. Do not
-commit the registration code, share it outside the survey participants, or use
-it as a replacement for account administration.
+server, and keeps the regular sign-in and Terms acknowledgement flow. Student
+number allocation safely retries a collision when several participants submit
+registration at once. Do not commit the registration code, share it outside
+the survey participants, or use it as a replacement for account
+administration.
 
 Immediately after the survey, close registration and restart the service:
 
