@@ -223,6 +223,11 @@ body {
   box-shadow: 0 10px 24px rgba(123, 17, 19, 0.08);
 }
 
+/* Keep notices that are initially hidden out of every browser's layout. */
+.login-notice[hidden] {
+  display: none !important;
+}
+
 .login-notice-icon {
   width: 24px;
   height: 24px;
@@ -311,6 +316,15 @@ body {
   margin-top: 18px;
   display: grid;
   gap: 16px;
+}
+
+/*
+ * The registration page hides this form only after a successful account
+ * creation. Its grid display rule otherwise wins over the browser's default
+ * [hidden] handling in some WebKit-based browsers.
+ */
+.login-form[hidden] {
+  display: none !important;
 }
 
 .form-group {

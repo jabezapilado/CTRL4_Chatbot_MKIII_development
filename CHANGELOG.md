@@ -68,6 +68,10 @@ The format follows the principles of **Keep a Changelog**.
 
 ### Changed
 
+- Fixed the survey-registration page so its account-created notice is hidden
+  until the current browser successfully submits the form, and the completed
+  form then consistently disappears in Safari, Chrome, Firefox, and other
+  browsers.
 - Gemini responses that explicitly reach the configured output-token limit,
   consume the complete output-token budget despite a normal provider finish
   result, or visibly end mid-sentence now receive one concise-completion retry.

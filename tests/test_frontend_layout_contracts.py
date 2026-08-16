@@ -631,6 +631,16 @@ class FrontendLayoutContractTests(unittest.TestCase):
             stylesheet,
         )
 
+    def test_successful_student_registration_hides_the_completed_form(self) -> None:
+        template = _read("frontend/templates/student_registration.html")
+        stylesheet = _read("frontend/static/css/login.css")
+
+        self.assertIn('form.hidden = true;', template)
+        self.assertIn('successBox.hidden = false;', template)
+        self.assertIn(".login-notice[hidden]", stylesheet)
+        self.assertIn(".login-form[hidden]", stylesheet)
+        self.assertIn("display: none !important;", stylesheet)
+
 
 if __name__ == "__main__":
     unittest.main()
