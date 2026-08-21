@@ -39,8 +39,10 @@ The model identity and supporting configuration are documented in the
 
 The evaluation was run against the repository's retained English test split,
 without retraining or changing its labels. The generated classification report,
-confusion matrix, metric files, provenance JSON, and charts are retained only
-as protected local research artifacts, not Git content.
+confusion matrix, metric files, provenance JSON, and charts are retained in the
+versioned [`evaluation/`](evaluation/) directory and mirrored in the protected
+local research-artifact directory
+`local_artifacts/generated_evaluations/english_model_v10_20260821/`.
 
 ## Training-history provenance
 

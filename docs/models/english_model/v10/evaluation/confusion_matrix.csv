@@ -1,0 +1,6 @@
+,Positive,Neutral,Anger,Sadness,Fear
+Positive,2626,274,66,36,21
+Neutral,287,1677,167,62,38
+Anger,77,239,812,56,34
+Sadness,42,67,44,866,14
+Fear,11,22,15,20,474

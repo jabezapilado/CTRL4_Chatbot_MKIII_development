@@ -1,0 +1,23 @@
+{
+  "generated_at_utc": "2026-08-21T14:24:18.070989+00:00",
+  "artifact_version": "v10",
+  "artifact_name": "ctrl4-eerm-english-latest-model.safetensors",
+  "artifact_manifest": "ai_engine/models/english/latest/runtime_artifact_manifest.json",
+  "runtime_artifact_hashes": {
+    "model.safetensors": "d90161c6b064d42ecee866e099f9f3125abb969e7a5ce76cd4c4fb32369ccce9",
+    "config.json": "d0801564e5d549d6e5aab649e196cdd6e95629e5a1a57c20624acd722165925e"
+  },
+  "test_split": {
+    "samples": 8047,
+    "dataset_fingerprint": "d6240ebcc96abe13",
+    "label_mapping": {
+      "Positive": 0,
+      "Neutral": 1,
+      "Anger": 2,
+      "Sadness": 3,
+      "Fear": 4
+    },
+    "preprocessing_max_length": 128
+  },
+  "metric_averaging": "weighted for precision, recall, and F1-score"
+}

@@ -10,6 +10,8 @@ evaluation artifacts. It is not a runtime-artifact distribution channel.
   - [`english_model/v10/model_card.md`](english_model/v10/model_card.md)
   - [`english_model/v10/runtime_artifact_verification.md`](english_model/v10/runtime_artifact_verification.md)
   - [`english_model/v10/evaluation_status.md`](english_model/v10/evaluation_status.md)
+  - [`english_model/v10/evaluation/`](english_model/v10/evaluation/) for the
+    versioned v10 charts, metrics, and evaluation provenance.
 - `filipino_model/` contains historical Filipino-model planning and evaluation
   documentation.
 - `evaluation/` and `training_history.json` are historical tracked outputs.
