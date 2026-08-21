@@ -3,8 +3,15 @@
 This script evaluates the saved model on the test split and generates
 artifacts used in Chapter 4 of the thesis.
 
-Evaluation artifacts are stored under docs/models/evaluation/.
+By default, evaluation artifacts are stored under docs/models/evaluation/.
+Use ``--output-dir`` for a version-specific evaluation run so historical
+artifacts are not overwritten.
 """
+
+from argparse import ArgumentParser
+from datetime import datetime, timezone
+from hashlib import sha256
+from pathlib import Path
 
 from ai_engine.core.models.model_loader import load_model
 from ai_engine.core.training.dataset import prepare_dataset, label_encoder
@@ -28,6 +35,8 @@ import matplotlib.pyplot as plt
 BASE_OUTPUT_DIR = os.path.join("docs", "models")
 EVALUATION_OUTPUT_DIR = os.path.join(BASE_OUTPUT_DIR, "evaluation")
 MAX_HISTORY_EPOCHS = 5
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+RUNTIME_ARTIFACT_DIR = PROJECT_ROOT / "ai_engine" / "models" / "english" / "latest"
 
 CLASS_NAMES = [
     emotion
@@ -239,17 +248,23 @@ def generate_per_class_metrics(report_df):
     return class_df
 
 
-def generate_training_history_plots():
+def generate_training_history_plots(history_path=None):
     """Load training history and generate training/validation loss and accuracy plots."""
-    history_path = os.path.join(BASE_OUTPUT_DIR, "training_history.json")
+    history_path = history_path or os.path.join(BASE_OUTPUT_DIR, "training_history.json")
     if not os.path.exists(history_path):
         print(f"Training history file '{history_path}' not found. Skipping training history plots generation.")
-        return
+        return False
 
     with open(history_path, "r") as f:
         history = json.load(f)
 
     os.makedirs(EVALUATION_OUTPUT_DIR, exist_ok=True)
+
+    # A Hugging Face ``trainer_state.json`` wraps per-epoch records in
+    # ``log_history``. Accept the file directly so an archived checkpoint can
+    # serve as the complete, version-matched source for the thesis charts.
+    if isinstance(history, dict) and isinstance(history.get("log_history"), list):
+        history = history["log_history"]
 
     # Hugging Face Trainer log_history format: list of dicts
     if isinstance(history, list):
@@ -432,7 +447,7 @@ def generate_training_history_plots():
         plt.savefig(acc_plot_path, dpi=300, bbox_inches="tight")
         plt.close()
         print(f"Training and validation accuracy plot saved to {acc_plot_path}")
-        return
+        return True
 
     # Fallback: dictionary-based plotting logic (legacy format)
     epochs = list(range(1, len(history.get("loss", [])) + 1))
@@ -477,9 +492,117 @@ def generate_training_history_plots():
     else:
         print("No accuracy data found in training history. Skipping accuracy plot generation.")
 
+    return True
 
-def main():
-    generate_training_history_plots()
+
+def _sha256(path):
+    """Return the SHA-256 hash for one runtime artifact file."""
+    digest = sha256()
+    with open(path, "rb") as artifact:
+        for block in iter(lambda: artifact.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def write_evaluation_provenance(test_dataset, artifact_version):
+    """Record the exact runtime artifact and test split used for one run."""
+    manifest_path = RUNTIME_ARTIFACT_DIR / "runtime_artifact_manifest.json"
+    with open(manifest_path, "r", encoding="utf-8") as manifest_file:
+        manifest = json.load(manifest_file)
+
+    model_path = RUNTIME_ARTIFACT_DIR / "model.safetensors"
+    config_path = RUNTIME_ARTIFACT_DIR / "config.json"
+    provenance = {
+        "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "artifact_version": artifact_version or manifest.get("artifact_version"),
+        "artifact_name": manifest.get("artifact_name"),
+        "artifact_manifest": str(manifest_path.relative_to(PROJECT_ROOT)),
+        "runtime_artifact_hashes": {
+            "model.safetensors": _sha256(model_path),
+            "config.json": _sha256(config_path),
+        },
+        "test_split": {
+            "samples": len(test_dataset),
+            "dataset_fingerprint": getattr(test_dataset, "_fingerprint", None),
+            "label_mapping": label_encoder,
+            "preprocessing_max_length": 128,
+        },
+        "metric_averaging": "weighted for precision, recall, and F1-score",
+    }
+
+    with open(
+        os.path.join(EVALUATION_OUTPUT_DIR, "evaluation_provenance.json"),
+        "w",
+        encoding="utf-8",
+    ) as output_file:
+        json.dump(provenance, output_file, indent=2)
+
+    print("Evaluation provenance saved.")
+
+
+def write_training_history_status(history_generated):
+    """State whether chart data was available for this versioned evaluation."""
+    status_path = os.path.join(EVALUATION_OUTPUT_DIR, "training_history_status.md")
+    if history_generated:
+        message = (
+            "# Training History Status\n\n"
+            "Training and validation charts were generated from the explicitly "
+            "selected training-history file for this evaluation run.\n"
+        )
+    else:
+        message = (
+            "# Training History Status\n\n"
+            "No version-matched per-epoch training history was supplied for this "
+            "evaluation run. Therefore, `training_validation_accuracy.png` and "
+            "`training_validation_loss.png` were intentionally not generated. "
+            "Generating those charts from another model version would misrepresent "
+            "the evaluated artifact.\n"
+        )
+
+    with open(status_path, "w", encoding="utf-8") as output_file:
+        output_file.write(message)
+
+
+def parse_arguments(argv=None):
+    """Parse output and provenance controls for a reproducible evaluation run."""
+    parser = ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--output-dir",
+        default=EVALUATION_OUTPUT_DIR,
+        help="Directory for generated evaluation artifacts.",
+    )
+    parser.add_argument(
+        "--artifact-version",
+        default=None,
+        help="Optional artifact version recorded in evaluation provenance.",
+    )
+    parser.add_argument(
+        "--training-history",
+        default=None,
+        help="Version-matched Trainer log-history JSON used only for training charts.",
+    )
+    parser.add_argument(
+        "--skip-training-history",
+        action="store_true",
+        help="Do not create training/validation charts when no matching history exists.",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv=None):
+    options = parse_arguments(argv)
+
+    global EVALUATION_OUTPUT_DIR
+    EVALUATION_OUTPUT_DIR = os.path.abspath(options.output_dir)
+    os.makedirs(EVALUATION_OUTPUT_DIR, exist_ok=True)
+
+    history_generated = False
+    if not options.skip_training_history:
+        history_path = options.training_history or os.path.join(
+            BASE_OUTPUT_DIR,
+            "training_history.json",
+        )
+        history_generated = generate_training_history_plots(history_path)
 
     model, tokenizer, test_dataset = load_resources()
 
@@ -500,6 +623,8 @@ def main():
     print(report_df)
     per_class_df = generate_per_class_metrics(report_df)
     print(per_class_df)
+    write_evaluation_provenance(test_dataset, options.artifact_version)
+    write_training_history_status(history_generated)
 
 
 if __name__ == "__main__":

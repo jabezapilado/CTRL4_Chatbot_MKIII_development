@@ -68,10 +68,11 @@ deliberately. They are not part of ordinary documentation or cleanup work.
 - [Emotion Label Lineage Report](research/emotion_label_lineage_report.md) —
   source-to-label transformation and runtime label mapping.
 - [Model and evaluation provenance](models/README.md) — historical
-  English/Filipino model documentation and tracked evaluation artifacts. This
-  code-adjacent path is retained because the training publication workflow owns
-  it; its contents are research records, not deployment instructions or model
-  binaries.
+  English/Filipino model documentation, tracked evaluation artifacts, and the
+  verified current-runtime v10 model card, integrity record, and held-out
+  evaluation record. This code-adjacent path is retained because the training
+  publication workflow owns it; its contents are research records, not
+  deployment instructions or model binaries.
 
 ## Roadmaps and historical material
 
