@@ -22,11 +22,19 @@ Holy Angel University.
 Permission is granted to view, study, and reference this source code for
 educational, research, and non-commercial purposes only.
 
+Any use must preserve this license, the original authorship notices, and the
+privacy and safety boundaries documented by the project. This permission does
+not grant a right to use student data, credentials, private deployment
+configuration, model artifacts, generated RAG indexes, SQL backups, or other
+restricted operational materials that may exist outside the tracked source
+code.
+
 You may:
 
 • Read and study the source code.
 • Use portions of the code for educational reference.
 • Cite this project in academic work.
+• Propose non-commercial improvements through the contribution process.
 
 You may NOT:
 
@@ -35,6 +43,10 @@ You may NOT:
 • Remove or alter the original authorship notices.
 • Use this project in commercial products without written permission from
   the authors.
+• Submit this project, substantial portions of it, or its documentation as
+  your own academic work.
+• Publish, share, or use protected student, case, credential, deployment, or
+  locally retained research material without the required authorization.
 
 This project is provided "AS IS", without warranty of any kind, express or
 implied, including but not limited to the warranties of merchantability,

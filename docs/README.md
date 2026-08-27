@@ -13,13 +13,17 @@ operational chat/case test records after a verified SQL backup while foundation
 data was retained. Versioned migrations, nine candidate indexes, and the
 saved-but-unvalidated startup hardening patch remain deferred work.
 
-Generated RAG artifacts are tracked operational assets and should be handled
-deliberately. They are not part of ordinary documentation or cleanup work.
+Generated RAG indexes and the provisioned production emotion-model artifact
+are operational assets. They must be provisioned and verified separately and
+are not ordinary source, documentation, or cleanup work.
 
 ## Current and authoritative references
 
 ### Architecture
 
+- [Technical Architecture](architecture/architecture.md) — comprehensive
+  system-level view of the CTRL4 components, technical stack, AI pipeline,
+  data/privacy model, and production deployment topology.
 - [Project Architecture](architecture/project_architecture.md) — domain
   boundaries, Route → Service → Database ownership, appointments, cases, AI,
   analytics, and reports.

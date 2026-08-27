@@ -258,6 +258,7 @@ tests/              Contract, integration, privacy, and release-readiness tests
 - [Documentation index](docs/README.md)
 - [Installation Guide](docs/deployment/installation_guide.md)
 - [Deployment Guide](docs/deployment/deployment_guide.md)
+- [Technical Architecture](docs/architecture/architecture.md)
 - [Project Architecture](docs/architecture/project_architecture.md)
 - [Security Architecture](docs/architecture/security_architecture.md)
 - [API Reference](docs/architecture/api_reference.md)
@@ -266,6 +267,12 @@ tests/              Contract, integration, privacy, and release-readiness tests
 - [Administrator Guide](docs/guides/administrator_guide.md)
 - [Project Context](docs/architecture/project_context.md)
 - [Changelog](CHANGELOG.md)
+
+## Project policies
+
+- [Contributing](CONTRIBUTING.md)
+- [Security Policy](SECURITY.md)
+- [Academic Use License](LICENSE)
 
 ## Screenshots
 
@@ -291,3 +298,5 @@ Do not remove or alter original authorship notices.
 ## License
 
 This repository is provided under the [Academic Use License](LICENSE).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution expectations and
+[SECURITY.md](SECURITY.md) for private vulnerability reporting.
