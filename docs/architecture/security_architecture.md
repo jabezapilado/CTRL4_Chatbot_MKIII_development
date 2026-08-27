@@ -1,7 +1,9 @@
 # CTRL4 Chatbot MK III — Security, Privacy, RBAC, and Sessions
 
-> **Current reference.** This document describes implemented controls through
-> Sprint 10. It does not turn future recommendations into current behavior.
+> **Current reference.** This document describes the controls implemented in
+> the supported final-release line (`v1.0.6` and later, including current
+> `v1.0.7`). Sprint 10 is historical validation context only; future
+> recommendations are not current behavior.
 
 ## Implemented access boundaries
 

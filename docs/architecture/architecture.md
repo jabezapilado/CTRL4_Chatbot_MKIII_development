@@ -220,6 +220,9 @@ Production responsibilities are separated as follows:
 - **GitHub Actions** deploys pushes to `main` by pulling the tracked source on
   the VPS, verifying the model artifact, restarting the service, and checking
   the local health endpoint.
+- **Private management access** to MySQL, phpMyAdmin, and Cockpit uses the
+  authenticated SSH-tunnel helper scripts only. These services are not
+  published as Nginx routes, public DNS records, or public management ports.
 
 Production secrets, database credentials, HTTPS private keys, model weights,
 and generated RAG artifacts are not committed to Git.
@@ -236,16 +239,20 @@ CTRL4_Chatbot/
 │   │   ├── auth.py               Server-side session ownership
 │   │   └── db.py                 Parameterized persistence helpers
 │   ├── sql/schema.sql            Relational schema
-│   └── scripts/                  Setup, verification, and operational scripts
+│   ├── scripts/                  Setup, verification, and operational scripts
+│   └── data/                     Local runtime state and generated local output
 ├── frontend/
 │   ├── templates/                Flask-rendered HTML templates
 │   └── static/                   CSS, JavaScript, images, and client assets
 ├── ai_engine/
+│   ├── configs/                  Model and AI configuration records
+│   ├── core/                     Models, preprocessing, schemas, tokenizers,
+│   │                             training, and supporting utilities
+│   ├── data/                     External, merged, and processed training data
 │   ├── knowledge_base/           Approved knowledge-base source records
-│   ├── models/                   Model release layout; weights are operational assets
-│   └── core/                     AI-engine support code
-├── docs/                         Architecture, deployment, user, model, and research docs
-├── scripts/                      Local operational helper scripts
+│   └── models/english/           Release layout; production weights stay VPS-only
+├── docs/                         Architecture, deployment, guides, models, and research docs
+├── scripts/                      Local SSH-tunnel and operational helper scripts
 ├── tests/                        Automated regression and fixture-based tests
 └── .github/workflows/            GitHub Actions production deployment workflow
 ```

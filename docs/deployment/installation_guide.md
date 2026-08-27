@@ -41,8 +41,12 @@ For a new empty development database, create the database and load
 `backend/sql/schema.sql`; see the exact commands in the
 [Deployment Guide](deployment_guide.md#database-initialization). The validated
 MK III local database is XAMPP MariaDB `soc_chatbot`; its live schema aligned
-with both `db.py` and `schema.sql`. Do not run migrations or cleanup against an
-existing database without a separate approved plan and verified backup.
+with both `db.py` and `schema.sql`. This local/XAMPP procedure is not a
+production procedure: production uses separately provisioned VPS MySQL and
+must be prepared or recovered through the Deployment Guide. Never point local
+configuration or test scripts at production. Do not run migrations or cleanup
+against an existing database without a separate approved plan and verified
+backup.
 
 ## Provision AI runtime assets
 

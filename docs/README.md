@@ -6,9 +6,11 @@ development constraints, follow the repository documentation and current test co
 
 ## MK III validated state
 
-The current local/demo baseline uses XAMPP MariaDB database `soc_chatbot`.
+The local/demo baseline can use the XAMPP MariaDB database `soc_chatbot`.
 Its live schema, `backend/server/db.py`, and `backend/sql/schema.sql` were
-structurally aligned in the MK III audit. The demo database was cleaned of
+structurally aligned in the MK III audit. Production instead uses a separately
+provisioned MySQL database on the Contabo VPS with VPS-only credentials; local
+demonstration data is never production data. The demo database was cleaned of
 operational chat/case test records after a verified SQL backup while foundation
 data was retained. Versioned migrations, nine candidate indexes, and the
 saved-but-unvalidated startup hardening patch remain deferred work.

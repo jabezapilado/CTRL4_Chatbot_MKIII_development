@@ -1,9 +1,9 @@
 # CTRL4 Chatbot MK III — Current Project Architecture
 
-> **Current reference.** This document describes the implemented system through
-> Sprint 10. Start at the [documentation index](../README.md). For
-> implementation constraints, follow the repository documentation, architecture notes, and current test contracts
-> decisions, read [Project Context](project_context.md). Documents in
+> **Current reference.** This document describes the implemented system in the
+> current CTRL4 Chatbot MK III release line. Start at the [documentation
+> index](../README.md). For implementation constraints and frozen decisions,
+> read [Project Context](project_context.md). Documents in
 > [roadmap/](../roadmap/) are historical planning artifacts.
 
 ## Purpose and major domains
@@ -99,9 +99,10 @@ state with append-only history. Student case status is a privacy-projected,
 generic status view only.
 
 The staff dashboard uses privacy-safe summaries rather than raw transcripts.
-Inbox presents one current summary item per student/case priority, Flagged
-Cases presents active pending flagged cases, and reviewed cases remain available
-through Reviewed Case History. Case Details presents Detected Emotion and Safety
+Inbox presents one current summary item per student/case priority. Flagged
+Cases presents authorized pending and reviewed flagged cases, with pending
+review clearly distinguished from reviewed status; relevant reviewed history
+also remains available in authorized case details. Case Details presents Detected Emotion and Safety
 Risk as distinct fields. Crisis or sensitive cases remain pending until review;
 routine follow-up must not erase an unresolved flagged case.
 

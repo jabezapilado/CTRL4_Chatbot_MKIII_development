@@ -9,10 +9,13 @@ Sprints 3–10 are complete and frozen. This document captures the implemented a
 ## MK III operational baseline
 
 The validated local database is XAMPP MariaDB `soc_chatbot`. The MK III audit
-found `db.py`, `schema.sql`, and the live schema structurally aligned. The
-local demo cleanup removed chat/case test residue after backup verification and
-preserved all foundation data, including accounts, settings, program catalog,
-FAQs, appointment availability, and staff assignment/room/schedule metadata.
+found `db.py`, `schema.sql`, and the live schema structurally aligned.
+Production instead uses separately provisioned MySQL on the Contabo VPS with
+VPS-only credentials; it is not a copy of the local demonstration database.
+The local demo cleanup removed chat/case test residue after backup verification
+and preserved all foundation data, including accounts, settings, program
+catalog, FAQs, appointment availability, and staff assignment/room/schedule
+metadata.
 
 No versioned migration framework or new index set is part of this release. The
 saved startup auto-setup hardening patch is unvalidated and intentionally not
@@ -208,7 +211,7 @@ ownership. Reports reuse the four existing analytics APIs with one shared
 optional date filter and client-side aggregate-only CSV export; PDF export is
 not implemented.
 
-## Sprint 10 — readiness, security, and deployment
+## Sprint 10 — readiness, security, and deployment (historical validation milestone)
 
 Sprint 10 validated system integration and database synchronization, then
 established server-side CacheLib sessions, protected-chat logging rules,
