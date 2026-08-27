@@ -31,6 +31,24 @@ MK III is the completed, current implementation. Historical roadmaps and MK II
 research records remain available for thesis provenance, but they are not the
 current system contract.
 
+## Project team and contribution areas
+
+The following contribution areas document the work performed across the CTRL4
+thesis project and its successive prototype iterations:
+
+- **Jabez Timothy Apilado** — primary system development, system integration,
+  and the completed CTRL4 Chatbot MK III implementation.
+- **Teyshaun Zell R. Wylengco** — user-interface and user-experience (UI/UX)
+  design.
+- **Grant Mihkael Quilantang** — frontend development for CTRL4 Chatbot MK I
+  and MK II.
+- **Lanix T. Iligan** — public emotion-dataset sourcing and legacy AI-engine
+  development.
+
+These descriptions recognize contribution areas; they do not change the
+project's existing author notices, license, approval workflow, or maintenance
+and security responsibilities.
+
 ## Production deployment
 
 Production is deployed on a single persistent VPS with Nginx, Gunicorn, MySQL,

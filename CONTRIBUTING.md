@@ -6,6 +6,21 @@ The system handles student-support workflows and potentially sensitive content.
 Contributions must therefore protect privacy, preserve Guidance Office workflow
 boundaries, and remain appropriate for an academic project.
 
+## Project contribution record
+
+The project documents the following primary contribution areas across the
+CTRL4 prototype iterations:
+
+- **Jabez Timothy Apilado:** primary system development, system integration,
+  and the completed MK III implementation.
+- **Teyshaun Zell R. Wylengco:** UI/UX design.
+- **Grant Mihkael Quilantang:** frontend development for MK I and MK II.
+- **Lanix T. Iligan:** public emotion-dataset sourcing and legacy AI-engine
+  development.
+
+This record is attribution, not a reassignment of repository ownership,
+maintainer authority, security contacts, or approval responsibilities.
+
 ## Before contributing
 
 - Read the [README](README.md), the [documentation index](docs/README.md), and
