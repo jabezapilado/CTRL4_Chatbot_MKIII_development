@@ -8,8 +8,8 @@ handling of escalated cases are therefore core project requirements.
 
 | Version | Supported | Notes |
 | --- | --- | --- |
-| Current `main` / `v1.0.x` | Yes | Active thesis and production-maintenance line. |
-| Earlier prototype releases | No | Historical research artifacts; do not deploy them. |
+| `v1.0.6` and later / current `main` | Yes | Final-release and active production-maintenance line. |
+| Earlier than `v1.0.6` | No | Historical prototype and research artifacts; do not deploy them. |
 
 ## Security and privacy controls
 
