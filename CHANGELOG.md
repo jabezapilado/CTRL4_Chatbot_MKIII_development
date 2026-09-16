@@ -10,11 +10,11 @@ The format follows the principles of **Keep a Changelog**.
 
 ### Added
 
-- Added client-side pagination to the staff Inbox, Flagged Cases, Chatbot
-  Feedback, dashboard analytics and reports (10 records per page), and
-  administrator account and program-management tables (8 records per page).
-  Dashboard panels grow with their paginated records and use normal page
-  scrolling on short screens instead of a nested vertical table scrollbar.
+- Added client-side pagination to the staff Inbox and Flagged Cases (7 records
+  per page), Chatbot Feedback, dashboard analytics and reports (10 records per
+  page), and administrator account and program-management tables (8 records
+  per page). Dashboard panels grow with their paginated records and use normal
+  page scrolling on short screens instead of a nested vertical table scrollbar.
   Controls appear only when a table exceeds one page; filtering, sorting, and
   applying a new analytics range return that table to its first page without
   changing the authorized server data.

@@ -26,6 +26,10 @@ let reportsAnalytics = null;
 let dashboardLoadPromise = null;
 let reportsLoadPromise = null;
 const DASHBOARD_TABLE_PAGE_SIZE = 10;
+const DASHBOARD_TABLE_PAGE_SIZES = Object.freeze({
+  "inbox-tbody": 7,
+  "flagged-tbody": 7,
+});
 const dashboardTablePages = new Map();
 let appointmentCalendarMonth = new Date(
   new Date().getFullYear(),
@@ -3279,12 +3283,17 @@ function resetDashboardTablePage(tbodyId) {
   dashboardTablePages.set(tbodyId, 1);
 }
 
+function getDashboardTablePageSize(tbodyId) {
+  return DASHBOARD_TABLE_PAGE_SIZES[tbodyId] || DASHBOARD_TABLE_PAGE_SIZE;
+}
+
 function paginateDashboardRows(tbodyId, rows, render) {
   const tbody = document.getElementById(tbodyId);
   const table = tbody?.closest("table");
   const host = table?.parentElement;
   const total = rows.length;
-  const totalPages = Math.max(1, Math.ceil(total / DASHBOARD_TABLE_PAGE_SIZE));
+  const pageSize = getDashboardTablePageSize(tbodyId);
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const requestedPage = dashboardTablePages.get(tbodyId) || 1;
   const page = Math.min(Math.max(1, requestedPage), totalPages);
   dashboardTablePages.set(tbodyId, page);
@@ -3315,8 +3324,8 @@ function paginateDashboardRows(tbodyId, rows, render) {
 
     const summary = document.createElement("span");
     summary.className = "table-pagination-summary";
-    const start = (page - 1) * DASHBOARD_TABLE_PAGE_SIZE + 1;
-    const end = Math.min(page * DASHBOARD_TABLE_PAGE_SIZE, total);
+    const start = (page - 1) * pageSize + 1;
+    const end = Math.min(page * pageSize, total);
     summary.textContent = `Showing ${start}–${end} of ${total} · Page ${page} of ${totalPages}`;
 
     const next = document.createElement("button");
@@ -3333,11 +3342,11 @@ function paginateDashboardRows(tbodyId, rows, render) {
     if (!existingPager) table.after(pager);
   }
 
-  const start = (page - 1) * DASHBOARD_TABLE_PAGE_SIZE;
+  const start = (page - 1) * pageSize;
   return {
-    items: rows.slice(start, start + DASHBOARD_TABLE_PAGE_SIZE),
+    items: rows.slice(start, start + pageSize),
     start: total ? start + 1 : 0,
-    end: Math.min(start + DASHBOARD_TABLE_PAGE_SIZE, total),
+    end: Math.min(start + pageSize, total),
     total,
   };
 }

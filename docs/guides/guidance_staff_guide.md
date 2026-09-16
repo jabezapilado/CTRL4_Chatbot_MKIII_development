@@ -39,10 +39,12 @@ Reviewed Case History retains authorized reviewed records. Staff views do not
 expose raw chat transcripts. In Case Details, read Detected Emotion and Safety
 Risk as separate fields.
 
-Long staff tables show 10 records per page. Use **Previous** and **Next** to
-move through the current authorized results. Searching, filtering, sorting, or
-applying a new analytics date range returns the affected table to its first
-page; pagination does not widen program-scoped access or alter records.
+The Inbox and Flagged Cases tables show 7 records per page because their
+summary rows can be longer. Chatbot Feedback, analytics, and report tables
+show 10 records per page. Use **Previous** and **Next** to move through the
+current authorized results. Searching, filtering, sorting, or applying a new
+analytics date range returns the affected table to its first page; pagination
+does not widen program-scoped access or alter records.
 
 Staff can review authorized inquiries, summaries, escalations, and flagged
 conversations. Use a flagged case's existing panels to:
