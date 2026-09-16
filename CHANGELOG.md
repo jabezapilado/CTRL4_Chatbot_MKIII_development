@@ -74,6 +74,11 @@ The format follows the principles of **Keep a Changelog**.
 
 ### Changed
 
+- Updated the staff Inbox, Flagged Cases, and Chatbot Feedback layouts so their
+  primary table panels use the available viewport height and place pagination
+  controls at the panel bottom. Compact viewports retain normal page scrolling
+  when stacked records need more vertical space.
+
 - Reduced the simulated typing state for ordinary chatbot replies from
   1.2–2.2 seconds to 0.3–0.7 seconds. Safety escalation replies continue to
   bypass the simulated delay entirely.

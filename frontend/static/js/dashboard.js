@@ -3267,10 +3267,12 @@ function appendTableEmptyState(tbody, columnCount, message) {
 
 function clearDashboardTablePagination(tbodyId) {
   const tbody = document.getElementById(tbodyId);
-  const pager = tbody
-    ?.closest("table")
-    ?.parentElement?.querySelector(`[data-table-pagination="${tbodyId}"]`);
+  const host = tbody?.closest("table")?.parentElement;
+  const pager = host?.querySelector(
+    `[data-table-pagination="${tbodyId}"]`,
+  );
   pager?.remove();
+  host?.classList.remove("is-paginated");
 }
 
 function resetDashboardTablePage(tbodyId) {
@@ -3292,7 +3294,9 @@ function paginateDashboardRows(tbodyId, rows, render) {
   );
   if (totalPages <= 1 || !host || !table) {
     existingPager?.remove();
+    host?.classList.remove("is-paginated");
   } else {
+    host.classList.add("is-paginated");
     const pager = existingPager || document.createElement("nav");
     pager.className = "table-pagination";
     pager.dataset.tablePagination = tbodyId;
