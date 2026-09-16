@@ -16,7 +16,7 @@ the existing role/status filters, and use the approved identifier search. The
 not a Guidance Office dashboard. Its displayed-account summary always reflects
 the accounts returned by the current filters.
 
-Account and program tables show 10 records per page when their current result
+Account and program tables show 8 records per page when their current result
 set exceeds that number. Use **Previous** and **Next** to navigate the current
 filtered or sorted records. Pagination is a display control only and does not
 change account-management authority or the underlying records.

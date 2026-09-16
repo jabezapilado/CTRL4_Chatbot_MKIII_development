@@ -64,7 +64,7 @@ let programSort = { key: "display_name", direction: "asc" };
 let loadedAccounts = [];
 let loadedProgramCatalog = [];
 let resettingStudentAccount = null;
-const ADMIN_TABLE_PAGE_SIZE = 10;
+const ADMIN_TABLE_PAGE_SIZE = 8;
 const adminTablePages = new Map();
 
 function accountNumber(account) {

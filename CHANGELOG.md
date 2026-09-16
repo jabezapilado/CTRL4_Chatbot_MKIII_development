@@ -10,7 +10,7 @@ The format follows the principles of **Keep a Changelog**.
 
 ### Added
 
-- Added 10-record client-side pagination to the staff Inbox, Flagged Cases,
+- Added 8-record client-side pagination to the staff Inbox, Flagged Cases,
   Chatbot Feedback, dashboard analytics and reports, and administrator account
   and program-management tables. Controls appear only when a table exceeds one
   page; filtering, sorting, and applying a new analytics range return that
