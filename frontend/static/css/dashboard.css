@@ -477,8 +477,7 @@
 #view-flagged.active,
 #view-feedback.active {
   display: flex;
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: 0 0 auto;
   flex-direction: column;
 }
 
@@ -486,8 +485,7 @@
 #view-flagged > .panel,
 #view-feedback > .panel {
   display: flex;
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: 0 0 auto;
   flex-direction: column;
 }
 
@@ -495,8 +493,7 @@
 #view-flagged .table-wrap,
 #view-feedback .table-wrap {
   display: flex;
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: 0 0 auto;
   flex-direction: column;
 }
 
@@ -1083,32 +1080,16 @@ table.inquiry-table.flagged-table {
     overflow: auto;
   }
 
-  #view-inbox.active {
-    display: flex;
-    flex: 1 1 auto;
-    min-height: 0;
-    flex-direction: column;
-  }
-
   #view-inbox > .panel {
     display: flex;
-    flex: 0 1 auto;
-    min-height: 0;
+    flex: 0 0 auto;
     flex-direction: column;
   }
 
   #view-inbox .table-wrap {
     max-height: none;
-    overflow: auto;
-  }
-}
-
-@media (min-width: 1280px) {
-  .table-wrap.is-paginated .table-pagination {
-    position: sticky;
-    bottom: 0;
-    z-index: 2;
-    box-shadow: 0 -8px 14px rgba(35, 35, 35, 0.06);
+    overflow-x: auto;
+    overflow-y: visible;
   }
 }
 

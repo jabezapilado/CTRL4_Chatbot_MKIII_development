@@ -25,7 +25,7 @@ let flaggedCaseAnalytics = null;
 let reportsAnalytics = null;
 let dashboardLoadPromise = null;
 let reportsLoadPromise = null;
-const DASHBOARD_TABLE_PAGE_SIZE = 7;
+const DASHBOARD_TABLE_PAGE_SIZE = 10;
 const dashboardTablePages = new Map();
 let appointmentCalendarMonth = new Date(
   new Date().getFullYear(),
