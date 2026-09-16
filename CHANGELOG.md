@@ -10,11 +10,12 @@ The format follows the principles of **Keep a Changelog**.
 
 ### Added
 
-- Added 8-record client-side pagination to the staff Inbox, Flagged Cases,
-  Chatbot Feedback, dashboard analytics and reports, and administrator account
-  and program-management tables. Controls appear only when a table exceeds one
-  page; filtering, sorting, and applying a new analytics range return that
-  table to its first page without changing the authorized server data.
+- Added client-side pagination to the staff Inbox, Flagged Cases, Chatbot
+  Feedback, dashboard analytics and reports (7 records per page), and
+  administrator account and program-management tables (8 records per page).
+  Controls appear only when a table exceeds one page; filtering, sorting, and
+  applying a new analytics range return that table to its first page without
+  changing the authorized server data.
 
 - Added a VPS-owned student chat inactivity finalizer. After 20 minutes without
   a completed chat exchange, it finalizes the existing active conversation via
