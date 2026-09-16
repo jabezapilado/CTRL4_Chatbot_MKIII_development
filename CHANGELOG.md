@@ -74,6 +74,10 @@ The format follows the principles of **Keep a Changelog**.
 
 ### Changed
 
+- Removed the horizontal row-shift animation from dashboard tables. Hovering a
+  row now uses a stable background highlight, preventing a transient horizontal
+  scrollbar and table-width adjustment on paginated desktop views.
+
 - Updated the staff Inbox, Flagged Cases, and Chatbot Feedback layouts so their
   primary table panels use the available viewport height and place pagination
   controls at the panel bottom. Compact viewports retain normal page scrolling

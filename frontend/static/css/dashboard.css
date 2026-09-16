@@ -1263,14 +1263,11 @@ table.inquiry-table.inbox-table {
   border-bottom: none;
 }
 .inquiry-table tbody tr {
-  transition:
-    background 0.2s ease,
-    transform 0.2s ease;
+  transition: background 0.2s ease;
 }
 
 .inquiry-table tbody tr:hover {
   background: var(--gray-50);
-  transform: translateX(4px);
 }
 
 table.inquiry-table .table-empty-state {
