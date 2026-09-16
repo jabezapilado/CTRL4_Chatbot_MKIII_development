@@ -56,9 +56,9 @@ The format follows the principles of **Keep a Changelog**.
   session-ended notice, and then returns to the normal sign-in flow.
 - Added turn-based student chat controls: the message field, Send button, and
   quick replies are unavailable while a response is pending.
-- Added a short 1.2–2.2 second typing state for ordinary chatbot replies. The
-  Send control and quick replies remain unavailable during that turn. Safety
-  escalation replies bypass the artificial delay and remain immediate.
+- Added a short typing state for ordinary chatbot replies. The Send control
+  and quick replies remain unavailable during that turn. Safety escalation
+  replies bypass the artificial delay and remain immediate.
 - Added notification navigation: opening an unread item marks it read and
   routes staff high-risk alerts to Flagged Cases, staff appointment alerts to
   Appointment Requests, and student appointment alerts to My Appointments.
@@ -73,6 +73,10 @@ The format follows the principles of **Keep a Changelog**.
   explicit immediate danger is also detected.
 
 ### Changed
+
+- Reduced the simulated typing state for ordinary chatbot replies from
+  1.2–2.2 seconds to 0.3–0.7 seconds. Safety escalation replies continue to
+  bypass the simulated delay entirely.
 
 - Fixed the survey-registration page so its account-created notice is hidden
   until the current browser successfully submits the form, and the completed

@@ -13,8 +13,8 @@ let isAwaitingReply = false;
 // A short typing state makes ordinary exchanges feel conversational without
 // adding a noticeable wait after the server has already produced a reply.
 // Safety replies still bypass this entirely.
-const MIN_NORMAL_REPLY_TYPING_MS = 1200;
-const MAX_NORMAL_REPLY_TYPING_MS = 2200;
+const MIN_NORMAL_REPLY_TYPING_MS = 300;
+const MAX_NORMAL_REPLY_TYPING_MS = 700;
 
 let inactivityTimer = null;
 // Student chat is intentionally the only surface that uses this shorter idle
