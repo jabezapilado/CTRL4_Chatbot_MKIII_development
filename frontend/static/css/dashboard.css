@@ -1103,6 +1103,15 @@ table.inquiry-table.flagged-table {
   }
 }
 
+@media (min-width: 1280px) {
+  .table-wrap.is-paginated .table-pagination {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    box-shadow: 0 -8px 14px rgba(35, 35, 35, 0.06);
+  }
+}
+
 @media (max-width: 1180px) {
   .inbox-stat-grid,
   .feedback-stat-grid,
