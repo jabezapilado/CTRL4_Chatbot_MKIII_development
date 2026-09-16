@@ -64,6 +64,8 @@ let programSort = { key: "display_name", direction: "asc" };
 let loadedAccounts = [];
 let loadedProgramCatalog = [];
 let resettingStudentAccount = null;
+const ADMIN_TABLE_PAGE_SIZE = 10;
+const adminTablePages = new Map();
 
 function accountNumber(account) {
   return account.student_number || account.staff_number || "—";
@@ -176,6 +178,66 @@ function sortRecords(records, sort, valueFor) {
   });
 }
 
+function clearAdminTablePagination(tbodyId) {
+  const tbody = document.getElementById(tbodyId);
+  const pager = tbody
+    ?.closest("table")
+    ?.parentElement?.querySelector(`[data-table-pagination="${tbodyId}"]`);
+  pager?.remove();
+}
+
+function resetAdminTablePage(tbodyId) {
+  adminTablePages.set(tbodyId, 1);
+}
+
+function paginateAdminRows(tbodyId, rows, render) {
+  const tbody = document.getElementById(tbodyId);
+  const table = tbody?.closest("table");
+  const host = table?.parentElement;
+  const total = rows.length;
+  const totalPages = Math.max(1, Math.ceil(total / ADMIN_TABLE_PAGE_SIZE));
+  const requestedPage = adminTablePages.get(tbodyId) || 1;
+  const page = Math.min(Math.max(1, requestedPage), totalPages);
+  adminTablePages.set(tbodyId, page);
+
+  const existingPager = host?.querySelector(
+    `[data-table-pagination="${tbodyId}"]`,
+  );
+  if (totalPages <= 1 || !host || !table) {
+    existingPager?.remove();
+  } else {
+    const pager = existingPager || document.createElement("nav");
+    pager.className = "table-pagination";
+    pager.dataset.tablePagination = tbodyId;
+    pager.setAttribute("aria-label", "Table pagination");
+    pager.replaceChildren();
+
+    const previous = createActionButton("Previous", "btn btn-outline btn-sm", () => {
+      adminTablePages.set(tbodyId, page - 1);
+      render();
+    });
+    previous.disabled = page === 1;
+
+    const summary = document.createElement("span");
+    summary.className = "table-pagination-summary";
+    const start = (page - 1) * ADMIN_TABLE_PAGE_SIZE + 1;
+    const end = Math.min(page * ADMIN_TABLE_PAGE_SIZE, total);
+    summary.textContent = `Showing ${start}–${end} of ${total} · Page ${page} of ${totalPages}`;
+
+    const next = createActionButton("Next", "btn btn-outline btn-sm", () => {
+      adminTablePages.set(tbodyId, page + 1);
+      render();
+    });
+    next.disabled = page === totalPages;
+
+    pager.append(previous, summary, next);
+    if (!existingPager) table.after(pager);
+  }
+
+  const start = (page - 1) * ADMIN_TABLE_PAGE_SIZE;
+  return rows.slice(start, start + ADMIN_TABLE_PAGE_SIZE);
+}
+
 function accountSortValue(account, key) {
   if (key === "account_number") {
     return account.student_number || account.staff_number || "";
@@ -206,11 +268,13 @@ function toggleSort(scope, key) {
 
   if (scope === "account") {
     accountSort = nextSort;
+    resetAdminTablePage("account-list-body");
     renderAccounts(loadedAccounts);
     return;
   }
 
   programSort = nextSort;
+  resetAdminTablePage("program-catalog-list");
   renderProgramCatalog(loadedProgramCatalog);
 }
 
@@ -220,6 +284,7 @@ function renderAccounts(accounts) {
   updateSortControls("account", accountSort);
 
   if (!accounts.length) {
+    clearAdminTablePagination("account-list-body");
     const row = document.createElement("tr");
     const cell = document.createElement("td");
     cell.colSpan = 7;
@@ -230,7 +295,12 @@ function renderAccounts(accounts) {
     return;
   }
 
-  sortRecords(accounts, accountSort, accountSortValue).forEach((account) => {
+  const visibleAccounts = paginateAdminRows(
+    "account-list-body",
+    sortRecords(accounts, accountSort, accountSortValue),
+    () => renderAccounts(accounts),
+  );
+  visibleAccounts.forEach((account) => {
     const row = document.createElement("tr");
     appendAccountCell(row, account.full_name, "Name");
     appendAccountCell(row, account.email, "Email");
@@ -318,6 +388,7 @@ async function loadAccounts() {
       "Unable to retrieve accounts.",
     );
     loadedAccounts = payload.data?.items || [];
+    resetAdminTablePage("account-list-body");
     renderAccounts(loadedAccounts);
     setFeedback(accountListMessage);
   } catch (error) {
@@ -370,6 +441,7 @@ function renderProgramCatalog(catalog) {
   updateSortControls("program", programSort);
 
   if (!catalog.length) {
+    clearAdminTablePagination("program-catalog-list");
     const row = document.createElement("tr");
     const cell = document.createElement("td");
     cell.colSpan = 4;
@@ -380,7 +452,12 @@ function renderProgramCatalog(catalog) {
     return;
   }
 
-  sortRecords(catalog, programSort, (program, key) => program[key]).forEach((program) => {
+  const visiblePrograms = paginateAdminRows(
+    "program-catalog-list",
+    sortRecords(catalog, programSort, (program, key) => program[key]),
+    () => renderProgramCatalog(catalog),
+  );
+  visiblePrograms.forEach((program) => {
     const row = document.createElement("tr");
     const toggle = createActionButton(
       program.active ? "Deactivate" : "Activate",
@@ -424,6 +501,7 @@ async function loadPrograms() {
       "Unable to retrieve programs.",
     );
     loadedProgramCatalog = payload.data?.items || [];
+    resetAdminTablePage("program-catalog-list");
     programs = loadedProgramCatalog.filter((program) => program.active);
     populateProgramSelect();
     renderAssignedPrograms(

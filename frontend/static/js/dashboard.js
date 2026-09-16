@@ -25,6 +25,8 @@ let flaggedCaseAnalytics = null;
 let reportsAnalytics = null;
 let dashboardLoadPromise = null;
 let reportsLoadPromise = null;
+const DASHBOARD_TABLE_PAGE_SIZE = 10;
+const dashboardTablePages = new Map();
 let appointmentCalendarMonth = new Date(
   new Date().getFullYear(),
   new Date().getMonth(),
@@ -459,11 +461,16 @@ function renderAnalyticsRows(
   container.replaceChildren();
 
   if (!rows.length) {
+    clearDashboardTablePagination(containerId);
     appendTableEmptyState(container, 2, emptyMessage);
     return;
   }
 
-  rows.forEach((item) => {
+  const page = paginateDashboardRows(containerId, rows, () => {
+    renderAnalyticsRows(containerId, rows, labelKey, emptyMessage);
+  });
+
+  page.items.forEach((item) => {
     const row = document.createElement("tr");
     const label = document.createElement("td");
     const count = document.createElement("td");
@@ -637,6 +644,12 @@ async function loadChatbotAnalytics() {
     `${API_BASE}/api/dashboard/chatbot/analytics${suffix}`,
   );
   chatbotAnalytics = result.data || null;
+  [
+    "chatbot-analytics-emotions",
+    "chatbot-analytics-daily",
+    "chatbot-analytics-weekly",
+    "chatbot-analytics-monthly",
+  ].forEach(resetDashboardTablePage);
   renderChatbotAnalytics();
 }
 
@@ -728,6 +741,7 @@ async function loadCounselorWorkloadAnalytics() {
     `${API_BASE}/api/dashboard/counselor-workload${suffix}`,
   );
   counselorWorkloadAnalytics = result.data || null;
+  resetDashboardTablePage("counselor-workload-programs");
   renderCounselorWorkloadAnalytics();
 }
 
@@ -826,6 +840,12 @@ async function loadFlaggedCaseAnalytics() {
     `${API_BASE}/api/dashboard/flagged-cases/analytics${suffix}`,
   );
   flaggedCaseAnalytics = result.data || null;
+  [
+    "flagged-case-analytics-statuses",
+    "flagged-case-analytics-daily",
+    "flagged-case-analytics-weekly",
+    "flagged-case-analytics-monthly",
+  ].forEach(resetDashboardTablePage);
   renderFlaggedCaseAnalytics();
 }
 
@@ -878,6 +898,14 @@ async function loadAppointmentAnalytics() {
     `${API_BASE}/api/dashboard/appointments/analytics${suffix}`,
   );
   appointmentAnalytics = result.data || null;
+  [
+    "appointment-analytics-statuses",
+    "appointment-analytics-daily",
+    "appointment-analytics-weekly",
+    "appointment-analytics-monthly",
+    "appointment-analytics-counselors",
+    "appointment-analytics-programs",
+  ].forEach(resetDashboardTablePage);
   renderAppointmentAnalytics();
 }
 
@@ -2735,11 +2763,17 @@ function bindSettingsInteractions() {
 function bindInboxControls() {
   document
     .getElementById("inbox-search-input")
-    ?.addEventListener("input", renderInquiryTable);
+    ?.addEventListener("input", () => {
+      resetDashboardTablePage("inbox-tbody");
+      renderInquiryTable();
+    });
   document
     .getElementById("inbox-filter")
-    ?.addEventListener("change", renderInquiryTable);
-  bindTableSortControls("inbox-table", inboxSort, renderInquiryTable);
+    ?.addEventListener("change", () => {
+      resetDashboardTablePage("inbox-tbody");
+      renderInquiryTable();
+    });
+  bindTableSortControls("inbox-table", inboxSort, renderInquiryTable, "inbox-tbody");
   document.getElementById("inbox-retry")?.addEventListener("click", () => {
     void loadBackendData();
   });
@@ -2748,14 +2782,23 @@ function bindInboxControls() {
 function bindFeedbackControls() {
   document
     .getElementById("feedback-filter")
-    ?.addEventListener("change", renderChatbotFeedback);
+    ?.addEventListener("change", () => {
+      resetDashboardTablePage("feedback-tbody");
+      renderChatbotFeedback();
+    });
   document
     .getElementById("feedback-context-filter")
-    ?.addEventListener("change", renderChatbotFeedback);
+    ?.addEventListener("change", () => {
+      resetDashboardTablePage("feedback-tbody");
+      renderChatbotFeedback();
+    });
   document
     .getElementById("feedback-search-input")
-    ?.addEventListener("input", renderChatbotFeedback);
-  bindTableSortControls("feedback-table", feedbackSort, renderChatbotFeedback);
+    ?.addEventListener("input", () => {
+      resetDashboardTablePage("feedback-tbody");
+      renderChatbotFeedback();
+    });
+  bindTableSortControls("feedback-table", feedbackSort, renderChatbotFeedback, "feedback-tbody");
   document.getElementById("feedback-retry")?.addEventListener("click", () => {
     void loadBackendData();
   });
@@ -2764,17 +2807,23 @@ function bindFeedbackControls() {
 function bindFlaggedControls() {
   document
     .getElementById("flagged-filter")
-    ?.addEventListener("change", renderFlaggedConversations);
+    ?.addEventListener("change", () => {
+      resetDashboardTablePage("flagged-tbody");
+      renderFlaggedConversations();
+    });
   document
     .getElementById("flagged-search-input")
-    ?.addEventListener("input", renderFlaggedConversations);
-  bindTableSortControls("flagged-table", flaggedSort, renderFlaggedConversations);
+    ?.addEventListener("input", () => {
+      resetDashboardTablePage("flagged-tbody");
+      renderFlaggedConversations();
+    });
+  bindTableSortControls("flagged-table", flaggedSort, renderFlaggedConversations, "flagged-tbody");
   document.getElementById("flagged-retry")?.addEventListener("click", () => {
     void loadBackendData();
   });
 }
 
-function bindTableSortControls(tableId, sortState, render) {
+function bindTableSortControls(tableId, sortState, render, paginationId = "") {
   const table = document.getElementById(tableId);
   if (!table) return;
   table.querySelectorAll("[data-sort-key]").forEach((button) => {
@@ -2787,6 +2836,7 @@ function bindTableSortControls(tableId, sortState, render) {
         sortState.key = key;
         sortState.direction = "asc";
       }
+      if (paginationId) resetDashboardTablePage(paginationId);
       render();
     });
   });
@@ -3215,6 +3265,79 @@ function appendTableEmptyState(tbody, columnCount, message) {
   tbody.appendChild(row);
 }
 
+function clearDashboardTablePagination(tbodyId) {
+  const tbody = document.getElementById(tbodyId);
+  const pager = tbody
+    ?.closest("table")
+    ?.parentElement?.querySelector(`[data-table-pagination="${tbodyId}"]`);
+  pager?.remove();
+}
+
+function resetDashboardTablePage(tbodyId) {
+  dashboardTablePages.set(tbodyId, 1);
+}
+
+function paginateDashboardRows(tbodyId, rows, render) {
+  const tbody = document.getElementById(tbodyId);
+  const table = tbody?.closest("table");
+  const host = table?.parentElement;
+  const total = rows.length;
+  const totalPages = Math.max(1, Math.ceil(total / DASHBOARD_TABLE_PAGE_SIZE));
+  const requestedPage = dashboardTablePages.get(tbodyId) || 1;
+  const page = Math.min(Math.max(1, requestedPage), totalPages);
+  dashboardTablePages.set(tbodyId, page);
+
+  const existingPager = host?.querySelector(
+    `[data-table-pagination="${tbodyId}"]`,
+  );
+  if (totalPages <= 1 || !host || !table) {
+    existingPager?.remove();
+  } else {
+    const pager = existingPager || document.createElement("nav");
+    pager.className = "table-pagination";
+    pager.dataset.tablePagination = tbodyId;
+    pager.setAttribute("aria-label", "Table pagination");
+    pager.replaceChildren();
+
+    const previous = document.createElement("button");
+    previous.type = "button";
+    previous.className = "btn btn-outline btn-sm";
+    previous.textContent = "Previous";
+    previous.disabled = page === 1;
+    previous.addEventListener("click", () => {
+      dashboardTablePages.set(tbodyId, page - 1);
+      render();
+    });
+
+    const summary = document.createElement("span");
+    summary.className = "table-pagination-summary";
+    const start = (page - 1) * DASHBOARD_TABLE_PAGE_SIZE + 1;
+    const end = Math.min(page * DASHBOARD_TABLE_PAGE_SIZE, total);
+    summary.textContent = `Showing ${start}–${end} of ${total} · Page ${page} of ${totalPages}`;
+
+    const next = document.createElement("button");
+    next.type = "button";
+    next.className = "btn btn-outline btn-sm";
+    next.textContent = "Next";
+    next.disabled = page === totalPages;
+    next.addEventListener("click", () => {
+      dashboardTablePages.set(tbodyId, page + 1);
+      render();
+    });
+
+    pager.append(previous, summary, next);
+    if (!existingPager) table.after(pager);
+  }
+
+  const start = (page - 1) * DASHBOARD_TABLE_PAGE_SIZE;
+  return {
+    items: rows.slice(start, start + DASHBOARD_TABLE_PAGE_SIZE),
+    start: total ? start + 1 : 0,
+    end: Math.min(start + DASHBOARD_TABLE_PAGE_SIZE, total),
+    total,
+  };
+}
+
 function formatInboxTimestamp(value) {
   if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
     return "Unavailable";
@@ -3302,10 +3425,12 @@ function renderInquiryTable() {
   tbody.replaceChildren();
   syncTableSortHeaders("inbox-table", inboxSort);
   if (inboxLoadState === "loading") {
+    clearDashboardTablePagination("inbox-tbody");
     appendTableEmptyState(tbody, 7, "Loading current student summary items...");
     return;
   }
   if (inboxLoadState === "error") {
+    clearDashboardTablePagination("inbox-tbody");
     appendTableEmptyState(
       tbody,
       7,
@@ -3316,6 +3441,7 @@ function renderInquiryTable() {
 
   const items = inboxItemsForCurrentFilter();
   if (!items.length) {
+    clearDashboardTablePagination("inbox-tbody");
     appendTableEmptyState(
       tbody,
       7,
@@ -3326,7 +3452,8 @@ function renderInquiryTable() {
     return;
   }
 
-  items.forEach((item) => {
+  const page = paginateDashboardRows("inbox-tbody", items, renderInquiryTable);
+  page.items.forEach((item) => {
     const row = document.createElement("tr");
     row.className = "inbox-record";
     const student = document.createElement("td");
@@ -3368,7 +3495,7 @@ function renderInquiryTable() {
   });
 
   setInboxState(
-    `${items.length} current student summary ${items.length === 1 ? "item" : "items"} shown.`,
+    `Showing ${page.start}–${page.end} of ${page.total} current student summary ${page.total === 1 ? "item" : "items"}.`,
   );
 }
 
@@ -3511,15 +3638,18 @@ function renderChatbotFeedback() {
   syncTableSortHeaders("feedback-table", feedbackSort);
 
   if (chatbotFeedbackLoadState === "loading") {
+    clearDashboardTablePagination("feedback-tbody");
     appendTableEmptyState(tbody, 6, "Loading student feedback...");
     return;
   }
   if (chatbotFeedbackLoadState === "error") {
+    clearDashboardTablePagination("feedback-tbody");
     appendTableEmptyState(tbody, 6, "Student feedback is unavailable right now.");
     return;
   }
   const items = feedbackItemsForCurrentFilter();
   if (!items.length) {
+    clearDashboardTablePagination("feedback-tbody");
     appendTableEmptyState(
       tbody,
       6,
@@ -3535,7 +3665,12 @@ function renderChatbotFeedback() {
     return;
   }
 
-  items.forEach((feedback) => {
+  const page = paginateDashboardRows(
+    "feedback-tbody",
+    items,
+    renderChatbotFeedback,
+  );
+  page.items.forEach((feedback) => {
     const row = document.createElement("tr");
     const student = document.createElement("td");
     const studentName = document.createElement("strong");
@@ -3558,7 +3693,7 @@ function renderChatbotFeedback() {
     tbody.appendChild(row);
   });
   setFeedbackState(
-    `${items.length} student feedback ${items.length === 1 ? "item" : "items"} shown.`,
+    `Showing ${page.start}–${page.end} of ${page.total} student feedback ${page.total === 1 ? "item" : "items"}.`,
   );
 }
 
@@ -3639,6 +3774,7 @@ function renderFlaggedConversations() {
   syncTableSortHeaders("flagged-table", flaggedSort);
 
   if (!flaggedConversationsLoaded) {
+    clearDashboardTablePagination("flagged-tbody");
     appendTableEmptyState(
       tbody,
       6,
@@ -3651,6 +3787,7 @@ function renderFlaggedConversations() {
   const conversations = flaggedItemsForCurrentFilter();
 
   if (!conversations.length) {
+    clearDashboardTablePagination("flagged-tbody");
     appendTableEmptyState(
       tbody,
       6,
@@ -3666,7 +3803,12 @@ function renderFlaggedConversations() {
     return;
   }
 
-  conversations.forEach((conversation) => {
+  const page = paginateDashboardRows(
+    "flagged-tbody",
+    conversations,
+    renderFlaggedConversations,
+  );
+  page.items.forEach((conversation) => {
     const row = document.createElement("tr");
     const student = document.createElement("td");
     const studentName = document.createElement("strong");
@@ -3710,7 +3852,7 @@ function renderFlaggedConversations() {
     tbody.appendChild(row);
   });
   setFlaggedState(
-    `${conversations.length} flagged ${conversations.length === 1 ? "case" : "cases"} shown.`,
+    `Showing ${page.start}–${page.end} of ${page.total} flagged ${page.total === 1 ? "case" : "cases"}.`,
   );
 }
 
@@ -3866,6 +4008,7 @@ function appendReportRows(containerId, rows) {
   container.replaceChildren();
 
   if (!rows.length) {
+    clearDashboardTablePagination(containerId);
     appendTableEmptyState(
       container,
       2,
@@ -3874,7 +4017,10 @@ function appendReportRows(containerId, rows) {
     return;
   }
 
-  rows.forEach(([labelText, value]) => {
+  const page = paginateDashboardRows(containerId, rows, () => {
+    appendReportRows(containerId, rows);
+  });
+  page.items.forEach(([labelText, value]) => {
     const row = document.createElement("tr");
     const label = document.createElement("td");
     const count = document.createElement("td");
@@ -4035,6 +4181,17 @@ async function loadCombinedReports() {
     workload: workload.data || {},
     flaggedCases: flaggedCases.data || {},
   };
+  [
+    "reports-overview-appointment-summary",
+    "reports-overview-chatbot-summary",
+    "reports-overview-workload-summary",
+    "reports-overview-flagged-case-summary",
+    "reports-overview-recent-activity",
+    "reports-appointment-rows",
+    "reports-chatbot-rows",
+    "reports-workload-rows",
+    "reports-flagged-case-rows",
+  ].forEach(resetDashboardTablePage);
   renderCombinedReports();
   renderDashboardOverview();
 }
